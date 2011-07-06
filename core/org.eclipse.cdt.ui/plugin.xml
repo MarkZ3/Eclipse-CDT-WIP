@@ -3574,6 +3574,12 @@
             name="%cElementHyperlinkDetector"
             targetId="org.eclipse.cdt.ui.cCode">
       </hyperlinkDetector>
+       <hyperlinkDetector
+             class="org.eclipse.cdt.internal.ui.editor.CReturnTypeHyperlinkDetector"
+             id="org.eclipse.cdt.ui.editor.CReturnTypeHyperlinkDetector"
+             name="%cReturnTypeHyperlinkDetector"
+             targetId="org.eclipse.cdt.ui.cCode">
+       </hyperlinkDetector>
    </extension>
    <extension
          point="org.eclipse.ui.importWizards">

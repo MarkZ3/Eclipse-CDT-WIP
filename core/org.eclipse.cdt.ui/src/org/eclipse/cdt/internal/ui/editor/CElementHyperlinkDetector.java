@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 QNX Software Systems and others.
+ * Copyright (c) 2000, 2010 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -66,7 +66,7 @@ public class CElementHyperlinkDetector extends AbstractHyperlinkDetector {
 			return null;
 		}
 
-		final IRegion[] hyperlinkRegion = { null };
+		final IHyperlink[] result= {null};
 		// Do not wait for AST if it's not available yet. Waiting for AST would block the UI thread
 		// for the duration of the parsing.
 		IStatus status= ASTProvider.getASTProvider().runOnAST(workingCopy, ASTProvider.WAIT_NO, null, new ASTRunnable() {
@@ -118,50 +118,63 @@ public class CElementHyperlinkDetector extends AbstractHyperlinkDetector {
 					// (see http://bugs.eclipse.org/bugs/show_bug.cgi?id=333050).
 					return Status.CANCEL_STATUS;
 				}
-
-				hyperlinkRegion[0] = new Region(linkLocation.getNodeOffset(), linkLocation.getNodeLength());
+				
+				result[0] = createHyperLink(new Region(linkLocation.getNodeOffset(), linkLocation.getNodeLength()), selectedName, openAction);
 				return Status.OK_STATUS;
 			}
 		});
 
+		if (result[0] != null)
+			return result;
+		
 		if (status == Status.CANCEL_STATUS) {
-			// AST was not available yet or didn't help us to find the hyperlink, try to compute
-			// the hyperlink without it.  
-			try {
-				// Check partition type.
-				String partitionType= TextUtilities.getContentType(document, ICPartitions.C_PARTITIONING, region.getOffset(), false);
-				if (IDocument.DEFAULT_CONTENT_TYPE.equals(partitionType)) {
-					// Regular code.
-					hyperlinkRegion[0] = getIdentifier(document, region.getOffset(), workingCopy.getLanguage());
-				} else if (ICPartitions.C_PREPROCESSOR.equals(partitionType)) {
-					// Preprocessor directive.
-					Scanner scanner= new Scanner();
-					scanner.setSplitPreprocessor(true);
-		            scanner.setSource(document.get().toCharArray());
-		            scanner.setCurrentPosition(findPreprocessorDirectiveStart(document, region.getOffset()));
-		            Token token = scanner.nextToken();
-		            if (token.getType() == Token.tPREPROCESSOR_INCLUDE) {
-		            	int endPos = token.getOffset() + token.getLength();
-		            	// Trim trailing whitespace.
-		            	while (Character.isWhitespace(document.getChar(--endPos))) {
-		            	}
-		            	endPos++;
-			            if (region.getOffset() <= endPos) {
-			            	hyperlinkRegion[0] = new Region(token.getOffset(), endPos - token.getOffset());
-			            }
-		            } else {
-						hyperlinkRegion[0] = getIdentifier(document, region.getOffset(), workingCopy.getLanguage());
-		            }
-				}
-			} catch (BadLocationException e) {
-				// Ignore to return null.
-			} catch (CoreException e) {
-				// Ignore to return null.
-			}
+			return getNonASTBasedHyperlinks(region, openAction, document, workingCopy);
 		}
-		if (hyperlinkRegion[0] == null)
-			return null;
-		return new IHyperlink[] { new CElementHyperlink(hyperlinkRegion[0], openAction) };
+		return null;
+	}
+
+	protected IHyperlink[] getNonASTBasedHyperlinks(final IRegion region, final IAction openAction,
+			IDocument document, final IWorkingCopy workingCopy) {
+		final IHyperlink[] result= {null};
+		final IRegion[] hyperlinkRegion = { null };
+		// AST was not available yet or didn't help us to find the hyperlink, try to compute
+		// the hyperlink without it. 
+		try {
+			// Check partition type.
+			String partitionType= TextUtilities.getContentType(document, ICPartitions.C_PARTITIONING, region.getOffset(), false);
+			if (IDocument.DEFAULT_CONTENT_TYPE.equals(partitionType)) {
+				// Regular code.
+				hyperlinkRegion[0] = getIdentifier(document, region.getOffset(), workingCopy.getLanguage());
+			} else if (ICPartitions.C_PREPROCESSOR.equals(partitionType)) {
+				// Preprocessor directive.
+				Scanner scanner= new Scanner();
+				scanner.setSplitPreprocessor(true);
+		        scanner.setSource(document.get().toCharArray());
+		        scanner.setCurrentPosition(findPreprocessorDirectiveStart(document, region.getOffset()));
+		        Token token = scanner.nextToken();
+		        if (token.getType() == Token.tPREPROCESSOR_INCLUDE) {
+		        	int endPos = token.getOffset() + token.getLength();
+		        	// Trim trailing whitespace.
+		        	while (Character.isWhitespace(document.getChar(--endPos))) {
+		        	}
+		        	endPos++;
+		            if (region.getOffset() <= endPos) {
+		            	hyperlinkRegion[0] = new Region(token.getOffset(), endPos - token.getOffset());
+		            }
+		        } else {
+					hyperlinkRegion[0] = getIdentifier(document, region.getOffset(), workingCopy.getLanguage());
+		        }
+			}
+		} catch (BadLocationException e) {
+			// Ignore to return null.
+		} catch (CoreException e) {
+			// Ignore to return null.
+		}
+		if (hyperlinkRegion[0] != null) {
+			result[0] = new CElementHyperlink(hyperlinkRegion[0], openAction);
+			return result;
+		}
+		return null;
 	}
 
 	/**
@@ -177,6 +190,10 @@ public class CElementHyperlinkDetector extends AbstractHyperlinkDetector {
 			}
 		}
 		return null;
+	}
+	
+	protected IHyperlink createHyperLink(IRegion region, IASTName selectedName, IAction openAction) {
+		return new CElementHyperlink(region, openAction);
 	}
 
 	private static boolean isLanguageKeyword(ILanguage lang, String word) {

@@ -97,6 +97,7 @@ public final class CEditorMessages extends NLS {
 	public static String CEditor_markOccurrences_job_name;
 	public static String CEditor_index_expander_job_name;
 	public static String CEditorActionContributor_ExpandSelectionMenu_label;
+	public static String OpenReturnType_name;
 
 	static {
 		NLS.initializeMessages(CEditorMessages.class.getName(), CEditorMessages.class);
