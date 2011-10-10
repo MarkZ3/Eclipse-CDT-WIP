@@ -19,12 +19,12 @@ import org.eclipse.cdt.core.dom.ast.IMacroBinding;
 import org.eclipse.cdt.core.dom.parser.IScannerExtensionConfiguration;
 import org.eclipse.cdt.core.dom.parser.c.GCCScannerExtensionConfiguration;
 import org.eclipse.cdt.core.dom.parser.cpp.GPPScannerExtensionConfiguration;
-import org.eclipse.cdt.core.parser.FileContent;
-import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
 import org.eclipse.cdt.core.parser.EndOfFileException;
+import org.eclipse.cdt.core.parser.FileContent;
 import org.eclipse.cdt.core.parser.IParserLogService;
 import org.eclipse.cdt.core.parser.IScannerInfo;
 import org.eclipse.cdt.core.parser.IToken;
+import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
 import org.eclipse.cdt.core.parser.NullLogService;
 import org.eclipse.cdt.core.parser.ParserLanguage;
 import org.eclipse.cdt.core.parser.ParserMode;
@@ -83,7 +83,7 @@ public abstract class PreprocessorTestsBase extends BaseTestCase {
 		    	scannerConfig= GCCScannerExtensionConfiguration.getInstance();
 		    }
 		    else {
-		    	scannerConfig= GPPScannerExtensionConfiguration.getInstance();
+		    	scannerConfig= GPPScannerExtensionConfiguration.getInstance(scannerInfo);
 		    }
 		}
 	    
@@ -95,10 +95,9 @@ public abstract class PreprocessorTestsBase extends BaseTestCase {
 		initializeScanner(getAboveComment());
 	}
 
-	protected StringBuffer[] getTestContent(int sections) throws IOException {
-		StringBuffer[] input= TestSourceReader.getContentsForTest(
+	protected StringBuilder[] getTestContent(int sections) throws IOException {
+		return TestSourceReader.getContentsForTest(
 				CTestPlugin.getDefault().getBundle(), "parser", getClass(), getName(), sections);
-		return input;
 	}
 
 	protected String getAboveComment() throws IOException {
@@ -110,8 +109,7 @@ public abstract class PreprocessorTestsBase extends BaseTestCase {
 			for(;;) {
 				IToken t= fScanner.nextToken();
 			}
-		}
-		catch ( EndOfFileException e){
+		} catch ( EndOfFileException e){
 		}
 	}
 

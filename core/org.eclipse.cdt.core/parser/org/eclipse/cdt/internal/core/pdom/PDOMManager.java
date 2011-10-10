@@ -85,6 +85,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.ProjectScope;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -146,6 +147,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 	
 	private final LinkedList<Runnable> fChangeEvents= new LinkedList<Runnable>();
 	private final Job fNotificationJob;
+
+	private final AtomicMultiSet<IIndexFileLocation> fFilesIndexedUnconditionlly= new AtomicMultiSet<IIndexFileLocation>(); 
 	
     /**
      * Stores mapping from pdom to project, used to serialize creation of new pdoms.
@@ -479,6 +482,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		String newid= IndexerPreferences.get(prj, IndexerPreferences.KEY_INDEXER_ID, IPDOMManager.ID_NO_INDEXER);
 		Properties props= IndexerPreferences.getProperties(prj);
 		
+		// Workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=359485
+		synchronized (new ProjectScope(prj).getNode(CCorePlugin.PLUGIN_ID)) {
 		synchronized (fUpdatePolicies) {
 			if (fClosingProjects.contains(prj.getName())) {
 				return;
@@ -502,7 +507,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 				}
 				enqueue(new PDOMRebuildTask(indexer));
 			}
-		}
+		}}
 		
 		if (oldIndexer != null) {
 			stopIndexer(oldIndexer);
@@ -535,6 +540,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		
 		assert !Thread.holdsLock(fProjectToPDOM);
 		try {
+			// Workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=359485
+			synchronized (new ProjectScope(prj).getNode(CCorePlugin.PLUGIN_ID)) {
 			synchronized (fUpdatePolicies) {
 				if (fClosingProjects.contains(name)) {
 					if (fTraceIndexerSetup) 
@@ -584,12 +591,14 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 					}
 					return;
 				}
-			}
+			}}
 
 			// rebuild is required, try import first.
 			TeamPDOMImportOperation operation= new TeamPDOMImportOperation(project);
 			operation.run(pm);
 
+			// Workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=359485
+			synchronized (new ProjectScope(prj).getNode(CCorePlugin.PLUGIN_ID)) {
 			synchronized (fUpdatePolicies) {
 				if (fClosingProjects.contains(name)) {
 					if (fTraceIndexerSetup) 
@@ -616,7 +625,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 					task= new PDOMRebuildTask(indexer);
 				}
 				enqueue(task);
-			}
+			}}
 		} catch (CoreException e) {
 			// Ignore if project is no longer open
 			if (prj.isOpen()) {
@@ -635,7 +644,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
     			IConfigurationElement element = elements[i];
     			if ("run".equals(element.getName())) { //$NON-NLS-1$
     				try {
-						indexer = (IPDOMIndexer)element.createExecutableExtension("class"); //$NON-NLS-1$
+						indexer = (IPDOMIndexer) element.createExecutableExtension("class"); //$NON-NLS-1$
 						indexer.setProperties(props);
 					} catch (CoreException e) {
 						CCorePlugin.log(e);
@@ -1366,6 +1375,24 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 	private void update(ICProject project, List<ICElement> filesAndFolders, int options) throws CoreException {
 		assert !Thread.holdsLock(fProjectToPDOM);
 		synchronized (fUpdatePolicies) {
+			if ((options & IIndexManager.FORCE_INDEX_INCLUSION) != 0) {
+				for (ICElement element : filesAndFolders) {
+					if (element instanceof ITranslationUnit) {
+						ITranslationUnit tu = (ITranslationUnit) element;
+						IIndexFileLocation ifl = IndexLocationFactory.getIFL(tu);
+						fFilesIndexedUnconditionlly.add(ifl);
+					}
+				}
+			}
+			if ((options & IIndexManager.RESET_INDEX_INCLUSION) != 0) {
+				for (ICElement element : filesAndFolders) {
+					if (element instanceof ITranslationUnit) {
+						ITranslationUnit tu = (ITranslationUnit) element;
+						IIndexFileLocation ifl = IndexLocationFactory.getIFL(tu);
+						fFilesIndexedUnconditionlly.remove(ifl);
+					}
+				}
+			}
 			IPDOMIndexer indexer= getIndexer(project);
 			PDOMUpdateTask task= new PDOMUpdateTask(indexer, options);
 			task.setTranslationUnitSelection(filesAndFolders);
@@ -1540,5 +1567,9 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		}
 		
 		return true;
+	}
+
+	public boolean isFileIndexedUnconditionally(IIndexFileLocation ifl) {
+		return fFilesIndexedUnconditionlly.contains(ifl);
 	}
 }

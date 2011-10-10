@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2010 QNX Software Systems and others.
+ * Copyright (c) 2000, 2011 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,7 +19,6 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.eclipse.cdt.debug.core.cdi.CDIException;
 import org.eclipse.cdt.debug.core.cdi.model.ICDIRegisterDescriptor;
@@ -70,7 +69,8 @@ public class RegisterManager extends Manager {
 		/* (non-Javadoc)
 		 * @see java.util.LinkedHashMap#removeEldestEntry(java.util.Map.Entry)
 		 */
-		protected boolean removeEldestEntry(Entry eldest) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry eldest) {
             boolean toRemove = size() > MAX_ENTRIES;
             if (toRemove) {
         		ShadowRegister v = (ShadowRegister)eldest.getValue();
@@ -111,6 +111,7 @@ public class RegisterManager extends Manager {
 		/* (non-Javadoc)
 		 * @see org.eclipse.cdt.debug.mi.core.cdi.model.Variable#getMIVar()
 		 */
+		@Override
 		public MIVar getMIVar() throws CDIException {
 			if (fMIVar == null) {
 				fMIVar = createMiVar((StackFrame)getStackFrame(), getName());
@@ -372,6 +373,7 @@ public class RegisterManager extends Manager {
 		return null;
 	}
 
+	@Override
 	public void update(Target target) throws CDIException {
 		MISession mi = target.getMISession();
 		CommandFactory factory = mi.getCommandFactory();

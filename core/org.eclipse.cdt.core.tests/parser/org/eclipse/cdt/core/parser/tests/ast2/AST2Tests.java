@@ -58,6 +58,7 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNullStatement;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTPointerOperator;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfdefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroExpansion;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorPragmaStatement;
@@ -4038,7 +4039,7 @@ public class AST2Tests extends AST2BaseTest {
 	//	    ASSERT(false);// fine
 	//	}
 	public void testBug188855_gccExtensionForVariadicMacros() throws Exception {
-		StringBuffer[] buffer = getContents(2);
+		CharSequence[] buffer = getContents(2);
 		final String content1 = buffer[0].toString();
 		final String content2 = buffer[1].toString();
 		parse(content1, ParserLanguage.CPP); 
@@ -4842,7 +4843,7 @@ public class AST2Tests extends AST2BaseTest {
     //    return 0;
     // }
     public void testBug228422_noKnrParam() throws Exception {
-    	StringBuffer buffer = getContents(1)[0];
+    	CharSequence buffer = getContents(1)[0];
     	parse(buffer.toString(), ParserLanguage.C, false);
     }
     
@@ -5261,7 +5262,7 @@ public class AST2Tests extends AST2BaseTest {
     // (typeof a)(t)-a  	// typeof a,t,a,unary-,cast,cast
     // (typeof a)(a)-a  	// typeof a,a,cast,a,-
     public void testBinaryVsCastAmbiguities_Bug237057() throws Exception {
-    	StringBuffer[] input= getContents(2);
+    	CharSequence[] input= getContents(2);
     	String code= input[0].toString();
     	String[] samples= input[1].toString().split("\n");
     	for (ParserLanguage lang : ParserLanguage.values()) {
@@ -5301,7 +5302,7 @@ public class AST2Tests extends AST2BaseTest {
     // (f)(a)+1				// f,a,(),1,+
     // (t)(t)+1				// t,t,1,unary+,cast,cast
     public void testCastVsFunctionCallAmbiguities_Bug237057() throws Exception {
-    	StringBuffer[] input= getContents(2);
+    	CharSequence[] input= getContents(2);
     	String code= input[0].toString();
     	String[] samples= input[1].toString().split("\n");
     	for (ParserLanguage lang : ParserLanguage.values()) {
@@ -5326,7 +5327,7 @@ public class AST2Tests extends AST2BaseTest {
     // 0, a= 1 ? 2,3 : b= 4, 5    	// 0,a,1,2,3,,,b,4,=,?,=,5,,
     // 1 ? 2 ? 3 : 4 ? 5 : 6 : 7    // 1,2,3,4,5,6,?,?,7,?
     public void testBinaryExpressionBinding() throws Exception {
-    	StringBuffer[] input= getContents(2);
+    	CharSequence[] input= getContents(2);
     	String code= input[0].toString();
     	String[] samples= input[1].toString().split("\n");
     	for (ParserLanguage lang : ParserLanguage.values()) {
@@ -5351,7 +5352,7 @@ public class AST2Tests extends AST2BaseTest {
     // 1 ? 2,3 : b= 4	    		// 1,2,3,,,b,4,=,?
     // 1 ? 2 ? 3 : 4 ? 5 : 6 : 7    // 1,2,3,4,5,6,?,?,7,?
     public void testConstantExpressionBinding() throws Exception {
-    	StringBuffer[] input= getContents(2);
+    	CharSequence[] input= getContents(2);
     	String code= input[0].toString();
     	String[] samples= input[1].toString().split("\n");
     	for (ParserLanguage lang : ParserLanguage.values()) {
@@ -5858,7 +5859,7 @@ public class AST2Tests extends AST2BaseTest {
 	public void testScalabilityOfLargeTrivialInitializer_Bug253690() throws Exception {
 		sValidateCopy= false;
 		final int AMOUNT= 250000;
-		final StringBuffer[] input = getContents(3);
+		final CharSequence[] input = getContents(3);
 		StringBuilder buf= new StringBuilder();
 		buf.append(input[0].toString());
 		final String line= input[1].toString();
@@ -5891,7 +5892,7 @@ public class AST2Tests extends AST2BaseTest {
 	public void testLargeTrivialAggregateInitializer_Bug253690() throws Exception {
 		sValidateCopy= false;
 		final int AMOUNT= 250000;
-		final StringBuffer[] input = getContents(3);
+		final CharSequence[] input = getContents(3);
 		StringBuilder buf= new StringBuilder();
 		buf.append(input[0].toString());
 		final String line= input[1].toString();
@@ -7321,4 +7322,42 @@ public class AST2Tests extends AST2BaseTest {
 		bh.assertNonProblem("a;", 1);
 	}
 
+	//	#ifdef A // active, not taken.
+	//	#ifdef B // inactive, not taken.
+	//	#endif   // inactive
+	//	#endif   // active
+	public void testInactivePreprocessingStatements() throws Exception {
+		IASTTranslationUnit tu= parseAndCheckBindings(getAboveComment());
+		IASTPreprocessorStatement[] stmts= tu.getAllPreprocessorStatements();
+		assertTrue(stmts[0].isActive());
+		assertFalse(stmts[1].isActive());
+		assertFalse(stmts[2].isActive());
+		assertTrue(stmts[3].isActive());
+		
+		assertFalse(((IASTPreprocessorIfdefStatement) stmts[0]).taken());
+		assertFalse(((IASTPreprocessorIfdefStatement) stmts[1]).taken());
+	}	
+	
+	
+	//	void a() {
+	//	    typedef float size_t;
+	//	    sizeof(10); // wrong - getExpressionType returns float
+	//	    sizeof(int); // wrong - getExpressionType returns float
+	//	}
+	public void testTypeOfSizeof_Bug355052() throws Exception {
+		final String code = getAboveComment();
+		IASTTranslationUnit tu= parseAndCheckBindings(code, ParserLanguage.CPP);
+		IASTFunctionDefinition a= getDeclaration(tu, 0);
+		IASTExpressionStatement es= getStatement(a, 1);
+		assertEquals("unsigned long int", ASTTypeUtil.getType(es.getExpression().getExpressionType()));
+		es= getStatement(a, 2);
+		assertEquals("unsigned long int", ASTTypeUtil.getType(es.getExpression().getExpressionType()));
+
+		tu= parseAndCheckBindings(code, ParserLanguage.C);
+		a= getDeclaration(tu, 0);
+		es= getStatement(a, 1);
+		assertEquals("unsigned long int", ASTTypeUtil.getType(es.getExpression().getExpressionType()));
+		es= getStatement(a, 2);
+		assertEquals("unsigned long int", ASTTypeUtil.getType(es.getExpression().getExpressionType()));
+	}
 }

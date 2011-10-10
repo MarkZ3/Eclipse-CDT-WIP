@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.pdom.dom;
 
@@ -41,7 +41,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.index.IIndexBinding;
 import org.eclipse.cdt.core.parser.IToken;
-import org.eclipse.core.runtime.CoreException;
 
 public class PDOMASTAdapter {
 	private static class AnonymousASTName implements IASTName {
@@ -54,6 +53,7 @@ public class PDOMASTAdapter {
 				public int getEndingLineNumber() {
 					return loc.getStartingLineNumber();
 				}
+
 				public String getFileName() {
 					return loc.getFileName();
 				}
@@ -73,7 +73,6 @@ public class PDOMASTAdapter {
 				public int getNodeOffset() {
 					return loc.getNodeOffset();
 				}
-				
 			};
 		}
 
@@ -253,7 +252,7 @@ public class PDOMASTAdapter {
 			return fDelegate.getEnumerators();
 		}
 
-		public ILinkage getLinkage() throws CoreException {
+		public ILinkage getLinkage() {
 			return fDelegate.getLinkage();
 		}
 
@@ -321,7 +320,7 @@ public class PDOMASTAdapter {
 			return fDelegate.getKey();
 		}
 
-		public ILinkage getLinkage() throws CoreException {
+		public ILinkage getLinkage() {
 			return fDelegate.getLinkage();
 		}
 
@@ -395,7 +394,7 @@ public class PDOMASTAdapter {
 			return fDelegate.getAdapter(adapter);
 		}
 
-		public ILinkage getLinkage() throws CoreException {
+		public ILinkage getLinkage() {
 			return fDelegate.getLinkage();
 		}
 

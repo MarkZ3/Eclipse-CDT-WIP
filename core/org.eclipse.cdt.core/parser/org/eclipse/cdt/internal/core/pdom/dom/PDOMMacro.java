@@ -6,10 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    QNX - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
- *    Andrew Ferguson (Symbian)
- *    Sergey Prigogin (Google)
+ *     QNX - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Andrew Ferguson (Symbian)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom;
 
@@ -138,7 +138,6 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		if (nextName != null)
 			nextName.setPrevInContainer(prevName);
 
-		
 		final IString expansion = getExpansionInDB();
 		if (expansion != null) {
 			expansion.delete();
@@ -358,8 +357,8 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return false;
 	}
 
-	public PDOMLinkage getLinkage() throws CoreException {
-		return getFile().getLinkage();
+	public PDOMLinkage getLinkage() {
+		return fLinkage;
 	}
 
 	public IIndexScope getScope() {

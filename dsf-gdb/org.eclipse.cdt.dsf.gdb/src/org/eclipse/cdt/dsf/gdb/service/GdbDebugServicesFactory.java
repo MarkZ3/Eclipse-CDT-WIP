@@ -53,6 +53,8 @@ public class GdbDebugServicesFactory extends AbstractDsfDebugServicesFactory {
 	public static final String GDB_7_1_VERSION = "7.1"; //$NON-NLS-1$	
 	/** @since 4.0 */
 	public static final String GDB_7_2_VERSION = "7.2"; //$NON-NLS-1$
+	/** @since 4.1 */
+	public static final String GDB_7_2_1_VERSION = "7.2.1"; //$NON-NLS-1$
 	
 	private final String fVersion;
 	
@@ -98,7 +100,9 @@ public class GdbDebugServicesFactory extends AbstractDsfDebugServicesFactory {
 
 	@Override
 	protected IBreakpoints createBreakpointService(DsfSession session) {
-		if (GDB_7_2_VERSION.compareTo(fVersion) <= 0) {
+		// This service is available for GDB 7.2 but there is a pre-release of GDB that
+		// supports the same features and has version of 6.8.50.20090414
+		if (GDB_7_2_VERSION.compareTo(fVersion) <= 0 || "6.8.50.20090414".equals(fVersion)) { //$NON-NLS-1$
 			return new GDBBreakpoints_7_2(session);
 		}
 		if (GDB_7_0_VERSION.compareTo(fVersion) <= 0) {
@@ -150,6 +154,9 @@ public class GdbDebugServicesFactory extends AbstractDsfDebugServicesFactory {
 		
 	@Override
 	protected IProcesses createProcessesService(DsfSession session) {
+		if (GDB_7_2_1_VERSION.compareTo(fVersion) <= 0) {
+			return new GDBProcesses_7_2_1(session);
+		}
 		if (GDB_7_2_VERSION.compareTo(fVersion) <= 0) {
 			return new GDBProcesses_7_2(session);
 		}
@@ -187,8 +194,8 @@ public class GdbDebugServicesFactory extends AbstractDsfDebugServicesFactory {
 	
 	/** @since 3.0 */
 	protected IGDBTraceControl createTraceControlService(DsfSession session, ILaunchConfiguration config) {
-		// This service is available for GDB 7.2. But until that GDB is itself available
-		// there is a pre-release that has a version of 6.8.50.20090414
+		// This service is available for GDB 7.2 but there is a pre-release of GDB that
+		// supports the same features and has version of 6.8.50.20090414
 		if (GDB_7_2_VERSION.compareTo(fVersion) <= 0 || "6.8.50.20090414".equals(fVersion)) { //$NON-NLS-1$
 			return new GDBTraceControl_7_2(session, config);
 		}

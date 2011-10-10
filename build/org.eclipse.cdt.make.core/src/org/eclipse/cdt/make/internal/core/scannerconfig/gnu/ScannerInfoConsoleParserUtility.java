@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -23,6 +23,7 @@ import org.eclipse.cdt.internal.core.resources.ResourceLookup;
 import org.eclipse.cdt.make.core.MakeCorePlugin;
 import org.eclipse.cdt.make.internal.core.MakeMessages;
 import org.eclipse.cdt.make.internal.core.scannerconfig.util.TraceUtil;
+import org.eclipse.cdt.utils.EFSExtensionManager;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -87,9 +88,13 @@ public class ScannerInfoConsoleParserUtility extends AbstractGCCBOPConsoleParser
 		}
 		
 		if (file!=null) {
-			String filePath = new Path(fileName).toString();
-			String foundLocation = file.getLocation().toString();
-			if (!foundLocation.endsWith(filePath)) {
+			IPath filePath = new Path(fileName);
+			if(filePath.segment(0).compareTo("..") == 0) {  //$NON-NLS-1$
+				filePath = filePath.removeFirstSegments(1);
+			}
+			
+			String foundLocation = file.getLocationURI().toString();
+			if (!foundLocation.endsWith(filePath.toString())) {
 				file = null;
 			}
 		}
@@ -216,7 +221,7 @@ public class ScannerInfoConsoleParserUtility extends AbstractGCCBOPConsoleParser
 					// appending fileName to cwd should yield file path
 					filePath = cwd.append(fileName);
 				}
-				if (!filePath.toString().equalsIgnoreCase(file.getLocation().toString())) {
+				if (!filePath.toString().equalsIgnoreCase(EFSExtensionManager.getDefault().getPathFromURI(file.getLocationURI()))) {
 					// must be the cwd is wrong
 					// check if file name starts with ".."
 					if (fileName.startsWith("..")) {	//$NON-NLS-1$
@@ -233,7 +238,7 @@ public class ScannerInfoConsoleParserUtility extends AbstractGCCBOPConsoleParser
 							tPath = tPath.removeFirstSegments(1);
 						}
 						// get the file path from the file
-						filePath = file.getLocation();
+						filePath = new Path(EFSExtensionManager.getDefault().getPathFromURI(file.getLocationURI()));
 						IPath lastFileSegment = filePath.removeFirstSegments(filePath.segmentCount() - tPath.segmentCount());
 						if (lastFileSegment.matchingFirstSegments(tPath) == tPath.segmentCount()) {
 							cwd = filePath.removeLastSegments(tPath.segmentCount());

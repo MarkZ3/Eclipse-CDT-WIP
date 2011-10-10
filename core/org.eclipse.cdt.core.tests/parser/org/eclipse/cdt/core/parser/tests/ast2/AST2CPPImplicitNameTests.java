@@ -18,6 +18,7 @@ import org.eclipse.cdt.core.dom.ast.IASTImplicitName;
 import org.eclipse.cdt.core.dom.ast.IASTImplicitNameOwner;
 import org.eclipse.cdt.core.dom.ast.IASTNodeSelector;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
+import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
@@ -367,8 +368,8 @@ public class AST2CPPImplicitNameTests extends AST2BaseTest {
 
 	//	struct X {
 	//	  ~X();
-	//	  void operator delete();
-	//	  void operator delete[]();
+	//	  void operator delete(void *);
+	//	  void operator delete[](void *);
 	//	};
 	//
 	//	int test(X* x) {
@@ -393,11 +394,65 @@ public class AST2CPPImplicitNameTests extends AST2BaseTest {
 		
 		names = ba.getImplicitNames("delete[] x;", 6);
 		assertEquals(1, names.length);
-		assertSame(col.getName(3).resolveBinding(), names[0].resolveBinding());
+		assertSame(col.getName(4).resolveBinding(), names[0].resolveBinding());
 		
 		ba.assertNoImplicitName("delete 1;", 6);
 	}
 	
+	//	struct A {
+	//	    void operator delete(void * a);
+	//	};
+	//	struct B {};
+	//	void operator delete(void * b);
+	//
+	//	void test() {
+	//	    A *a = new A;
+	//	    delete a;
+	//
+	//	    B* b = new B;
+	//	    delete b;
+	//	}
+	public void testOverloadedDelete_Bug351547() throws Exception {
+		BindingAssertionHelper bh= new BindingAssertionHelper(getAboveComment(), true);
+		IBinding m= bh.assertNonProblem("operator delete(void * a)", 15);
+		IBinding f= bh.assertNonProblem("operator delete(void * b)", 15);
+		
+		IASTImplicitName[] names = bh.getImplicitNames("delete a;", 6);
+		assertEquals(2, names.length); 
+		assertTrue(((ICPPMethod) names[0].resolveBinding()).isDestructor());
+		assertSame(m, names[1].resolveBinding());
+
+		names = bh.getImplicitNames("delete b;", 6);
+		assertTrue(((ICPPMethod) names[0].resolveBinding()).isDestructor());
+		assertEquals(2, names.length); 
+		assertSame(f, names[1].resolveBinding());
+	}
+
+	//  typedef int size_t;
+	//	struct A {
+	//	    void* operator new(size_t a);
+	//	};
+	//	struct B {};
+	//	void* operator new(size_t b);
+	//
+	//	void test() {
+	//	    A *a = new A;
+	//	    B* b = new B;
+	//	}
+	public void testOverloadedNew_Bug354585() throws Exception {
+		BindingAssertionHelper bh= new BindingAssertionHelper(getAboveComment(), true);
+		IBinding m= bh.assertNonProblem("operator new(size_t a)", 12);
+		IBinding f= bh.assertNonProblem("operator new(size_t b)", 12);
+		
+		IASTImplicitName[] names = bh.getImplicitNames("new A;", 3);
+		assertEquals(1, names.length);
+		assertSame(m, names[0].resolveBinding());
+
+		names = bh.getImplicitNames("new B;", 3);
+		assertEquals(1, names.length);
+		assertSame(f, names[0].resolveBinding());
+	}
+
 	//	struct X {}
 	//	int test(X* x) {
 	//	  X* xs = new X[5];

@@ -47,6 +47,7 @@ public class CodanTestCase extends BaseTestCase {
 	protected File currentFile;
 	protected ICElement currentCElem;
 	protected IFile currentIFile;
+	protected ArrayList<Integer> errLines= new ArrayList<Integer>();
 
 	/**
 	 *
@@ -64,7 +65,7 @@ public class CodanTestCase extends BaseTestCase {
 
 	/**
 	 * Override for c++ (i.e. at least one c++ test)
-	 * 
+	 *
 	 * @return is c++ tests
 	 */
 	public boolean isCpp() {
@@ -170,9 +171,10 @@ public class CodanTestCase extends BaseTestCase {
 		return getContents(1)[0].toString();
 	}
 
-	protected StringBuffer[] getContents(int sections) {
+	protected StringBuilder[] getContents(int sections) {
 		try {
-			return TestSourceReader.getContentsForTest(getPlugin().getBundle(), getSourcePrefix(), getClass(), getName(), sections);
+			return TestSourceReader.getContentsForTest(getPlugin().getBundle(), getSourcePrefix(),
+					getClass(), getName(), sections);
 		} catch (IOException e) {
 			fail(e.getMessage());
 			return null;
@@ -219,7 +221,9 @@ public class CodanTestCase extends BaseTestCase {
 	private File loadcode(String code, File testFile) {
 		try {
 			tempFiles.add(testFile);
-			TestUtils.saveFile(new ByteArrayInputStream(code.trim().getBytes()), testFile);
+			String trim = code.trim();
+			loadErrorComments(trim);
+			TestUtils.saveFile(new ByteArrayInputStream(trim.getBytes()), testFile);
 			currentFile = testFile;
 			try {
 				cproject.getProject().refreshLocal(1, null);
@@ -236,6 +240,17 @@ public class CodanTestCase extends BaseTestCase {
 		} catch (CModelException e) {
 			fail("Cannot find file: " + testFile + ": " + e.getMessage());
 			return null;
+		}
+	}
+
+	private void loadErrorComments(String trim) {
+		String[] lines = trim.split("\n");
+		for (int i = 0; i < lines.length; i++) {
+			String string = lines[i];
+			if (string.matches(".*//\\s*err\\s*")) {
+
+				errLines.add(i+1);
+			}
 		}
 	}
 

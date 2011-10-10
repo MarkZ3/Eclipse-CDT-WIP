@@ -14,6 +14,7 @@
  *     Jens Elmenthaler (Verigy) - Added Full GDB pretty-printing support (bug 302121)
  *     Onur Akdemir (TUBITAK BILGEM-ITI) - Multi-process debugging (Bug 237306)
  *     Abeer Bagul - Support for -exec-arguments (bug 337687)
+ *     Marc Khouzam (Ericsson) - New methods for new MIDataDisassemble (Bug 357073)
  *******************************************************************************/
 
 package org.eclipse.cdt.dsf.mi.service.command;
@@ -100,6 +101,7 @@ import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetDetachOnFork;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetEnv;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetNonStop;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetPagination;
+import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetSchedulerLocking;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetSolibAbsolutePrefix;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetSolibSearchPath;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIGDBSetTargetAsync;
@@ -118,6 +120,7 @@ import org.eclipse.cdt.dsf.mi.service.command.commands.MIStackListLocals;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIStackSelectFrame;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetAttach;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetDetach;
+import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetDisconnect;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetDownload;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetSelect;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MITargetSelectCore;
@@ -345,7 +348,17 @@ public class CommandFactory {
 		return new MIDataDisassemble(ctx, start, end, mode);
 	}
 
+	/** @since 4.1 */
+	public ICommand<MIDataDisassembleInfo> createMIDataDisassemble(IDisassemblyDMContext ctx, String start, String end, int mode) {
+		return new MIDataDisassemble(ctx, start, end, mode);
+	}
+
 	public ICommand<MIDataDisassembleInfo> createMIDataDisassemble(IDisassemblyDMContext ctx, String file, int linenum, int lines, boolean mode) {
+		return new MIDataDisassemble(ctx, file, linenum, lines, mode);
+	}
+
+	/** @since 4.1 */
+	public ICommand<MIDataDisassembleInfo> createMIDataDisassemble(IDisassemblyDMContext ctx, String file, int linenum, int lines, int mode) {
 		return new MIDataDisassemble(ctx, file, linenum, lines, mode);
 	}
 
@@ -618,6 +631,11 @@ public class CommandFactory {
 		return new MIGDBSetPagination(ctx, isSet);
 	}
 
+	/** @since 4.1 */
+	public ICommand<MIInfo> createMIGDBSetSchedulerLocking(ICommandControlDMContext ctx, String mode) {
+		return new MIGDBSetSchedulerLocking(ctx, mode);
+	}	
+
 	/** @since 4.0 */
 	public ICommand<MIInfo> createMIGDBSetSolibAbsolutePrefix(ICommandControlDMContext ctx, String prefix) {
 		return new MIGDBSetSolibAbsolutePrefix(ctx, prefix);
@@ -668,6 +686,11 @@ public class CommandFactory {
 
 	public ICommand<MIListThreadGroupsInfo> createMIListThreadGroups(ICommandControlDMContext ctx, boolean listAll) {
 		return new MIListThreadGroups(ctx, listAll);
+	}
+
+	/** @since 4.1 */
+	public ICommand<MIListThreadGroupsInfo> createMIListThreadGroups(ICommandControlDMContext ctx, boolean listAll, boolean recurse) {
+		return new MIListThreadGroups(ctx, listAll, recurse);
 	}
 
 	/** @since 4.0 */
@@ -754,6 +777,11 @@ public class CommandFactory {
 	public ICommand<MIInfo> createMITargetSelectTFile(IDMContext ctx, String traceFilePath) {
 		return new MITargetSelectTFile(ctx, traceFilePath);
 	}
+
+    /** @since 4.1 */
+    public ICommand<MIInfo> createMITargetDisconnect(ICommandControlDMContext ctx) {
+        return new MITargetDisconnect(ctx);
+    }
 
     public ICommand<MITargetDownloadInfo> createMITargetDownload(ICommandControlDMContext ctx) {
         return new MITargetDownload(ctx);

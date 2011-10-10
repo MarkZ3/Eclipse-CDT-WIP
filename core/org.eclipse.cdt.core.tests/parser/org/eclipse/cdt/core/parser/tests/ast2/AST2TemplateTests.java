@@ -49,6 +49,7 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExplicitTemplateInstantiation;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionCallExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTNamedTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateId;
@@ -1725,8 +1726,13 @@ public class AST2TemplateTests extends AST2BaseTest {
 		ICPPConstructor ctor = (ICPPConstructor) col.getName(2).resolveBinding();
 		ICPPFunction f = (ICPPFunction) col.getName(5).resolveBinding();
 		
-		ICPPSpecialization spec = (ICPPSpecialization) col.getName(11).resolveBinding();
-		assertSame(spec.getSpecializedBinding(), ctor);
+		final IASTName typeConversion = col.getName(11);
+		ICPPSpecialization spec = (ICPPSpecialization) typeConversion.resolveBinding();
+		assertSame(ctor.getOwner(), spec.getSpecializedBinding());
+		
+		final ICPPASTFunctionCallExpression fcall = (ICPPASTFunctionCallExpression) typeConversion.getParent().getParent();
+		final IBinding ctorSpec = fcall.getImplicitNames()[0].resolveBinding();
+		assertSame(ctor, (((ICPPSpecialization) ctorSpec).getSpecializedBinding()));
 		
 		assertSame(f, col.getName(10).resolveBinding());
 	}
@@ -1750,9 +1756,14 @@ public class AST2TemplateTests extends AST2BaseTest {
 		ICPPConstructor ctor = (ICPPConstructor) col.getName(3).resolveBinding();
 		ICPPMethod add = (ICPPMethod) col.getName(9).resolveBinding();
 		
-		ICPPSpecialization spec = (ICPPSpecialization) col.getName(20).resolveBinding();
-		assertSame(spec.getSpecializedBinding(), ctor);
+		final IASTName typeConversion = col.getName(20);
+		ICPPSpecialization spec = (ICPPSpecialization) typeConversion.resolveBinding();
+		assertSame(ctor.getOwner(), spec.getSpecializedBinding());
 		
+		final ICPPASTFunctionCallExpression fcall = (ICPPASTFunctionCallExpression) typeConversion.getParent().getParent();
+		final IBinding ctorSpec = fcall.getImplicitNames()[0].resolveBinding();
+		assertSame(ctor, (((ICPPSpecialization) ctorSpec).getSpecializedBinding()));
+
 		assertSame(add, col.getName(19).resolveBinding());
 	}
 	
@@ -1772,9 +1783,14 @@ public class AST2TemplateTests extends AST2BaseTest {
 		ICPPConstructor ctor = (ICPPConstructor) col.getName(2).resolveBinding();
 		ICPPMethod add = (ICPPMethod) col.getName(7).resolveBinding();
 		
-		ICPPSpecialization spec = (ICPPSpecialization) col.getName(17).resolveBinding();
-		assertSame(spec.getSpecializedBinding(), ctor);
+		final IASTName typeConversion = col.getName(17);
+		ICPPSpecialization spec = (ICPPSpecialization) typeConversion.resolveBinding();
+		assertSame(ctor.getOwner(), spec.getSpecializedBinding());
 		
+		final ICPPASTFunctionCallExpression fcall = (ICPPASTFunctionCallExpression) typeConversion.getParent().getParent();
+		final IBinding ctorSpec = fcall.getImplicitNames()[0].resolveBinding();
+		assertSame(ctor, (((ICPPSpecialization) ctorSpec).getSpecializedBinding()));
+
 		assertSame(add, col.getName(16).resolveBinding());
 	}
 	
@@ -4532,8 +4548,8 @@ public class AST2TemplateTests extends AST2BaseTest {
 	//	X<A> xa; // okay
 	//	X<B> xb; // ill-formed: default arguments for the parameters of a template template argument are ignored
 	//	X<C> xc; // ill-formed: a template parameter pack does not match a template parameter
-	//	Y<A> ya; // ill-formed: a template parameter pack does not match a template parameter
-	//	Y<B> yb; // ill-formed: a template parameter pack does not match a template parameter
+	//	Y<A> ya; // okay
+	//	Y<B> yb; // okay
 	//	Y<C> yc; // okay
 	public void testVariadicTemplateExamples_280909f() throws Exception {
 		final String code= getAboveComment();
@@ -4541,8 +4557,8 @@ public class AST2TemplateTests extends AST2BaseTest {
 		bh.assertNonProblem("X<A>", 4);
 		bh.assertProblem("X<B>", 4);
 		bh.assertProblem("X<C>", 4);
-		bh.assertProblem("Y<A>", 4);
-		bh.assertProblem("Y<B>", 4);
+		bh.assertNonProblem("Y<A>", 4);
+		bh.assertNonProblem("Y<B>", 4);
 		bh.assertNonProblem("Y<C>", 4);
 	}		
 
@@ -5400,6 +5416,126 @@ public class AST2TemplateTests extends AST2BaseTest {
 	//	    return 0;
 	//	}
 	public void testAddressOfMethodForInstantiation_Bug344310() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template<typename Arg> struct Callback {
+	//	    Callback(void (*function)(Arg arg)) {}
+	//	};
+	//
+	//	void Subscribe(const Callback<const int>& callback){}
+	//	void CallMe(const int){}
+	//
+	//	int test() {
+	//	    Subscribe(Callback<const int>(&CallMe)); // invalid arguments, symbol not
+	//	}
+	public void testParameterAdjustementInInstantiatedFunctionType_351609() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	// template<typename T> struct CT {
+	//   int g;
+	// };
+	// template<typename T> struct CT<T&> {
+	//    int ref;
+	// };
+	// template<typename T> struct CT<T&&> {
+	//    int rref;
+	// };
+	// void test() {
+	//    CT<int>::g;
+	//    CT<int&>::ref;
+	//    CT<int&&>::rref;
+	// }
+	public void testRRefVsRef_351927() throws Exception {
+		parseAndCheckBindings();
+	}
+
+	//	template <typename = int> class A {};
+	public void testTemplateParameterWithoutName_352266() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template<template<typename, typename...> class T> struct CTTP{ };
+	//
+	//	template<typename T> struct CT1{ };
+	//	template<typename T1, typename T2> struct CT2{ };
+	//	template<typename T1, typename T2, typename T3> struct CT3{ };
+	//	template<typename T1, typename T2, typename T3, typename... T4> struct CT4{ };
+	//
+	//	typedef CTTP<CT1> a;
+	//	typedef CTTP<CT2> b;
+	//	typedef CTTP<CT3> c;
+	//	typedef CTTP<CT4> d;
+	public void testTemplateTemplateParameterMatching_352859() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template<typename T> T f();
+	//	template<> int f() { 
+	//	    return 0;
+	//	}
+	public void testArgumentDeductionFromReturnTypeOfExplicitSpecialization_355304() throws Exception {
+		parseAndCheckBindings();
+		BindingAssertionHelper bh= new BindingAssertionHelper(getAboveComment(), true);
+		ICPPFunctionTemplate template= bh.assertNonProblem("f();", 1);
+		ICPPTemplateInstance inst= bh.assertNonProblem("f() {", 1);
+		assertSame(template, inst.getTemplateDefinition());
+	}
+	
+	//	template<typename T1,typename T2> class A{};
+	//	template<typename T1> class A<T1, int>{};
+	//	template<typename T2> class A<int, T2>{};
+	//	template<> class A<int, int>;
+	//  A<int, int> fooA();
+    //
+	//	template<typename T1,typename T2> class B{};
+	//	template<typename T1> class B<T1, int>{};
+	//	template<typename T2> class B<int, T2>{};
+	//	template<> class B<int, int> {};
+	//  A<int, int> fooB();
+	public void testExplicitSpecializationOfForbiddenAsImplicit_356818() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	struct A {
+	//		void f() { }
+	//	};
+	//	template <typename T> struct B : A {
+	//		using A::f;
+	//		void f(int) { }
+	//	};
+	//	template <typename T> struct C : B<T> {
+	//		using B<T>::f;
+	//		void f(int, int);
+	//	};
+	//
+	//	void test() {
+	//		B<float> b;
+	//		C<float> c;
+	//		b.f();
+	//		b.f(1);
+	//		c.f();
+	//		c.f(1);
+	//		c.f(1,1);
+	//	}
+	public void testSpecializationOfUsingDeclaration_357293() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template<typename T> struct SS {};
+	//	template<template<typename T, typename S = SS<T> > class Cont> 
+	//   	   Cont<int> f() {}
+	public void testReferenceToParameterOfTemplateTemplateParameter_357308() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template <typename...> void f() {}
+	//	void test() {
+	//	     f();      
+	//	     f<>();    
+	//	}
+	public void testTemplateArgumentDeductionWithoutParameters_358654() throws Exception {
 		parseAndCheckBindings();
 	}
 }

@@ -189,22 +189,6 @@ public class GdbConnectCommand implements IConnect {
 
     	@Override
     	public IStatus runInUIThread(IProgressMonitor monitor) {
-    		
-			// If this is the very first attach of a remote session, check if the user
-			// specified the binary in the launch.  If so, let's add it to our map to 
-    		// avoid having to prompt the user for that binary.
-    		// This would be particularly annoying since we didn't use to have
-			// to do that before we supported multi-process.
-			// Bug 350365
-			if (fProcessNameToBinaryMap.isEmpty()) {
-				IGDBBackend backend = fTracker.getService(IGDBBackend.class);
-				if (backend != null) {
-					IPath binaryPath = backend.getProgramPath();
-					if (binaryPath != null && !binaryPath.isEmpty()) {
-						fProcessNameToBinaryMap.put(binaryPath.lastSegment(), binaryPath.toOSString());
-					}
-				}
-			}
 
     		// Have we already see the binary for a process with this name?
     		String binaryPath = fProcessNameToBinaryMap.get(fProcName);
@@ -223,10 +207,7 @@ public class GdbConnectCommand implements IConnect {
     			// The user pressed the cancel button, so we cancel the attach gracefully
     			fRm.done();
     		} else {
-    			// Store the path of the binary so we can use it again for another process
-    			// with the same name
-    			fProcessNameToBinaryMap.put(fProcName, binaryPath);
-    			
+
     			final String finalBinaryPath = binaryPath;
     			fExecutor.execute(new DsfRunnable() {
     				public void run() {
@@ -235,7 +216,17 @@ public class GdbConnectCommand implements IConnect {
 
     					if (procService != null && commandControl != null) {
     						IProcessDMContext procDmc = procService.createProcessContext(commandControl.getContext(), fPid);
-    						procService.attachDebuggerToProcess(procDmc, finalBinaryPath, new DataRequestMonitor<IDMContext>(fExecutor, fRm));
+                            procService.attachDebuggerToProcess(procDmc, finalBinaryPath, new DataRequestMonitor<IDMContext>(fExecutor, fRm) {
+                                @Override
+                                protected void handleSuccess() {
+                                    // Store the path of the binary so we can use it again for another process
+                                    // with the same name.  Only do this on success, to avoid being stuck with
+                                    // a path that is invalid
+                                    fProcessNameToBinaryMap.put(fProcName, finalBinaryPath);
+                                    fRm.done();
+                                };
+                            });
+
     					} else {
     						fRm.setStatus(new Status(IStatus.ERROR, GdbUIPlugin.PLUGIN_ID, IDsfStatusConstants.INTERNAL_ERROR, "Cannot find services", null)); //$NON-NLS-1$
     						fRm.done();
@@ -438,6 +429,21 @@ public class GdbConnectCommand implements IConnect {
 
     								if (backend.getSessionType() == SessionType.REMOTE) {
     									// For remote attach, we must set the binary first so we need to prompt the user.
+    									
+    									// If this is the very first attach of a remote session, check if the user
+    									// specified the binary in the launch.  If so, let's add it to our map to 
+    						    		// avoid having to prompt the user for that binary.
+    						    		// This would be particularly annoying since we didn't use to have
+    									// to do that before we supported multi-process.
+    									// Must do this here to be in the executor
+    									// Bug 350365
+    									if (fProcessNameToBinaryMap.isEmpty()) {
+   											IPath binaryPath = backend.getProgramPath();
+   											if (binaryPath != null && !binaryPath.isEmpty()) {
+   												fProcessNameToBinaryMap.put(binaryPath.lastSegment(), binaryPath.toOSString());
+   											}
+    									}
+    									
     									// Because the prompt is a very long operation, we need to run outside the
     									// executor, so we don't lock it.
     									// Bug 344892

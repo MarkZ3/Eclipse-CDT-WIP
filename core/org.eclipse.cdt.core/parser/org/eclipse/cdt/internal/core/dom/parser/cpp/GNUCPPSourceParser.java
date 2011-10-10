@@ -1859,6 +1859,8 @@ public class GNUCPPSourceParser extends AbstractGNUSourceCodeParser {
                 throwBacktrack(offset, endOffset - offset);
             }
 
+            __attribute__();
+            
             switch (LT(1)) {
             case IToken.tSEMI:
             case IToken.tEOC:
@@ -2095,15 +2097,15 @@ public class GNUCPPSourceParser extends AbstractGNUSourceCodeParser {
 				if (LT(1) == IToken.tIDENTIFIER) { // optional identifier
 					identifierName = identifier();
 					endOffset = calculateEndOffset(identifierName);
-					if (LT(1) == IToken.tASSIGN) { // optional = type-id
-						if (parameterPack)
-							throw backtrack;
-						consume();
-						defaultValue = typeId(DeclarationOptions.TYPEID); // type-id
-						endOffset = calculateEndOffset(defaultValue);
-					}
 				} else {
 					identifierName = nodeFactory.newName();
+				}
+				if (LT(1) == IToken.tASSIGN) { // optional = type-id
+					if (parameterPack)
+						throw backtrack;
+					consume();
+					defaultValue = typeId(DeclarationOptions.TYPEID); // type-id
+					endOffset = calculateEndOffset(defaultValue);
 				}
 				
 				// Check if followed by comma

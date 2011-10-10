@@ -20,6 +20,7 @@ import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
 import org.eclipse.cdt.core.dom.ast.IBasicType.Kind;
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.IField;
 import org.eclipse.cdt.core.dom.ast.IFunctionType;
 import org.eclipse.cdt.core.dom.ast.IParameter;
 import org.eclipse.cdt.core.dom.ast.IScope;
@@ -1557,11 +1558,11 @@ public class IndexCPPTemplateResolutionTest extends IndexBindingResolutionTestBa
 		
 		ICPPTemplateInstance inst= (ICPPTemplateInstance) t1;
 		final ICPPClassTemplate tmplDef = (ICPPClassTemplate) inst.getTemplateDefinition();
-		IBinding inst2= CPPTemplates.instantiate(tmplDef, inst.getTemplateArguments(), false);
+		IBinding inst2= CPPTemplates.instantiate(tmplDef, inst.getTemplateArguments());
 		assertSame(inst, inst2);
 		
-		IBinding charInst1= CPPTemplates.instantiate(tmplDef, new ICPPTemplateArgument[] {new CPPTemplateArgument(new CPPBasicType(Kind.eChar, 0))}, false);
-		IBinding charInst2= CPPTemplates.instantiate(tmplDef, new ICPPTemplateArgument[] {new CPPTemplateArgument(new CPPBasicType(Kind.eChar, 0))}, false);
+		IBinding charInst1= CPPTemplates.instantiate(tmplDef, new ICPPTemplateArgument[] {new CPPTemplateArgument(new CPPBasicType(Kind.eChar, 0))});
+		IBinding charInst2= CPPTemplates.instantiate(tmplDef, new ICPPTemplateArgument[] {new CPPTemplateArgument(new CPPBasicType(Kind.eChar, 0))});
 		assertSame(charInst1, charInst2);
 	}
 	
@@ -1829,5 +1830,82 @@ public class IndexCPPTemplateResolutionTest extends IndexBindingResolutionTestBa
 		assertTrue(reference instanceof ICPPSpecialization);
 	}
 
+	//  template<typename T> struct Base {
+	//     int bfield;
+	//     void bmethod();
+	//  };
+	//	template<typename T> struct XT : Base<T> {
+	//     int field;
+	//     void method() {};
+	//     friend void f();
+	//     struct Nested {};
+	//  };
+	//  struct TXT : XT<int> {};
+	
+	// TXT x;
+	public void testClassSpecialization_Bug354086() throws Exception {
+		ICPPClassType ct= getBindingFromASTName("TXT", 0, ICPPClassType.class);
+		ICPPMethod[] methods = ct.getAllDeclaredMethods();
+		assertEquals(2, methods.length);
+		
+		methods= ct.getConstructors();
+		assertEquals(2, methods.length);
 
+		methods= ct.getMethods();
+		assertEquals(14, methods.length);
+		
+		ICPPBase[] bases = ct.getBases();
+		assertEquals(1, bases.length);
+		
+		IField field = ct.findField("bfield");
+		assertNotNull(field);
+
+		IField[] fields = ct.getFields();
+		assertEquals(2, fields.length);
+
+		IBinding[] friends = ct.getFriends();
+		assertEquals(0, friends.length); // not yet supported
+	}
+	
+	//	struct A {
+	//		void f() { }
+	//	};
+	//	template <typename T> struct B : A {
+	//		using A::f;
+	//		void f(int) { }
+	//	};
+	//	template <typename T> struct C : B<T> {
+	//		using B<T>::f;
+	//		void f(int, int);
+	//	};
+	//	B<float> b;
+	//	C<float> c;
+	
+	// #include "header.h"
+	//	void test() {
+	//		b.f();
+	//		b.f(1);
+	//		c.f( );
+	//		c.f(2);
+	//		c.f(2,1);
+	//	}
+	public void testSpecializationOfUsingDeclaration_357293() throws Exception {
+		getBindingFromASTName("f()", 1, ICPPMethod.class);
+		getBindingFromASTName("f(1)", 1, ICPPMethod.class);
+		getBindingFromASTName("f( )", 1, ICPPMethod.class);
+		getBindingFromASTName("f(2)", 1, ICPPMethod.class);
+		getBindingFromASTName("f(2,1)", 1, ICPPMethod.class);
+	}
+
+	//	template<class T> struct C1 {
+	//	    typedef int iterator;
+	//	    iterator m1();
+	//	};
+
+	//	template<class T> typename C1<T>::iterator C1<T>::m1() {
+	//		return 0;
+	//	}
+	public void testUsageOfClassTemplateOutsideOfClassBody_357320() throws Exception {
+		getBindingFromASTName("m1", 0, ICPPMethod.class);
+	}
 }

@@ -10,11 +10,9 @@
  *     IBM Corporation
  *     Markus Schorn (Wind River Systems)
  *     Warren Paul (Nokia) - 174238
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.ui.wizards.classwizard;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -34,11 +32,9 @@ import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.views.contentoutline.ContentOutline;
 
 import org.eclipse.cdt.core.CCorePlugin;
-import org.eclipse.cdt.core.browser.AllTypesCache;
 import org.eclipse.cdt.core.browser.IQualifiedTypeName;
 import org.eclipse.cdt.core.browser.ITypeInfo;
 import org.eclipse.cdt.core.browser.ITypeReference;
-import org.eclipse.cdt.core.browser.TypeSearchScope;
 import org.eclipse.cdt.core.dom.ILinkage;
 import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IBinding;
@@ -56,8 +52,6 @@ import org.eclipse.cdt.core.model.ICContainer;
 import org.eclipse.cdt.core.model.ICElement;
 import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.core.model.ISourceRoot;
-import org.eclipse.cdt.core.parser.IScannerInfo;
-import org.eclipse.cdt.core.parser.IScannerInfoProvider;
 import org.eclipse.cdt.core.parser.Keywords;
 import org.eclipse.cdt.ui.CUIPlugin;
 
@@ -65,7 +59,6 @@ import org.eclipse.cdt.internal.ui.editor.CEditor;
 import org.eclipse.cdt.internal.ui.viewsupport.IViewPartInputProvider;
 
 public class NewClassWizardUtil {
-
     /**
      * Returns the parent source folder of the given element. If the given
      * element is already a source folder, the element itself is returned.
@@ -123,31 +116,55 @@ public class NewClassWizardUtil {
         }
         return null;
     }
+
+    //XXX Remove
+//    /**
+//     * Returns the parent source folder for the given resource. If the given
+//     * resource is already a source folder, the corresponding C element is returned.
+//     * 
+//     * @param resource the resource
+//     * @return the source folder
+//     */
+//    public static ICContainer getSourceFolder(IResource resource) {
+//        if (resource != null && resource.exists()) {
+//            int resType = resource.getType();
+//            if (resType == IResource.PROJECT || resType == IResource.FOLDER) {
+//                ICElement elem = CoreModel.getDefault().create(resource.getFullPath());
+//                if (elem != null) {
+//                    ICContainer sourceFolder = getSourceFolder(elem);
+//                    if (sourceFolder != null)
+//                        return sourceFolder;
+//                }
+//            } else {
+//                return getSourceFolder(resource.getParent());
+//            }
+//        }
+//        return null;
+//    }
     
     /**
-     * Returns the parent source folder for the given resource. If the given
-     * resource is already a source folder, the corresponding C element is returned.
+     * Checks if a given resource is under a source root.
      * 
      * @param resource the resource
-     * @return the source folder
+     * @return <code>true</code> if the resource is under one of the project source roots
      */
-    public static ICContainer getSourceFolder(IResource resource) {
-        if (resource != null && resource.exists()) {
-            int resType = resource.getType();
-            if (resType == IResource.PROJECT || resType == IResource.FOLDER) {
-                ICElement elem = CoreModel.getDefault().create(resource.getFullPath());
-                if (elem != null) {
-                    ICContainer sourceFolder = getSourceFolder(elem);
-                    if (sourceFolder != null)
-                        return sourceFolder;
-                }
-            } else {
-                return getSourceFolder(resource.getParent());
-            }
-        }
-        return null;
+    public static boolean isOnSourceRoot(IResource resource) {
+    	IProject project = resource.getProject();
+    	ICProject cProject = CoreModel.getDefault().create(project);
+    	return cProject.isOnSourceRoot(resource);
     }
-    
+
+    /**
+     * Checks if a given file path is under a source root.
+     * 
+     * @param path the file path
+     * @return <code>true</code> if the resource is under one of the project source roots
+     */
+    public static boolean isOnSourceRoot(IPath path) {
+    	IFile file = getWorkspaceRoot().getFile(path);
+    	return isOnSourceRoot(file);
+    }
+
     /**
      * Returns the first source root in the given project. If the project has
      * no source roots as children, the project itself is returned.
@@ -276,41 +293,6 @@ public class NewClassWizardUtil {
         return type.getResolvedReference();
     }
 
-    private static final int[] CLASS_TYPES = { ICElement.C_CLASS, ICElement.C_STRUCT };
-    
-    /**
-     * Returns all classes/structs which are accessible from the include
-     * paths of the given project.
-     * 
-     * @param cProject the given project
-     * @return array of classes/structs
-     */
-    public static ITypeInfo[] getReachableClasses(ICProject cProject) {
-        ITypeInfo[] elements = AllTypesCache.getTypes(new TypeSearchScope(true), CLASS_TYPES);
-        if (elements != null && elements.length > 0) {
-            if (cProject != null) {
-            	IProject project = cProject.getProject();
-                IScannerInfoProvider provider = CCorePlugin.getDefault().getScannerInfoProvider(project);
-                if (provider != null) {
-                    //TODO get the scanner info for the actual source folder
-                    IScannerInfo info = provider.getScannerInformation(project);
-                    if (info != null) {
-                        String[] includePaths = info.getIncludePaths();
-                        List<ITypeInfo> filteredTypes = new ArrayList<ITypeInfo>();
-                        for (int i = 0; i < elements.length; ++i) {
-                            ITypeInfo baseType = elements[i];
-                            if (isTypeReachable(baseType, cProject, includePaths)) {
-                                filteredTypes.add(baseType);
-                            }
-                        }
-                        return filteredTypes.toArray(new ITypeInfo[filteredTypes.size()]);
-                    }
-                }
-            }
-        }
-        return elements;
-    }
-    
     /**
      * Checks whether the given type can be found in the given project or the
      * given include paths.
@@ -402,7 +384,7 @@ public class NewClassWizardUtil {
 				boolean sameNameDifferentTypeExists = false;
 
 				for (int i = 0; i < bindings.length; ++i) {
-					ICPPBinding binding = (ICPPBinding)bindings[i];
+					ICPPBinding binding = (ICPPBinding) bindings[i];
 
 					//get the fully qualified name of this binding
 					String bindingFullName = renderQualifiedName(binding.getQualifiedName());
@@ -424,8 +406,7 @@ public class NewClassWizardUtil {
 							IEnumeration.class.isAssignableFrom(currentNodeType) || // TODO - this should maybe be ICPPEnumeration
 							ICPPNamespace.class.isAssignableFrom(currentNodeType) ||
 							ITypedef.class.isAssignableFrom(currentNodeType) ||
-							ICPPBasicType.class.isAssignableFrom(currentNodeType))
-					{						
+							ICPPBasicType.class.isAssignableFrom(currentNodeType)) {						
 						if (bindingFullName.equals(fullyQualifiedTypeName))	{
 							return SEARCH_MATCH_FOUND_EXACT_ANOTHER_TYPE;
 						}
@@ -446,8 +427,7 @@ public class NewClassWizardUtil {
 				return SEARCH_MATCH_ERROR;
 			}
 			return SEARCH_MATCH_NOTFOUND;
-		}
-		finally {
+		} finally {
 			index.releaseReadLock();
 		}
 	}

@@ -20,6 +20,7 @@ import org.eclipse.cdt.codan.core.internal.checkers.AssignmentInConditionChecker
 import org.eclipse.cdt.codan.core.internal.checkers.AssignmentToItselfCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.CaseBreakCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.CatchByReferenceTest;
+import org.eclipse.cdt.codan.core.internal.checkers.ClassMembersInitializationCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.FormatStringCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.NonVirtualDestructorCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.ProblemBindingCheckerTest;
@@ -29,6 +30,8 @@ import org.eclipse.cdt.codan.core.internal.checkers.StatementHasNoEffectCheckerT
 import org.eclipse.cdt.codan.core.internal.checkers.SuggestedParenthesisCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.SuspiciousSemicolonCheckerTest;
 import org.eclipse.cdt.codan.core.internal.checkers.UnusedSymbolInFileScopeCheckerTest;
+import org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CaseBreakQuickFixTest;
+import org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CatchByReferenceQuickFixTest;
 import org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CreateLocalVariableQuickFixTest;
 import org.eclipse.cdt.codan.internal.checkers.ui.quickfix.SuggestedParenthesisQuickFixTest;
 
@@ -56,6 +59,7 @@ public class AutomatedIntegrationSuite extends TestSuite {
 		suite.addTestSuite(AssignmentToItselfCheckerTest.class);
 		suite.addTestSuite(CaseBreakCheckerTest.class);
 		suite.addTestSuite(CatchByReferenceTest.class);
+		suite.addTestSuite(ClassMembersInitializationCheckerTest.class);
 		suite.addTestSuite(FormatStringCheckerTest.class);
 		suite.addTestSuite(NonVirtualDestructorCheckerTest.class);
 		suite.addTestSuite(ProblemBindingCheckerTest.class);
@@ -70,6 +74,8 @@ public class AutomatedIntegrationSuite extends TestSuite {
 		// quick fixes
 		suite.addTestSuite(CreateLocalVariableQuickFixTest.class);
 		suite.addTestSuite(SuggestedParenthesisQuickFixTest.class);
+		suite.addTestSuite(CatchByReferenceQuickFixTest.class);
+		suite.addTestSuite(CaseBreakQuickFixTest.class);
 		return suite;
 	}
 }

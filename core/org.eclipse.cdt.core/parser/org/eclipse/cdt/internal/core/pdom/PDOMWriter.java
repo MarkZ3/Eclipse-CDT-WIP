@@ -6,9 +6,9 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    IBM Corporation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     IBM Corporation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom;
 
@@ -43,6 +43,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateId;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTUsingDirective;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplate;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionTemplate;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespace;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespaceAlias;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
@@ -80,6 +81,7 @@ abstract public class PDOMWriter {
 		ArrayList<IASTPreprocessorStatement> fMacros= new ArrayList<IASTPreprocessorStatement>();
 		ArrayList<IASTPreprocessorIncludeStatement> fIncludes= new ArrayList<IASTPreprocessorIncludeStatement>();
 	}
+
 	private boolean fShowProblems;
 	protected boolean fShowInclusionProblems;
 	private boolean fShowScannerProblems;
@@ -253,7 +255,8 @@ abstract public class PDOMWriter {
 					try {
 						final IBinding binding = name.resolveBinding();
 						if (name.getPropertyInParent() == ICPPASTTemplateId.TEMPLATE_NAME &&
-								((IASTName) name.getParent()).getBinding() == binding) {
+								(((IASTName) name.getParent()).getBinding() == binding ||
+								binding instanceof ICPPFunctionTemplate)) {
 								na[0]= null;
 						} else if (binding instanceof IProblemBinding) {
 							fStatistics.fProblemBindingCount++;
@@ -531,7 +534,7 @@ abstract public class PDOMWriter {
 	/**
 	 * Updates current progress information with the provided delta.
 	 */
-	protected final void updateRequestedFiles(int delta) {
+	protected final void incrementRequestedFilesCount(int delta) {
 		synchronized (fInfo) {
 			fInfo.fRequestedFilesCount += delta;
 		}

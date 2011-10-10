@@ -75,6 +75,11 @@ public class StandaloneIndexerInputAdapter extends IndexerInputAdapter {
 	}
 
 	@Override
+	public boolean isIndexedUnconditionally(IIndexFileLocation ifl) {
+		return false;
+	}
+
+	@Override
 	public boolean isSource(String filename) {
 		return isValidSourceUnitName(filename);
 	}

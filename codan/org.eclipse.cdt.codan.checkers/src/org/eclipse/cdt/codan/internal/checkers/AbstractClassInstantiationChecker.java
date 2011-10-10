@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     Anton Gorenkov  - initial implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers;
 
@@ -30,6 +31,7 @@ import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionCallExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTNamedTypeSpecifier;
@@ -79,7 +81,7 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 			// Looking for the variables declarations.
 			if (declaration instanceof IASTSimpleDeclaration) {
 				// If there is at least one non-pointer and non-reference type...
-				IASTSimpleDeclaration simpleDecl = (IASTSimpleDeclaration)declaration;
+				IASTSimpleDeclaration simpleDecl = (IASTSimpleDeclaration) declaration;
 				IASTDeclSpecifier declSpec = simpleDecl.getDeclSpecifier();
 				if (declSpec.getStorageClass() != IASTDeclSpecifier.sc_typedef) {
 					for (IASTDeclarator declarator : simpleDecl.getDeclarators()) {
@@ -111,34 +113,33 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 
 		private void checkClass(IASTDeclSpecifier declSpec) {
 			if (declSpec instanceof ICPPASTNamedTypeSpecifier) {
-				IASTName className = ((ICPPASTNamedTypeSpecifier)declSpec).getName();
+				IASTName className = ((ICPPASTNamedTypeSpecifier) declSpec).getName();
 				IBinding binding = className.resolveBinding();
 				if (binding instanceof IType) {
-					// Resolve class and check whether it is abstract
-					reportProblemsIfAbstract((IType)binding, className);
+					// Resolve class and check whether it is abstract.
+					reportProblemsIfAbstract((IType) binding, className);
 				}
 			}
 		}
 		
 		public int visit(IASTExpression expression) {
-			// Looking for the new expression
 			if (expression instanceof ICPPASTNewExpression) {
-				ICPPASTNewExpression newExpression = (ICPPASTNewExpression)expression;
+				// New expression.
+				ICPPASTNewExpression newExpression = (ICPPASTNewExpression) expression;
 				if (!hasPointerOrReference(newExpression.getTypeId().getAbstractDeclarator())) {
 					// Try to resolve its implicit constructor
 					IASTDeclSpecifier declSpecifier = newExpression.getTypeId().getDeclSpecifier();
 					if (declSpecifier instanceof ICPPASTNamedTypeSpecifier) {
-						IASTName constructorName = ((ICPPASTNamedTypeSpecifier)declSpecifier).getName();
+						IASTName constructorName = ((ICPPASTNamedTypeSpecifier) declSpecifier).getName();
 						checkClassConstructor(constructorName);
 					}				
 				}
-			}
-			// Looking for direct class constructor call and check it.
-			else if (expression instanceof ICPPASTFunctionCallExpression) {
-				ICPPASTFunctionCallExpression functionCall = (ICPPASTFunctionCallExpression)expression;
+			} else if (expression instanceof ICPPASTFunctionCallExpression) {
+				// Direct constructor call.
+				ICPPASTFunctionCallExpression functionCall = (ICPPASTFunctionCallExpression) expression;
 				IASTExpression functionName = functionCall.getFunctionNameExpression();
 				if (functionName instanceof IASTIdExpression) {
-					IASTName constructorName = ((IASTIdExpression)functionName).getName();
+					IASTName constructorName = ((IASTIdExpression) functionName).getName();
 					checkClassConstructor(constructorName);
 				}
 			}
@@ -153,10 +154,9 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 			IBinding binding = constructorName.resolveBinding();
 			if (binding instanceof ICPPConstructor) {
 				// Resolve class and check whether it is abstract.
-				reportProblemsIfAbstract(((ICPPConstructor)binding).getClassOwner(), constructorName);
-			}
-			else if (binding instanceof IType) {
-				reportProblemsIfAbstract((IType)binding, constructorName);
+				reportProblemsIfAbstract(((ICPPConstructor) binding).getClassOwner(), constructorName);
+			} else if (binding instanceof IType) {
+				reportProblemsIfAbstract((IType) binding, constructorName);
 			}
 		}
 		
@@ -181,24 +181,23 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 		}
 
 		/**
-		 *  Checks whether specified type (class or typedef to the class) is abstract class.
-		 *  If it is - reports violations on each pure virtual method 
+		 *  Checks whether specified type (class or typedef to the class) is an abstract class.
+		 *  If it is, reports violations on each pure virtual method 
 		 */
 		private void reportProblemsIfAbstract(IType typeToCheck, IASTNode problemNode ) {
 			IType unwindedType = CxxAstUtils.getInstance().unwindTypedef(typeToCheck);
-			if (unwindedType instanceof ICPPClassType) {
-				ICPPClassType classType = (ICPPClassType)unwindedType;
-				ICPPMethod[] pureVirtualMethods;
-				if (pureVirtualMethodsCache.containsKey(classType)) {
-					pureVirtualMethods = pureVirtualMethodsCache.get(classType);
-				} else {
-					pureVirtualMethods = ClassTypeHelper.getPureVirtualMethods(classType);
-					pureVirtualMethodsCache.put(classType, pureVirtualMethods);
-				}
-				
-				for (ICPPMethod method : pureVirtualMethods) {
-					reportProblem(ER_ID, problemNode, resolveName(classType), resolveName(method));
-				}
+			if (!(unwindedType instanceof ICPPClassType) || unwindedType instanceof IProblemBinding) {
+				return;
+			}
+			ICPPClassType classType = (ICPPClassType) unwindedType;
+			ICPPMethod[] pureVirtualMethods = pureVirtualMethodsCache.get(classType);
+			if (pureVirtualMethods == null) {
+				pureVirtualMethods = ClassTypeHelper.getPureVirtualMethods(classType);
+				pureVirtualMethodsCache.put(classType, pureVirtualMethods);
+			}
+			
+			for (ICPPMethod method : pureVirtualMethods) {
+				reportProblem(ER_ID, problemNode, resolveName(classType), resolveName(method));
 			}
 		}
 	}

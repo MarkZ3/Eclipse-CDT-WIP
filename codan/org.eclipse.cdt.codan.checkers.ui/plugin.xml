@@ -10,6 +10,10 @@
              problemId="org.eclipse.cdt.codan.internal.checkers.CatchByReference">
        </resolution>
        <resolution
+             class="org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CatchByConstReferenceQuickFix"
+             problemId="org.eclipse.cdt.codan.internal.checkers.CatchByReference">
+       </resolution>
+       <resolution
              class="org.eclipse.cdt.codan.internal.checkers.ui.quickfix.QuickFixAssignmentInCondition"
              problemId="org.eclipse.cdt.codan.internal.checkers.AssignmentInConditionProblem">
        </resolution>
@@ -33,6 +37,15 @@
              class="org.eclipse.cdt.codan.internal.checkers.ui.quickfix.QuickFixCreateParameter"
              problemId="org.eclipse.cdt.codan.internal.checkers.VariableResolutionProblem">
        </resolution>
+	   <resolution
+             class="org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CaseBreakQuickFixBreak"
+             problemId="org.eclipse.cdt.codan.internal.checkers.CaseBreakProblem">
+       </resolution>       
+	   <resolution
+             class="org.eclipse.cdt.codan.internal.checkers.ui.quickfix.CaseBreakQuickFixComment"
+             problemId="org.eclipse.cdt.codan.internal.checkers.CaseBreakProblem">
+       </resolution>       
+
     </extension>
 
 </plugin>

@@ -13,6 +13,8 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -239,7 +241,7 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 	}
 
 	@Override
-	public PDOMBinding addUnknownValue(IBinding binding) throws CoreException {
+	public PDOMBinding addPotentiallyUnknownBinding(IBinding binding) throws CoreException {
 		return addBinding(binding, null);
 	}
 
@@ -461,6 +463,8 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 			result= new PDOMCPPClassSpecialization(this, parent, (ICPPClassType) special, orig);
 		} else if (special instanceof ITypedef) {
 			result= new PDOMCPPTypedefSpecialization(this, parent, (ITypedef) special, orig);
+		} else if (special instanceof ICPPUsingDeclaration) {
+			result= new PDOMCPPUsingDeclarationSpecialization(this, parent, (ICPPUsingDeclaration) special, orig);
 		}
 		
 		return result;
@@ -471,6 +475,13 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 			final long fileLocalRec= type.getLocalToFileRec();
 			IScope scope = binding.getCompositeScope();
 			if (scope instanceof ICPPClassScope) {
+				List<ICPPMethod> old= new ArrayList<ICPPMethod>();
+				if (type instanceof ICPPClassType) {
+					IScope oldScope = ((ICPPClassType)type).getCompositeScope();
+					if (oldScope instanceof ICPPClassScope) {
+						old.addAll(Arrays.asList(((ICPPClassScope) oldScope).getImplicitMethods()));
+					}
+				}
 				ICPPMethod[] implicit= ((ICPPClassScope) scope).getImplicitMethods();
 				for (ICPPMethod method : implicit) {
 					if (!(method instanceof IProblemBinding)) {
@@ -479,8 +490,13 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 							pdomBinding = createBinding(type, method, fileLocalRec);
 						} else if (!getPDOM().hasLastingDefinition(pdomBinding)) {
 							pdomBinding.update(this, method);
+							old.remove(pdomBinding);
 						}
 					}
+				}
+				for (ICPPMethod method : old) {
+					if (method instanceof PDOMBinding)
+						((PDOMBinding) method).update(this, null);
 				}
 			}
 		} catch (DOMException e) {
@@ -638,21 +654,9 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 		if (parent == null) {
 			parent= adaptOrAddParent(false, binding);
 		}
-		PDOMNode inheritFileLocal= parent;
-		if (binding instanceof IEnumerator) {
-			try {
-				IType enumeration= ((IEnumerator)binding).getType();
-				if (enumeration instanceof IEnumeration) {
-					inheritFileLocal= adaptBinding((IEnumeration) enumeration);
-				}
-			} catch (DOMException e) {
-				CCorePlugin.log(e);
-			}
-		}
-
 		if (parent == this) {
 			PDOMBinding glob= CPPFindBinding.findBinding(getIndex(), this, binding, 0);
-			final long loc= getLocalToFileRec(inheritFileLocal, binding, glob);
+			final long loc= getLocalToFileRec(parent, binding, glob);
 			if (loc == 0) 
 				return glob;
 			fileLocalRecHolder[0]= loc;
@@ -661,7 +665,7 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 		if (parent instanceof PDOMCPPNamespace) {
 			final BTree btree = ((PDOMCPPNamespace) parent).getIndex();
 			PDOMBinding glob= CPPFindBinding.findBinding(btree, this, binding, 0);
-			final long loc= getLocalToFileRec(inheritFileLocal, binding, glob);
+			final long loc= getLocalToFileRec(parent, binding, glob);
 			if (loc == 0) 
 				return glob;
 			fileLocalRecHolder[0]= loc;
@@ -673,7 +677,7 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 		}
 		if (parent instanceof IPDOMMemberOwner) {
 			PDOMBinding glob= CPPFindBinding.findBinding(parent, this, binding, 0);
-			final long loc= getLocalToFileRec(inheritFileLocal, binding, glob);
+			final long loc= getLocalToFileRec(parent, binding, glob);
 			if (loc == 0) 
 				return glob;
 			fileLocalRecHolder[0]= loc;
@@ -817,6 +821,8 @@ class PDOMCPPLinkage extends PDOMLinkage implements IIndexCPPBindingConstants {
 			return new PDOMCPPClassTemplateSpecialization(this, record);
 		case CPP_TYPEDEF_SPECIALIZATION:
 			return new PDOMCPPTypedefSpecialization(this, record);
+		case CPP_USING_DECLARATION_SPECIALIZATION:
+			return new PDOMCPPUsingDeclarationSpecialization(this, record);
 		}
 		assert false : "nodeid= " + nodeType; //$NON-NLS-1$
 		return null;
