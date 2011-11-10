@@ -926,7 +926,7 @@ public class CSourceViewerConfiguration extends TextSourceViewerConfiguration {
             public IInformationControl createInformationControl(Shell parent) {
                 int shellStyle= SWT.RESIZE;
                 int treeStyle= SWT.V_SCROLL | SWT.H_SCROLL;
-                return new THInformationControl(parent, shellStyle, treeStyle);
+                return new THInformationControl(parent, shellStyle, treeStyle, fTextEditor.getSite());
             }
         };
         return conrolCreator;
