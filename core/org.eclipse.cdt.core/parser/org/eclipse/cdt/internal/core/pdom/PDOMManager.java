@@ -348,6 +348,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			String dbName= rproject.getPersistentProperty(dbNameProperty);
 			File dbFile= null;
 			if (dbName != null) {
+				System.out.println("Trying to open saved db: " + dbName);
 				dbFile= fileFromDatabaseName(dbName);
 				if (!dbFile.exists()) {
 					dbFile= null;
@@ -1289,7 +1290,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			throw new OperationCanceledException();
 		}
 		try {
-			pdom.reloadFromFile(newFile);
+			pdom.reloadFromFile(newFile, true);
 			storeDatabaseName(project.getProject(), newName);
 			writeProjectPDOMProperties(pdom, project.getProject());
 		} finally {
@@ -1586,5 +1587,41 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 
 	public boolean isFileIndexedUnconditionally(IIndexFileLocation ifl) {
 		return fFilesIndexedUnconditionlly.contains(ifl);
+	}
+	
+	private String getDefaultConfigName(ICProject project, String configName, long time) {
+		return project.getElementName() + "." + time + ".pdom";  //$NON-NLS-1$//$NON-NLS-2$
+	}
+	
+	private File fileFromDatabaseConfig(ICProject project, String configName) {
+		return CCorePlugin.getDefault().getStateLocation().append(project.getElementName() + "." + configName + ".pdom").toFile();
+	}
+	
+	public void changeConfiguration(ICProject project, String configName) throws CoreException {
+		WritablePDOM pdom= (WritablePDOM) getPDOM(project);
+		try {
+			pdom.acquireWriteLock();
+		} catch (InterruptedException e) {
+			throw new OperationCanceledException();
+		}
+		File fileFromDatabaseConfig = fileFromDatabaseConfig(project, configName);
+		boolean newDataBase = !fileFromDatabaseConfig.exists();
+		try {
+			pdom.reloadFromFile(fileFromDatabaseConfig, false);
+			storeDatabaseName(project.getProject(), "");
+			writeProjectPDOMProperties(pdom, project.getProject());
+		} finally {
+			pdom.releaseWriteLock();
+		}
+		
+		if (newDataBase) {
+			reindex(project);
+		} else {
+			update(new ICElement[] { project }, IIndexManager.UPDATE_CHECK_TIMESTAMPS |
+					//IIndexManager.UPDATE_CHECK_CONFIGURATION |
+					IIndexManager.UPDATE_EXTERNAL_FILES_FOR_PROJECT |
+					IIndexManager.UPDATE_CHECK_CONTENTS_HASH |
+					IIndexManager.UPDATE_UNRESOLVED_INCLUDES);	
+		}
 	}
 }
