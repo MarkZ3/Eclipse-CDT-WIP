@@ -9,7 +9,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
- * Intel Corporation - Initial API and implementation
+ *     Intel Corporation - Initial API and implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.settings.model;
 

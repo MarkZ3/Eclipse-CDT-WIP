@@ -69,6 +69,7 @@ import org.eclipse.cdt.core.model.ILanguageMappingChangeListener;
 import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.core.model.LanguageManager;
 import org.eclipse.cdt.core.settings.model.CProjectDescriptionEvent;
+import org.eclipse.cdt.core.settings.model.ICProjectDescription;
 import org.eclipse.cdt.core.settings.model.ICProjectDescriptionListener;
 import org.eclipse.cdt.internal.core.CCoreInternals;
 import org.eclipse.cdt.internal.core.index.IIndexFragment;
@@ -92,6 +93,7 @@ import org.eclipse.cdt.internal.core.pdom.indexer.ProjectIndexerInputAdapter;
 import org.eclipse.cdt.internal.core.pdom.indexer.TranslationUnitCollector;
 import org.eclipse.cdt.internal.core.pdom.indexer.TriggerNotificationTask;
 import org.eclipse.cdt.internal.core.resources.PathCanonicalizationStrategy;
+import org.eclipse.cdt.internal.core.settings.model.CProjectDescriptionManager;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -140,8 +142,6 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			}
 		}
 	}
-
-	private static final QualifiedName dbNameProperty = new QualifiedName(CCorePlugin.PLUGIN_ID, "pdomName"); //$NON-NLS-1$
 
 	public static final int[] IDS_FOR_LINKAGES_TO_INDEX = { ILinkage.CPP_LINKAGE_ID, ILinkage.C_LINKAGE_ID,
 			ILinkage.FORTRAN_LINKAGE_ID };
@@ -357,35 +357,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 				return (WritablePDOM) pdomProxy;
 			}
 
-			String dbName = project.getPersistentProperty(dbNameProperty);
-			File dbFile = null;
-			if (dbName != null) {
-				dbFile = fileFromDatabaseName(dbName);
-				if (!dbFile.exists()) {
-					dbFile = null;
-					dbName = null;
-				} else {
-					ICProject currentCOwner = fFileToProject.get(dbFile);
-					if (currentCOwner != null) {
-						IProject currentOwner = currentCOwner.getProject();
-						if (!currentOwner.exists()) {
-							fFileToProject.remove(dbFile);
-							dbFile.delete();
-						}
-						dbName = null;
-						dbFile = null;
-					}
-				}
-			}
-
-			boolean fromScratch = false;
-			if (dbName == null) {
-				dbName = createNewDatabaseName(cProject);
-				dbFile = fileFromDatabaseName(dbName);
-				storeDatabaseName(project, dbName);
-				fromScratch = true;
-			}
-
+			File dbFile = getPDOMFile(cProject, getConfigName(cProject));
+			boolean fromScratch = !dbFile.exists();
 			WritablePDOM pdom;
 			try {
 				pdom = new WritablePDOM(dbFile, new PDOMProjectIndexLocationConverter(project), getLinkageFactories());
@@ -421,7 +394,7 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			pdom.setASTFilePathResolver(new ProjectIndexerInputAdapter(cProject, false));
 			pdom.addListener(this);
 
-			fFileToProject.put(dbFile, cProject);
+			fFileToProject.put(dbFile, cProject); // TODO: multiple files?
 			fProjectToPDOM.put(project, pdom);
 			if (pdomProxy instanceof PDOMProxy) {
 				((PDOMProxy) pdomProxy).setDelegate(pdom);
@@ -430,12 +403,45 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		}
 	}
 
+	private File getPDOMFile(ICProject cProject, String configName) throws CoreException {
+		IProject project = cProject.getProject();
+		String dbName = project.getPersistentProperty(getDbnameproperty(configName));
+		File dbFile = null;
+		if (dbName != null) {
+			System.out.println("Trying to open saved db: " + dbName);
+			dbFile = fileFromDatabaseName(dbName);
+			if (!dbFile.exists()) {
+				dbFile = null;
+				dbName = null;
+			} else {
+				ICProject currentCOwner = fFileToProject.get(dbFile);
+				if (currentCOwner != null) {
+					IProject currentOwner = currentCOwner.getProject();
+					if (!currentOwner.exists()) {
+						fFileToProject.remove(dbFile);
+						dbFile.delete();
+					}
+					dbName = null;
+					dbFile = null;
+				}
+			}
+		}
+
+		if (dbName == null) {
+			dbName = createNewDatabaseName(cProject);
+			dbFile = fileFromDatabaseName(dbName);
+			storeDatabaseName(cProject, configName, dbName);
+		}
+		return dbFile;
+	}
+
 	private Map<String, IPDOMLinkageFactory> getLinkageFactories() {
 		return LanguageManager.getInstance().getPDOMLinkageFactoryMappings();
 	}
 
-	private void storeDatabaseName(IProject rproject, String dbName) throws CoreException {
-		rproject.setPersistentProperty(dbNameProperty, dbName);
+	private void storeDatabaseName(ICProject cproject, String config, String dbName) throws CoreException {
+		QualifiedName dbNameProperty = new QualifiedName(CCorePlugin.PLUGIN_ID, "pdomName" + "." + config); //$NON-NLS-1$ //$NON-NLS-2$
+		cproject.getProject().setPersistentProperty(dbNameProperty, dbName);
 	}
 
 	private String createNewDatabaseName(ICProject project) {
@@ -454,7 +460,14 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 	}
 
 	private String getDefaultName(ICProject project, long time) {
-		return project.getElementName() + "." + time + ".pdom"; //$NON-NLS-1$//$NON-NLS-2$
+		return project.getElementName() + "." + getConfigName(project) + "." + time + ".pdom"; //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$
+	}
+
+	private String getConfigName(ICProject project) {
+		ICProjectDescription desc = CProjectDescriptionManager.getInstance().getProjectDescription(project.getProject(),
+				false, false);
+		String configName = desc.getDefaultSettingConfiguration().getName();
+		return configName;
 	}
 
 	@Override
@@ -1371,8 +1384,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			throw new OperationCanceledException();
 		}
 		try {
-			pdom.reloadFromFile(newFile);
-			storeDatabaseName(project.getProject(), newName);
+			pdom.reloadFromFile(newFile, true);
+			storeDatabaseName(project, getConfigName(project), newName);
 			writeProjectPDOMProperties(pdom, project.getProject());
 		} finally {
 			pdom.releaseWriteLock();
@@ -1697,5 +1710,42 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 
 	public int getIndexingPriority(IIndexFileLocation ifl) {
 		return fFilesIndexedUnconditionlly.getCount(ifl);
+	}
+
+	public void changeConfiguration(ICProject project, String configName) throws CoreException {
+		WritablePDOM pdom = (WritablePDOM) getPDOM(project);
+		File pdomFile = getPDOMFile(project, configName);
+		boolean fromScratch = !pdomFile.exists();
+
+		try {
+			pdom.acquireWriteLock(null);
+			fFileToProject.remove(pdom.getDB().getLocation());
+			pdom.reloadFromFile(pdomFile, false);
+			fFileToProject.put(pdomFile, project);
+		} catch (InterruptedException e) {
+			throw new CoreException(CCorePlugin.createStatus(Messages.PDOMManager_creationOfIndexInterrupted, e));
+		}
+
+		boolean versionMismatch = false;
+		if (!pdom.isSupportedVersion()) {
+			pdom.clear();
+			versionMismatch = true;
+		}
+		writeProjectPDOMProperties(pdom, project.getProject());
+		pdom.releaseWriteLock();
+
+		boolean rebuild = versionMismatch || fromScratch;
+		if (rebuild) {
+			if (IndexerPreferences.getReindexOnConfigChange(project.getProject())) {
+				reindex(project);
+			}
+		} else {
+			update(new ICElement[] { project }, IIndexManager.UPDATE_CHECK_TIMESTAMPS
+					| IIndexManager.UPDATE_EXTERNAL_FILES_FOR_PROJECT | IIndexManager.UPDATE_CHECK_CONTENTS_HASH);
+		}
+	}
+
+	public static QualifiedName getDbnameproperty(String configName) {
+		return new QualifiedName(CCorePlugin.PLUGIN_ID, "pdomName" + "." + configName); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 }

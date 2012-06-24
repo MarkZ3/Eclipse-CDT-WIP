@@ -10,6 +10,7 @@
  *
  * Contributors:
  *     Markus Schorn - initial API and implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.internal.ui.preferences;
 

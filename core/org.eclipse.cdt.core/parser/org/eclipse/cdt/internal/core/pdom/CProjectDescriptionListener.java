@@ -24,6 +24,7 @@ import org.eclipse.cdt.core.settings.model.ICProjectDescriptionListener;
 import org.eclipse.cdt.internal.core.pdom.indexer.IndexerPreferences;
 import org.eclipse.cdt.internal.core.settings.model.CProjectDescriptionManager;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 
 public class CProjectDescriptionListener implements ICProjectDescriptionListener {
 	private PDOMManager fIndexManager;
@@ -57,9 +58,13 @@ public class CProjectDescriptionListener implements ICProjectDescriptionListener
 			} else if (old != null && changedDefaultSettingConfiguration(old, act)) {
 				ICProject project = getProject(event);
 				if (project != null) {
-					if (IndexerPreferences.getReindexOnConfigChange(project.getProject())) {
-						fIndexManager.reindex(project);
+					try {
+						fIndexManager.changeConfiguration(project, act.getDefaultSettingConfiguration().getName());
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
+					//fIndexManager.reindex(project);
 				}
 			}
 		}

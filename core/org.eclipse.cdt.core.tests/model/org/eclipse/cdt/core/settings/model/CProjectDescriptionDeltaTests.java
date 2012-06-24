@@ -970,6 +970,8 @@ public class CProjectDescriptionDeltaTests extends BaseTestCase {
 		ICProjectDescription prjDescription = mngr.getProjectDescription(project, true);
 		assertNotNull(prjDescription);
 		assertEquals(2, prjDescription.getConfigurations().length);
+		
+		prjDescription.setConfigurationRelations(ICProjectDescriptionPreferences.CONFIGS_INDEPENDENT);
 
 		prjDescription.setConfigurationRelations(ICProjectDescription.CONFIGS_INDEPENDENT);
 

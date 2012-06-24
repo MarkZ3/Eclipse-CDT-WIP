@@ -666,7 +666,7 @@ public class PDOM extends PlatformObject implements IPDOM {
 		fEvent.setCleared();
 	}
 
-	void reloadFromFile(File file) throws CoreException {
+	void reloadFromFile(File file, boolean deleteOld) throws CoreException {
 		assert lockCount < 0; // must have write lock.
 		File oldFile = fPath;
 		clearCaches();
@@ -677,7 +677,9 @@ public class PDOM extends PlatformObject implements IPDOM {
 		}
 		loadDatabase(file, db.getChunkCache());
 		db.setExclusiveLock();
-		oldFile.delete();
+		if (deleteOld) {
+			oldFile.delete();
+		}
 		fEvent.fReloaded = true;
 	}
 
