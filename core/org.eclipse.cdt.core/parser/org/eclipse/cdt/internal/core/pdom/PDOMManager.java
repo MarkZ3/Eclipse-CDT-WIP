@@ -1589,12 +1589,12 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		return fFilesIndexedUnconditionlly.contains(ifl);
 	}
 	
-	private String getDefaultConfigName(ICProject project, String configName, long time) {
-		return project.getElementName() + "." + time + ".pdom";  //$NON-NLS-1$//$NON-NLS-2$
+	private String getDefaultConfigName(ICProject project, String configName) {
+		return project.getElementName() + "." + configName + ".pdom";  //$NON-NLS-1$//$NON-NLS-2$
 	}
 	
-	private File fileFromDatabaseConfig(ICProject project, String configName) {
-		return CCorePlugin.getDefault().getStateLocation().append(project.getElementName() + "." + configName + ".pdom").toFile();
+	private File fileFromDatabaseConfig(String dataBaseName) {
+		return CCorePlugin.getDefault().getStateLocation().append(dataBaseName).toFile();
 	}
 	
 	public void changeConfiguration(ICProject project, String configName) throws CoreException {
@@ -1604,11 +1604,12 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		} catch (InterruptedException e) {
 			throw new OperationCanceledException();
 		}
-		File fileFromDatabaseConfig = fileFromDatabaseConfig(project, configName);
+		String dataBaseName = getDefaultConfigName(project, configName);
+		File fileFromDatabaseConfig = fileFromDatabaseConfig(dataBaseName);
 		boolean newDataBase = !fileFromDatabaseConfig.exists();
 		try {
 			pdom.reloadFromFile(fileFromDatabaseConfig, false);
-			storeDatabaseName(project.getProject(), "");
+			storeDatabaseName(project.getProject(), dataBaseName);
 			writeProjectPDOMProperties(pdom, project.getProject());
 		} finally {
 			pdom.releaseWriteLock();
