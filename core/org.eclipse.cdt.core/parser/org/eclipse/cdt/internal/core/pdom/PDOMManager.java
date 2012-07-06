@@ -1619,10 +1619,8 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 			reindex(project);
 		} else {
 			update(new ICElement[] { project }, IIndexManager.UPDATE_CHECK_TIMESTAMPS |
-					//IIndexManager.UPDATE_CHECK_CONFIGURATION |
 					IIndexManager.UPDATE_EXTERNAL_FILES_FOR_PROJECT |
-					IIndexManager.UPDATE_CHECK_CONTENTS_HASH |
-					IIndexManager.UPDATE_UNRESOLVED_INCLUDES);	
+					IIndexManager.UPDATE_CHECK_CONTENTS_HASH);	
 		}
 	}
 }
