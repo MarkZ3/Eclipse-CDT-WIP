@@ -7,11 +7,13 @@
  *
  * Contributors:
  *     Markus Schorn (Wind River Systems) - initial API and implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.model.ICProject;
+import org.eclipse.cdt.internal.core.settings.model.CProjectDescriptionManager;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -51,6 +53,9 @@ public class PDOMSetupJob extends Job {
 			} else if (fManager.postponeSetup(cproject)) {
 				if (fManager.fTraceIndexerSetup) 
 					System.out.println("Indexer: Setup is postponed: " + project.getName()); //$NON-NLS-1$
+			} else if (CProjectDescriptionManager.getInstance().getProjectDescription(project, false) == null) {
+				if (fManager.fTraceIndexerSetup) 
+					System.out.println("Indexer: Setup is postponed, project description unavailable: " + project.getName()); //$NON-NLS-1$
 			} else {
 				syncronizeProjectSettings(project, progress.newChild(1));
 				if (fManager.getIndexer(cproject) == null) {
