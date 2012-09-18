@@ -53,9 +53,9 @@ public class PDOMSetupJob extends Job {
 			} else if (fManager.postponeSetup(cproject)) {
 				if (fManager.fTraceIndexerSetup) 
 					System.out.println("Indexer: Setup is postponed: " + project.getName()); //$NON-NLS-1$
-			} else if (CProjectDescriptionManager.getInstance().getProjectDescription(project, false) == null) {
+			} else if (CProjectDescriptionManager.getInstance().getProjectDescription(project, true, false) == null) {
 				if (fManager.fTraceIndexerSetup) 
-					System.out.println("Indexer: Setup is postponed, project description unavailable: " + project.getName()); //$NON-NLS-1$
+					System.out.println("Indexer: Setup is postponed, project description not loaded: " + project.getName()); //$NON-NLS-1$
 			} else {
 				syncronizeProjectSettings(project, progress.newChild(1));
 				if (fManager.getIndexer(cproject) == null) {
