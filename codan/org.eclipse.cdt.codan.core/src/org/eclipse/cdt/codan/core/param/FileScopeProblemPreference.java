@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2009,2010 QNX Software Systems
+ * Copyright (c) 2009, 2010 QNX Software Systems
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    QNX Software Systems (Alena Laskavaia)  - initial API and implementation
+ *     QNX Software Systems (Alena Laskavaia)  - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.core.param;
 
@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.cdt.codan.core.Messages;
 import org.eclipse.cdt.codan.internal.core.CharOperation;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -45,6 +44,7 @@ public class FileScopeProblemPreference extends AbstractProblemPreference {
 	 * Inclusion attribute
 	 */
 	public static final String INCLUSION = "inclusion"; //$NON-NLS-1$
+
 	private IResource resource;
 	private IPath[] inclusion = new IPath[0];
 	private IPath[] exclusion = new IPath[0];
@@ -57,6 +57,7 @@ public class FileScopeProblemPreference extends AbstractProblemPreference {
 		setLabel(Messages.FileScopeProblemPreference_Label);
 	}
 
+	@Override
 	public PreferenceType getType() {
 		return PreferenceType.TYPE_CUSTOM;
 	}
@@ -130,6 +131,7 @@ public class FileScopeProblemPreference extends AbstractProblemPreference {
 			return true;
 		return false;
 	}
+	@Override
 	public String exportValue() {
 		return exportPathList(INCLUSION, inclusion) + "," //$NON-NLS-1$
 				+ exportPathList(EXCLUSION, exclusion);
@@ -172,14 +174,14 @@ public class FileScopeProblemPreference extends AbstractProblemPreference {
 		checkChar(tokenizer, '>');
 		ArrayList<IPath> list = new ArrayList<IPath>();
 		int token;
-		int index = 0;
 		try {
 			checkChar(tokenizer, '(');
 			token = tokenizer.nextToken();
-			if (token != ')')
+			if (token != ')') {
 				tokenizer.pushBack();
-			else
+			} else {
 				return Collections.emptyList();
+			}
 			while (true) {
 				token = tokenizer.nextToken();
 				if (tokenizer.sval == null)
@@ -190,7 +192,6 @@ public class FileScopeProblemPreference extends AbstractProblemPreference {
 					break;
 				tokenizer.pushBack();
 				checkChar(tokenizer, ',');
-				index++;
 			}
 		} catch (IOException e) {
 			throw new IllegalArgumentException(e);

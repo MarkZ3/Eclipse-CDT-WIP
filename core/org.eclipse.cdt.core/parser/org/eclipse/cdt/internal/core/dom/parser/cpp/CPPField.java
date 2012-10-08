@@ -36,33 +36,39 @@ public class CPPField extends CPPVariable implements ICPPField {
     public static class CPPFieldProblem extends ProblemBinding implements ICPPField {
         private ICPPClassType fOwner;
 
-		public CPPFieldProblem(ICPPClassType owner, IASTNode node, int id, char[] arg ) {
-            super( node, id, arg );
+		public CPPFieldProblem(ICPPClassType owner, IASTNode node, int id, char[] arg) {
+            super(node, id, arg);
             fOwner= owner;
         }
-        public int getVisibility() {
+
+        @Override
+		public int getVisibility() {
             return v_private;
         }
-        public ICPPClassType getClassOwner() {
+
+        @Override
+		public ICPPClassType getClassOwner() {
             return fOwner;
         }
+
+		@Override
 		public ICompositeType getCompositeTypeOwner() {
 			return getClassOwner();
 		}
     }
     
-	public CPPField( IASTName name ){
-		super( name );
+	public CPPField(IASTName name) {
+		super(name);
 	}
 
 	public IASTDeclaration getPrimaryDeclaration() {
-		//first check if we already know it
+		// First check if we already know it
 		IASTDeclaration decl= findDeclaration(getDefinition());
 		if (decl != null) {
 			return decl;
 		}
 		
-	    IASTName [] declarations = (IASTName[]) getDeclarations();
+	    IASTName[] declarations = (IASTName[]) getDeclarations();
 		if (declarations != null) {
 			for (IASTName name : declarations) {
 				decl= findDeclaration(name);
@@ -72,11 +78,11 @@ public class CPPField extends CPPVariable implements ICPPField {
 			}
 		}
 		
-		char [] myName = getNameCharArray();
+		char[] myName = getNameCharArray();
 		
 		ICPPClassScope scope = (ICPPClassScope) getScope();
 		ICPPASTCompositeTypeSpecifier compSpec = (ICPPASTCompositeTypeSpecifier) ASTInternal.getPhysicalNodeOfScope(scope);
-		IASTDeclaration [] members = compSpec.getMembers();
+		IASTDeclaration[] members = compSpec.getMembers();
 		for (IASTDeclaration member : members) {
 			if (member instanceof IASTSimpleDeclaration) {
 				IASTDeclarator[] dtors = ((IASTSimpleDeclaration) member).getDeclarators();
@@ -92,7 +98,7 @@ public class CPPField extends CPPVariable implements ICPPField {
 	}
 
 	private IASTDeclaration findDeclaration(IASTNode node) {
-		while(node != null && node instanceof IASTDeclaration == false) {
+		while (node != null && !(node instanceof IASTDeclaration)) {
 			node = node.getParent();
 		}
 		if (node != null && node.getParent() instanceof ICPPASTCompositeTypeSpecifier) {
@@ -101,29 +107,32 @@ public class CPPField extends CPPVariable implements ICPPField {
 		return null;
 	}
 
+	@Override
 	public int getVisibility() {
 		ICPPASTVisibilityLabel vis = null;
 		IASTDeclaration decl = getPrimaryDeclaration();
-		if( decl != null ) {
+		if (decl != null) {
 			IASTCompositeTypeSpecifier cls = (IASTCompositeTypeSpecifier) decl.getParent();
-			IASTDeclaration [] members = cls.getMembers();
-			
+			IASTDeclaration[] members = cls.getMembers();
+
 			for (IASTDeclaration member : members) {
-				if( member instanceof ICPPASTVisibilityLabel )
+				if (member instanceof ICPPASTVisibilityLabel) {
 					vis = (ICPPASTVisibilityLabel) member;
-				else if( member == decl )
+				} else if (member == decl) {
 					break;
+				}
 			}
 		
-			if( vis != null ){
+			if (vis != null) {
 				return vis.getVisibility();
-			} else if( cls.getKey() == ICPPASTCompositeTypeSpecifier.k_class ){
+			} else if (cls.getKey() == ICPPASTCompositeTypeSpecifier.k_class) {
 				return ICPPASTVisibilityLabel.v_private;
 			}
 		}
 		return ICPPASTVisibilityLabel.v_public;
 	}
 	
+	@Override
 	public ICPPClassType getClassOwner() {
 		ICPPClassScope scope = (ICPPClassScope) getScope();
 		return scope.getClassType();
@@ -141,10 +150,9 @@ public class CPPField extends CPPVariable implements ICPPField {
 		return super.isStatic();
 	}
 	
-
     @Override
 	public boolean isMutable() {
-        return hasStorageClass( IASTDeclSpecifier.sc_mutable);
+        return hasStorageClass(IASTDeclSpecifier.sc_mutable);
     }
     
     @Override
@@ -153,6 +161,7 @@ public class CPPField extends CPPVariable implements ICPPField {
         return false;
     }
     
+	@Override
 	public ICompositeType getCompositeTypeOwner() {
 		return getClassOwner();
 	}

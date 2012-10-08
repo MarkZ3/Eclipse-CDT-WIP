@@ -7,7 +7,7 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- * 		Martin Schwab & Thomas Kallenberg - initial API and implementation 
+ * 	   Martin Schwab & Thomas Kallenberg - initial API and implementation 
  ******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring.togglefunction;
 
@@ -31,11 +31,11 @@ import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite.CommentPosition;
 
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTSimpleDeclaration;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
 
 public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStrategy {
-
 	private TextEditGroup infoText;
 	private ToggleRefactoringContext context;
 
@@ -55,10 +55,10 @@ public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStra
 		if (declarator.getName() instanceof ICPPASTQualifiedName) {
 			declarator = backup;
 		}
-		return (ToggleNodeHelper.getAncestorOfType(declarator,
-				IASTCompositeTypeSpecifier.class) == null);
+		return (CPPVisitor.findAncestorWithType(declarator, IASTCompositeTypeSpecifier.class) == null);
 	}
 
+	@Override
 	public void run(ModificationCollector modifications) {
 		ASTRewrite rewriter = removeDefinition(modifications);
 		IASTFunctionDefinition newDefinition = getNewDefinition();
@@ -66,8 +66,7 @@ public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStra
 		
 		IASTNode parentTemplateDeclaration = 
 			ToggleNodeHelper.getParentTemplateDeclaration(context.getDeclaration());
-		if (parentTemplateDeclaration instanceof ICPPASTTemplateDeclaration) {
-		} else {
+		if (!(parentTemplateDeclaration instanceof ICPPASTTemplateDeclaration)) {
 			restoreLeadingComments(rewriter, newDefinition);
 		}
 	}
@@ -83,7 +82,7 @@ public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStra
 	}
 
 	private ASTRewrite removeDefinition(ModificationCollector modifications) {
-		ASTRewrite rewriter = modifications.rewriterForTranslationUnit(context.getDefinitionUnit());
+		ASTRewrite rewriter = modifications.rewriterForTranslationUnit(context.getDefinitionAST());
 		IASTNode parentRemovePoint = ToggleNodeHelper.getParentRemovePoint(context.getDefinition());
 		rewriter.remove(parentRemovePoint, infoText);
 		return rewriter;
@@ -91,7 +90,7 @@ public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStra
 
 	private IASTFunctionDefinition getNewDefinition() {
 		IASTFunctionDefinition newDefinition = ToggleNodeHelper.createInClassDefinition(
-				context.getDeclaration(), context.getDefinition(), context.getDefinitionUnit());
+				context.getDeclaration(), context.getDefinition(), context.getDefinitionAST());
 		newDefinition.setBody(context.getDefinition().getBody().copy(CopyStyle.withLocations));
 		if (newDefinition instanceof ICPPASTFunctionWithTryBlock) {
 			ICPPASTFunctionWithTryBlock newTryFun = (ICPPASTFunctionWithTryBlock) newDefinition;
@@ -101,21 +100,18 @@ public class ToggleFromInHeaderToClassStrategy implements IToggleRefactoringStra
 			}
 		}
 		
-		IASTNode parent = ToggleNodeHelper.getAncestorOfType(context.getDefinition(), 
-				ICPPASTCompositeTypeSpecifier.class);
+		IASTNode parent = CPPVisitor.findAncestorWithType(context.getDefinition(), ICPPASTCompositeTypeSpecifier.class);
 		if (parent != null) {
 			newDefinition.setParent(parent);
-		}
-		else {
-			newDefinition.setParent(context.getDefinitionUnit());
+		} else {
+			newDefinition.setParent(context.getDefinitionAST());
 		}
 		return newDefinition;
 	}
 
 	private ASTRewrite replaceDeclarationWithDefinition(ASTRewrite rewriter,
 			IASTFunctionDefinition newDefinition) {
-		IASTSimpleDeclaration fullDeclaration = ToggleNodeHelper.getAncestorOfType(
-				context.getDeclaration(), CPPASTSimpleDeclaration.class);
+		IASTSimpleDeclaration fullDeclaration = CPPVisitor.findAncestorWithType(context.getDeclaration(), CPPASTSimpleDeclaration.class);
 		ASTRewrite newRewriter = rewriter.replace(fullDeclaration, newDefinition, infoText);
 		return newRewriter;
 	}

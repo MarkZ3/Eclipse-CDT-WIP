@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2011 Alena Laskavaia and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Alena Laskavaia  - initial API and implementation
+ *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
 import org.eclipse.cdt.codan.core.model.IProblem;
@@ -12,6 +22,7 @@ import org.eclipse.text.edits.InsertEdit;
 import org.eclipse.text.edits.MalformedTreeException;
 
 public class CaseBreakQuickFixComment extends AbstractCodanCMarkerResolution {
+	@Override
 	public String getLabel() {
 		return Messages.CaseBreakQuickFixComment_Label;
 	}

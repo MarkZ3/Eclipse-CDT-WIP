@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2011 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,6 +11,7 @@
  *     Andrew Ferguson (Symbian)
  *     Bryan Wilkinson (QNX)
  *     Sergey Prigogin (Google)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
@@ -36,6 +37,8 @@ import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
+import org.eclipse.cdt.internal.core.pdom.PDOM;
+import org.eclipse.cdt.internal.core.pdom.db.Database;
 import org.eclipse.cdt.internal.core.pdom.db.PDOMNodeLinkedList;
 import org.eclipse.cdt.internal.core.pdom.dom.IPDOMMemberOwner;
 import org.eclipse.cdt.internal.core.pdom.dom.PDOMLinkage;
@@ -52,8 +55,9 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 	private static final int FIRSTFRIEND = PDOMCPPBinding.RECORD_SIZE + 8;
 	private static final int KEY = PDOMCPPBinding.RECORD_SIZE + 12; // byte
 	private static final int ANONYMOUS= PDOMCPPBinding.RECORD_SIZE + 13; // byte
+	private static final int FINAL = PDOMCPPBinding.RECORD_SIZE + 14; // byte
 	@SuppressWarnings("hiding")
-	protected static final int RECORD_SIZE = PDOMCPPBinding.RECORD_SIZE + 14;
+	protected static final int RECORD_SIZE = PDOMCPPBinding.RECORD_SIZE + 15;
 
 	private PDOMCPPClassScope fScope; // No need for volatile, all fields of PDOMCPPClassScope are final.
 
@@ -62,6 +66,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 
 		setKind(classType);
 		setAnonymous(classType);
+		setFinal(classType);
 		// linked list is initialized by storage being zero'd by malloc
 	}
 
@@ -85,6 +90,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 			ICPPClassType ct= (ICPPClassType) newBinding;
 			setKind(ct);
 			setAnonymous(ct);
+			setFinal(ct);
 			super.update(linkage, newBinding);
 		}
 	}
@@ -95,6 +101,10 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 
 	private void setAnonymous(ICPPClassType ct) throws CoreException {
 		getDB().putByte(record + ANONYMOUS, (byte) (ct.isAnonymous() ? 1 : 0));
+	}
+
+	private void setFinal(ICPPClassType ct) throws CoreException {
+		getDB().putByte(record + FINAL, (byte) (ct.isFinal() ? 1 : 0));
 	}
 
 	@Override
@@ -117,6 +127,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 	/**
 	 * Called to populate the cache for the bindings in the class scope.
 	 */
+	@Override
 	public void acceptUncached(IPDOMVisitor visitor) throws CoreException {
 		super.accept(visitor);
 		PDOMNodeLinkedList list = new PDOMNodeLinkedList(getLinkage(), record + MEMBERLIST);
@@ -132,35 +143,53 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		long rec = base != null ? base.getRecord() : 0;
 		getDB().putRecPtr(record + FIRSTBASE, rec);
 	}
-
-	public void addBase(PDOMCPPBase base) throws CoreException {
+	
+	public void addBases(PDOMName classDefName, ICPPBase[] bases) throws CoreException {
 		getPDOM().removeCachedResult(record+PDOMCPPLinkage.CACHE_BASES);
+		final PDOMLinkage linkage = getLinkage();
 		PDOMCPPBase firstBase = getFirstBase();
-		base.setNextBase(firstBase);
-		setFirstBase(base);
+		for (ICPPBase base : bases) {
+			PDOMCPPBase nextBase= new PDOMCPPBase(linkage, base, classDefName);
+			nextBase.setNextBase(firstBase);
+			firstBase= nextBase;
+		}
+		setFirstBase(firstBase);
 	}
 
-	public void removeBase(PDOMName pdomName) throws CoreException {
-		getPDOM().removeCachedResult(record+PDOMCPPLinkage.CACHE_BASES);
-
+	public void removeBases(PDOMName classDefName) throws CoreException {
+		final PDOM pdom = getPDOM();
+		final Database db = getDB();
+		pdom.removeCachedResult(record+PDOMCPPLinkage.CACHE_BASES);
+		
 		PDOMCPPBase base= getFirstBase();
-		PDOMCPPBase predecessor= null;
-		long nameRec= pdomName.getRecord();
+		PDOMCPPBase prevBase= null;
+		long nameRec= classDefName.getRecord();
+		boolean deleted= false;
 		while (base != null) {
-			PDOMName name = base.getBaseClassSpecifierName();
-			if (name != null && name.getRecord() == nameRec) {
-				break;
-			}
-			predecessor= base;
-			base= base.getNextBase();
-		}
-		if (base != null) {
-			if (predecessor != null) {
-				predecessor.setNextBase(base.getNextBase());
+			PDOMCPPBase nextBase = base.getNextBase();
+			long classDefRec= db.getRecPtr(base.getRecord() + PDOMCPPBase.CLASS_DEFINITION);
+			if (classDefRec == nameRec) {
+				deleted= true;
+				base.delete();
 			} else {
-				setFirstBase(base.getNextBase());
+				if (deleted) {
+					deleted= false;
+					if (prevBase == null) {
+						setFirstBase(base);
+					} else {
+						prevBase.setNextBase(base);
+					}
+				}
+				prevBase= base;
 			}
-			base.delete();
+			base= nextBase;
+		}
+		if (deleted) {
+			if (prevBase == null) {
+				setFirstBase(null);
+			} else {
+				prevBase.setNextBase(null);
+			}
 		}
 	}
 	
@@ -202,6 +231,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPClassScope getCompositeScope() {
 		if (fScope == null) {
 			fScope= new PDOMCPPClassScope(this);
@@ -209,6 +239,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		return fScope;
 	}
 
+	@Override
 	public int getKey() {
 		try {
 			return getDB().getByte(record + KEY);
@@ -218,6 +249,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public boolean isAnonymous() {
 		try {
 			return getDB().getByte(record + ANONYMOUS) != 0;
@@ -227,6 +259,17 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
+	public boolean isFinal() {
+		try {
+			return getDB().getByte(record + FINAL) != 0;
+		} catch (CoreException e){
+			CCorePlugin.log(e);
+			return false;
+		}
+	}
+
+	@Override
 	public boolean isSameType(IType type) {
 		if (type instanceof ITypedef) {
 			return type.isSameType(this);
@@ -260,6 +303,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		return key == k_class ? k_struct : key;
 	}
 
+	@Override
 	public ICPPBase[] getBases() {
 		Long key= record + PDOMCPPLinkage.CACHE_BASES;
 		ICPPBase[] bases= (ICPPBase[]) getPDOM().getCachedResult(key);
@@ -280,6 +324,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPConstructor[] getConstructors() {
 		PDOMClassUtil.ConstructorCollector visitor= new PDOMClassUtil.ConstructorCollector();
 		try {
@@ -291,6 +336,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPMethod[] getDeclaredMethods() {
 		try {
 			PDOMClassUtil.MethodCollector methods = new PDOMClassUtil.MethodCollector(false);
@@ -302,6 +348,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPField[] getDeclaredFields() {
 		try {
 			PDOMClassUtil.FieldCollector visitor = new PDOMClassUtil.FieldCollector();
@@ -313,6 +360,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPClassType[] getNestedClasses() {
 		try {
 			PDOMClassUtil.NestedClassCollector visitor = new PDOMClassUtil.NestedClassCollector();
@@ -324,6 +372,7 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public IBinding[] getFriends() {
 		try {
 			final List<IBinding> list = new ArrayList<IBinding>();
@@ -338,18 +387,22 @@ class PDOMCPPClassType extends PDOMCPPBinding implements IPDOMCPPClassType, IPDO
 		}
 	}
 
+	@Override
 	public ICPPMethod[] getMethods() { 
-		return ClassTypeHelper.getMethods(this);
+		return ClassTypeHelper.getMethods(this, null);
 	}
 
+	@Override
 	public ICPPMethod[] getAllDeclaredMethods() {
-		return ClassTypeHelper.getAllDeclaredMethods(this);
+		return ClassTypeHelper.getAllDeclaredMethods(this, null);
 	}
 	
+	@Override
 	public IField[] getFields() {
-		return ClassTypeHelper.getFields(this);
+		return ClassTypeHelper.getFields(this, null);
 	}
 	
+	@Override
 	public IField findField(String name) {
 		return ClassTypeHelper.findField(this, name);
 	}

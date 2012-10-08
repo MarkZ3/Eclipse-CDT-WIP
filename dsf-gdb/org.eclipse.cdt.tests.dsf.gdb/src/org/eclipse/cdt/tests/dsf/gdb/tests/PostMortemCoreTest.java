@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Ericsson and others.
+ * Copyright (c) 2011, 2012 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,8 @@
  * 
  * Contributors:
  *     Ericsson			  - Initial Implementation
+ *     Marc Khouzam (Ericsson) - Added test to handle different cases of core
+ *                               file specification (Bug 362039)
  *******************************************************************************/
 package org.eclipse.cdt.tests.dsf.gdb.tests;
 
@@ -14,6 +16,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -40,12 +43,15 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.cdt.utils.Addr64;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.variables.VariablesPlugin;
+import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.MemoryByte;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -61,10 +67,24 @@ public class PostMortemCoreTest extends BaseTestCase {
 
 	private IMemoryDMContext fMemoryDmc;
 
-
-    @BeforeClass
-    public static void beforeClassMethod() {
-        setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "data/launch/bin/ExpressionTestApp.exe");
+    @Override
+	public void doBeforeTest() throws Exception {
+		setLaunchAttributes();
+		// Can't run the launch right away because each test needs to first set some 
+		// parameters.  The individual tests will be responsible for starting the launch. 
+	}
+	
+	@Override
+ 	protected void setLaunchAttributes() {
+    	super.setLaunchAttributes();
+    	
+		// Set a working directory for GDB that is different than eclipse's directory.
+		// This allows us to make sure we properly handle finding the core file,
+		// especially in the case of a relative path
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_WORKING_DIRECTORY, "${workspace_loc}");
+		// Because we just set a different working directory, we must use an absolute path for the program
+    	String absoluteProgram = new Path("data/launch/bin/ExpressionTestApp.exe").toFile().getAbsolutePath();
+        setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, absoluteProgram);
         
         // Set post-mortem launch
 		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_DEBUGGER_START_MODE,
@@ -72,19 +92,26 @@ public class PostMortemCoreTest extends BaseTestCase {
 		// Set post-mortem type to core file
 		setLaunchAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_POST_MORTEM_TYPE,
 		                   IGDBLaunchConfigurationConstants.DEBUGGER_POST_MORTEM_CORE_FILE);
-		// Set core file path
+		// Set default core file path
 		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, "data/launch/bin/core");
     }
+    
+    // This method cannot be tagged as @Before, because the launch is not
+    // running yet.  We have to call this manually after all the proper
+    // parameters have been set for the launch
+    @Override
+	protected void doLaunch() throws Exception {
+    	// perform the launch
+        super.doLaunch();
 
-    @Before
-    public void init() throws Exception {
         fSession = getGDBLaunch().getSession();
 
         fMemoryDmc = (IMemoryDMContext)SyncUtil.getContainerContext();
 	    assert(fMemoryDmc != null);
 
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fServicesTracker = new DsfServicesTracker(TestsPlugin.getBundleContext(), fSession.getId());
             	fExpService = fServicesTracker.getService(IExpressions.class);
         		fMemoryService = fServicesTracker.getService(IMemory.class);
@@ -93,17 +120,196 @@ public class PostMortemCoreTest extends BaseTestCase {
         fSession.getExecutor().submit(runnable).get();
     }
 
-    @After
-    public void shutdown() throws Exception {
-        Runnable runnable = new Runnable() {
-            public void run() {
-            	fSession.removeServiceEventListener(PostMortemCoreTest.this);
-            }
-        };
-        fSession.getExecutor().submit(runnable).get();
-        fExpService = null;
-        fMemoryService = null;
-        fServicesTracker.dispose();
+    @Override
+	public void doAfterTest() throws Exception {
+    	super.doAfterTest();
+    	
+    	if (fSession != null) {
+    		Runnable runnable = new Runnable() {
+    			@Override
+    			public void run() {
+    				fSession.removeServiceEventListener(PostMortemCoreTest.this);
+    			}
+    		};
+    		fSession.getExecutor().submit(runnable).get();
+    	}
+    	
+    	fExpService = null;
+    	fMemoryService = null;
+    	if (fServicesTracker != null) fServicesTracker.dispose();
+    }
+
+    /**
+     * Test that we support specifying a core file with an absolute path.
+     */
+    @Test
+    public void testAbsoluteCoreFilePath() throws Throwable {
+    	File file = new File("data/launch/bin/core");
+    	assertTrue("Cannot find test file; " + file.toString(), file.exists());
+
+    	String absoluteCoreFile = file.getAbsolutePath();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, absoluteCoreFile);
+
+		doLaunch();
+		
+		// If the launch passed, we are ok, nothing more to check
+    }
+
+    /**
+     * Test that we support specifying a core file with a relative path.
+     */
+    @Test
+    public void testRelativeCoreFilePath() throws Throwable {
+    	File file = new File("data/launch/bin/core");
+    	assertTrue("Cannot find test file; " + file.toString(), file.exists());
+
+    	String relativeCoreFile = file.toString();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, relativeCoreFile);
+
+		doLaunch();
+		
+		// If the launch passed, we are ok, nothing more to check
+    }
+    
+    /**
+     * Test that we handle specifying an invalid core file with an absolute path.
+     */
+    @Test
+    public void testAbsoluteCoreFilePathInvalid() throws Throwable {
+    	File file = new File("data/launch/bin/MultiThread.exe");
+    	assertTrue("Cannot find test file: " + file.toString(), file.exists());
+    	
+    	String absoluteCoreFile = file.getAbsolutePath();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, absoluteCoreFile);
+
+        try {
+        	doLaunch();
+        } catch (DebugException e) {
+        	// Success of the test
+        	return;
+        }
+        
+        fail("Launch seems to have succeeded even though the specified core file is invalid");
+    }
+
+    /**
+     * Test that we handle specifying an invalid core file with a relative path.
+     */
+    @Test
+    public void testRelativeCoreFilePathInvalid() throws Throwable {
+    	File file = new File("data/launch/bin/MultiThread.exe");
+    	assertTrue("Cannot find test file: " + file.toString(), file.exists());
+    	
+    	String relativeCoreFile = file.toString();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, relativeCoreFile);
+
+        try {
+        	doLaunch();
+        } catch (CoreException e) {
+        	// Success of the test
+        	return;
+        }
+        
+        fail("Launch seems to have succeeded even though the specified core file is invalid");
+    }
+
+    /**
+     * Test that we handle specifying a missing core file with an absolute path.
+     */
+    @Test
+    public void testAbsoluteCoreFilePathMissing() throws Throwable {
+    	File file = new File("data/launch/bin/MissingFile");
+    	assertTrue("Should not have found test file: " + file.toString(), !file.exists());
+    	
+    	String absoluteCoreFile = file.getAbsolutePath();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, absoluteCoreFile);
+
+        try {
+        	doLaunch();
+        } catch (CoreException e) {
+        	// Success of the test
+        	return;
+        }
+        
+        fail("Launch seems to have succeeded even though the specified core file does not exist");
+    }
+    
+    /**
+     * Test that we handle specifying a missing core file with a relative path.
+     */
+    @Test
+    public void testRelativeCoreFilePathMissing() throws Throwable {
+    	File file = new File("data/launch/bin/MissingFile");
+    	assertTrue("Should not have found test file: " + file.toString(), !file.exists());
+    	
+    	String relativeCoreFile = file.toString();
+    	
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, relativeCoreFile);
+
+        try {
+        	doLaunch();
+        } catch (CoreException e) {
+        	// Success of the test
+        	return;
+        }
+        
+        fail("Launch seems to have succeeded even though the specified core file does not exist");
+    }
+    
+    /**
+     * Test that we support a valid core file path using variables.
+     */
+    @Test
+    public void testCoreFilePathWithVariable() throws Throwable {
+    	// I couldn't find an easy way to test with a variable.
+    	// Here what we do here:
+    	//   create the variable for the workspace location and expand it
+    	//   The resulting path has a common part with the absolute core
+    	//   file path.  Find that common part and count how many .. we
+    	//   have to insert to use the common part of the variablePath
+    	//   inside the absolute path.
+    	//   Then, send the variable itself, with all the .., and the
+    	//   absolute path, and make sure the variable gets translated
+    	//   properly.
+    	
+    	// Absolute path of the core file
+       	File file = new File("data/launch/bin/core");
+    	String absoluteCoreFile = file.getAbsolutePath();
+
+    	// Variable for workspace location
+    	String variable = "${workspace_loc}";
+    	// Expand workspace location
+		String workspaceLocation = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(variable, false);
+
+		// Path to the core file
+		IPath corePath = new Path(absoluteCoreFile);
+		// Prepare to find the common path between the core file and the workspace
+		IPath commonPath = new Path(workspaceLocation);
+		
+		StringBuffer backwards = new StringBuffer("/");
+		// While the commonPath is not the prefix of the core file path
+		// remove one more segment of the potential commonPath
+		while (!commonPath.isPrefixOf(corePath)) {
+			commonPath = commonPath.removeLastSegments(1);
+			backwards.append("../");
+		}
+		
+		// Remove the commonPath from the workspace path
+		IPath trailingPathCoreFile = corePath.removeFirstSegments(commonPath.segmentCount());
+		
+		// Build the path using the variable unexpanded, the number of ..
+		// to remove all non-common segments, the trailing part of the
+		// path of the core file
+		String coreFile = variable + backwards.toString() + trailingPathCoreFile;
+
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_COREFILE_PATH, coreFile);
+
+       	doLaunch();
     }
 
     /**
@@ -111,6 +317,8 @@ public class PostMortemCoreTest extends BaseTestCase {
      */
     @Test
     public void testLiteralIntegerExpressions() throws Throwable {
+       	doLaunch();
+
         // Create a map of expressions and their expected values.
         Map<String, String[]> tests = new HashMap<String, String[]>();
 
@@ -132,6 +340,8 @@ public class PostMortemCoreTest extends BaseTestCase {
      */
     @Test
     public void testLiteralFloatingPointExpressions() throws Throwable {
+       	doLaunch();
+
         // Create a map of expressions and their expected values.
         Map<String, String[]> tests = new HashMap<String, String[]>();
 
@@ -154,6 +364,8 @@ public class PostMortemCoreTest extends BaseTestCase {
      */
     @Test
     public void testLocalVariables() throws Throwable {
+       	doLaunch();
+
         // Create a map of expressions to expected values.
         Map<String, String[]> tests1 = new HashMap<String, String[]>();
 
@@ -184,6 +396,8 @@ public class PostMortemCoreTest extends BaseTestCase {
  
 	@Test
 	public void readMemoryArray() throws Throwable {
+       	doLaunch();
+
 		IAddress address = evaluateExpression(SyncUtil.getStackFrame(SyncUtil.getExecutionContext(0), 0), "&lBoolPtr2");
 
 		final int LENGTH = 4;
@@ -198,6 +412,49 @@ public class PostMortemCoreTest extends BaseTestCase {
 		assertEquals(buffer[2].getValue(), 0x3a);
 		assertEquals(buffer[3].getValue(), 0x12);
 	}
+
+    /**
+     * Test that we support setting only the initial path with an absolute path.
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testAbsoluteInitialPath() throws Throwable {
+    }
+    /**
+     * Test that we support setting an invalid initial path with an absolute path.
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testAbsoluteInitialPathInvalid() throws Throwable {
+    }
+    /**
+     * Test that we support setting only the initial path with a relative path.
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testRelativeInitialPath() throws Throwable {
+    }
+    /**
+     * Test that we support an empty path
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testEmptyInitialPath() throws Throwable {
+    }
+    /**
+     * Test that we support a valid initial path using variables.
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testInitialPathWithVariable() throws Throwable {
+    }
+    /**
+     * Test that we support setting an invalid initial path with a relative path.
+     */
+    @Ignore("Can't test without the UI")
+    @Test
+    public void testRelativeInitialPathInvalid() throws Throwable {
+    }
 
 	private IAddress evaluateExpression(IDMContext ctx, String expression) throws Throwable
 	{
@@ -283,7 +540,8 @@ public class PostMortemCoreTest extends BaseTestCase {
             // each one,
             // get the value of the expression
             fExpService.getExecutor().submit(new Runnable() {
-                public void run() {
+                @Override
+				public void run() {
                     fExpService.getAvailableFormats(exprDMC, new DataRequestMonitor<String[]>(
                         fExpService.getExecutor(), null) {
                         @Override

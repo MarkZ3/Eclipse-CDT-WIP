@@ -11,7 +11,6 @@
 package org.eclipse.cdt.internal.core.pdom.dom.c;
 
 import org.eclipse.cdt.core.CCorePlugin;
-import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IEnumerator;
 import org.eclipse.cdt.core.dom.ast.IType;
@@ -70,13 +69,15 @@ class PDOMCEnumerator extends PDOMBinding implements IEnumerator {
 			storeValue(getDB(), (IEnumerator) newBinding);
 	}
 
-	public IType getType() throws DOMException {
+	@Override
+	public IType getType() {
 		IIndexFragmentBinding owner = getOwner();
 		if (owner instanceof IType)
 			return (IType) owner;
 		return null;
 	}
 	
+	@Override
 	public IValue getValue() {
 		try {
 			int val= getDB().getInt(record + VALUE);

@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.cdt.debug.internal.core.breakpoints;
 
-import com.ibm.icu.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,8 +17,7 @@ import java.util.Map;
 
 import org.eclipse.cdt.debug.core.CDIDebugModel;
 import org.eclipse.cdt.debug.core.CDebugCorePlugin;
-
-import org.eclipse.cdt.debug.core.model.ICBreakpoint;
+import org.eclipse.cdt.debug.core.model.ICBreakpoint2;
 import org.eclipse.cdt.debug.core.model.ICBreakpointExtension;
 import org.eclipse.cdt.debug.core.model.ICBreakpointType;
 import org.eclipse.core.resources.IMarker;
@@ -39,16 +37,18 @@ import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.debug.core.model.Breakpoint;
 
+import com.ibm.icu.text.MessageFormat;
+
 /**
  * The base class for all C/C++ specific breakpoints.
  */
-public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, ICBreakpointType, IDebugEventSetListener {
+public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint2, ICBreakpointType, IDebugEventSetListener {
 
     /**
      * Map of breakpoint extensions.  The keys to the map are debug model IDs 
      * and values are arrays of breakpoint extensions.
      */
-	private Map fExtensions = new HashMap(1);
+	private Map<String, ICBreakpointExtension[]> fExtensions = new HashMap<String, ICBreakpointExtension[]>(1);
 	
 	/**
 	 * The number of debug targets the breakpoint is installed in. We don't use
@@ -67,13 +67,14 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 	/**
 	 * Constructor for CBreakpoint.
 	 */
-	public CBreakpoint( final IResource resource, final String markerType, final Map attributes, final boolean add ) throws CoreException {
+	public CBreakpoint( final IResource resource, final Map<String, Object> attributes, final boolean add ) throws CoreException {
 	    this();
 		IWorkspaceRunnable wr = new IWorkspaceRunnable() {
 
+			@Override
 			public void run( IProgressMonitor monitor ) throws CoreException {
 				// create the marker
-				setMarker( resource.createMarker( markerType ) );
+				setMarker( resource.createMarker( getMarkerType() ) );
 				// set attributes
 				ensureMarker().setAttributes( attributes );
 				//set the marker message
@@ -85,133 +86,70 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		run( wr );
 	}
 
-	public void createMarker( final IResource resource, final String markerType, final Map attributes, final boolean add ) throws DebugException {
-		IWorkspaceRunnable wr = new IWorkspaceRunnable() {
-			public void run( IProgressMonitor monitor ) throws CoreException {
-				// create the marker
-				setMarker( resource.createMarker( markerType ) );
-				// set attributes
-				ensureMarker().setAttributes( attributes );
-				//set the marker message
-				setAttribute( IMarker.MESSAGE, getMarkerMessage() );
-				// add to breakpoint manager if requested
-				register( add );
-			}
-		};
-		run( wr );
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.debug.core.model.IBreakpoint#getModelIdentifier()
-	 */
+	@Override
 	public String getModelIdentifier() {
 		return CDIDebugModel.getPluginIdentifier();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#isInstalled()
-	 */
+	@Override
 	public boolean isInstalled() throws CoreException {
 		return fInstallCount > 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#getCondition()
-	 */
+	@Override
 	public String getCondition() throws CoreException {
 		return ensureMarker().getAttribute( CONDITION, "" ); //$NON-NLS-1$
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#setCondition(String)
-	 */
+	@Override
 	public void setCondition( String condition ) throws CoreException {
 		setAttribute( CONDITION, condition );
 		setAttribute( IMarker.MESSAGE, getMarkerMessage() );
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#getIgnoreCount()
-	 */
+	@Override
 	public int getIgnoreCount() throws CoreException {
 		return ensureMarker().getAttribute( IGNORE_COUNT, 0 );
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#setIgnoreCount(int)
-	 */
+	@Override
 	public void setIgnoreCount( int ignoreCount ) throws CoreException {
 		setAttribute( IGNORE_COUNT, ignoreCount );
 		setAttribute( IMarker.MESSAGE, getMarkerMessage() );
 	}
 	
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#getType()
-	 */
+	@Override
 	public int getType() throws CoreException {
 		return ensureMarker().getAttribute( TYPE, 0 );
 	}
 
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#setType(int)
-	 */
+	@Override
 	public void setType(int type) throws CoreException {
 		setAttribute( TYPE, type );
 		setAttribute( IMarker.MESSAGE, getMarkerMessage() );		
 	}
 
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#getThreadId()
-	 */
+	@Override
 	public String getThreadId() throws CoreException {
 		return ensureMarker().getAttribute( THREAD_ID, null );
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.ICBreakpoint#setThreadId(String)
-	 */
+	@Override
 	public void setThreadId( String threadId ) throws CoreException {
 		setAttribute( THREAD_ID, threadId );
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#getSourceHandle()
-	 */
+	@Override
 	public String getSourceHandle() throws CoreException {
 		return ensureMarker().getAttribute( SOURCE_HANDLE, null );
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#setSourceHandle(java.lang.String)
-	 */
+	@Override
 	public void setSourceHandle( String sourceHandle ) throws CoreException {
 		setAttribute( SOURCE_HANDLE, sourceHandle );
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.debug.core.IDebugEventSetListener#handleDebugEvents(DebugEvent[])
-	 */
+	@Override
 	public void handleDebugEvents( DebugEvent[] events ) {
 	}
 
@@ -242,9 +180,7 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 
 	abstract protected String getMarkerMessage() throws CoreException;
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#incrementInstallCount()
-	 */
+	@Override
 	public synchronized int incrementInstallCount() throws CoreException {
 		++fInstallCount;
 		
@@ -263,9 +199,7 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		return fInstallCount;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#decrementInstallCount()
-	 */
+	@Override
 	public synchronized int decrementInstallCount() throws CoreException {
 		fInstallCount--;
 		
@@ -276,9 +210,7 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		return fInstallCount;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#resetInstallCount()
-	 */
+	@Override
 	public synchronized void resetInstallCount() throws CoreException {
 		if (fInstallCount != 0) {
 			fInstallCount = 0;
@@ -286,29 +218,7 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		}
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.debug.core.model.Breakpoint#ensureMarker()
-	 */
-	protected IMarker ensureMarker() throws DebugException {
-		return super.ensureMarker();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.debug.core.model.Breakpoint#setAttribute(String, Object)
-	 */
-	protected void setAttribute( String attributeName, Object value ) throws CoreException {
-		super.setAttribute( attributeName, value );
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#isConditional()
-	 */
+	@Override
 	public boolean isConditional() throws CoreException {
 		return ((getCondition() != null && getCondition().trim().length() > 0) || getIgnoreCount() > 0);
 	}
@@ -317,11 +227,11 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		StringBuffer sb = new StringBuffer();
 		int ignoreCount = getIgnoreCount();
 		if ( ignoreCount > 0 ) {
-			sb.append( MessageFormat.format( BreakpointMessages.getString( "CBreakpoint.1" ), new Integer[] { new Integer( ignoreCount ) } ) ); //$NON-NLS-1$
+			sb.append( MessageFormat.format( BreakpointMessages.getString( "CBreakpoint.1" ), new Object[] { new Integer( ignoreCount ) } ) ); //$NON-NLS-1$
 		}
 		String condition = getCondition();
 		if ( condition != null && condition.length() > 0 ) {
-			sb.append( MessageFormat.format( BreakpointMessages.getString( "CBreakpoint.2" ), new String[] { condition } ) ); //$NON-NLS-1$
+			sb.append( MessageFormat.format( BreakpointMessages.getString( "CBreakpoint.2" ), new Object[] { condition } ) ); //$NON-NLS-1$
 		}
 		return sb.toString();
 	}
@@ -338,25 +248,24 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#getModule()
-	 */
+	@Override
 	public String getModule() throws CoreException {
 		return ensureMarker().getAttribute( MODULE, null );
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.debug.core.model.ICBreakpoint#setModule(java.lang.String)
-	 */
+	@Override
 	public void setModule( String module ) throws CoreException {
 		setAttribute( MODULE, module );
 	}
 	
-	public ICBreakpointExtension getExtension(String debugModelId, Class extensionType) throws CoreException {
+	@Override
+	public <V extends ICBreakpointExtension> V getExtension(String debugModelId, Class<V> extensionType) throws CoreException {
 	    ICBreakpointExtension[] extensions = getExtensionsForModelId(debugModelId);
 	    for (int i = 0; i < extensions.length; i++) {
 	        if ( extensionType.isAssignableFrom(extensions[i].getClass()) ) {
-	            return extensions[i];
+	            @SuppressWarnings("unchecked")
+                V retVal = (V) extensions[i];
+	            return retVal;
 	        }
 	    }
         throw new CoreException(new Status(IStatus.ERROR, CDebugCorePlugin.getUniqueIdentifier(), DebugPlugin.ERROR, "Extension " + extensionType + " not defined for breakpoint " + this, null)); //$NON-NLS-1$ //$NON-NLS-2$
@@ -378,7 +287,7 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
     	    IMarker marker = ensureMarker();
     
     	    // Read the extension registry and create applicable extensions.
-    	    List extensions = new ArrayList(4);
+    	    List<ICBreakpointExtension> extensions = new ArrayList<ICBreakpointExtension>(4);
             IExtensionPoint ep = Platform.getExtensionRegistry().getExtensionPoint(CDebugCorePlugin.getUniqueIdentifier(), CDebugCorePlugin.BREAKPOINT_EXTENSION_EXTENSION_POINT_ID);
             IConfigurationElement[] elements = ep.getConfigurationElements();
             for (int i= 0; i < elements.length; i++) {
@@ -408,8 +317,12 @@ public abstract class CBreakpoint extends Breakpoint implements ICBreakpoint, IC
             }	
             fExtensions.put(debugModelId, extensions.toArray(new ICBreakpointExtension[extensions.size()]));
 	    }        
-        return (ICBreakpointExtension[])fExtensions.get(debugModelId);
+        return fExtensions.get(debugModelId);
 	}
-	
-	
+
+    @Override
+	public void refreshMessage() throws CoreException {
+	    IMarker marker = ensureMarker();
+	    marker.setAttribute(IMarker.MESSAGE, getMarkerMessage());
+	}
 }

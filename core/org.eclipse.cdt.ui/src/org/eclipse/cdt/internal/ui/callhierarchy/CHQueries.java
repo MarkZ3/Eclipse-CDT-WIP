@@ -82,7 +82,7 @@ public class CHQueries {
 		if (calleeBinding != null) {
 			findCalledBy1(index, calleeBinding, true, project, result);
 			if (calleeBinding instanceof ICPPMethod) {
-				IBinding[] overriddenBindings= ClassTypeHelper.findOverridden((ICPPMethod) calleeBinding);
+				IBinding[] overriddenBindings= ClassTypeHelper.findOverridden((ICPPMethod) calleeBinding, null);
 				for (IBinding overriddenBinding : overriddenBindings) {
 					findCalledBy1(index, overriddenBinding, false, project, result);
 				}
@@ -93,7 +93,7 @@ public class CHQueries {
 	private static void findCalledBy1(IIndex index, IBinding callee, boolean includeOrdinaryCalls,
 			ICProject project, CalledByResult result) throws CoreException {
 		findCalledBy2(index, callee, includeOrdinaryCalls, project, result);
-		List<? extends IBinding> specializations = IndexUI.findSpecializations(callee);
+		List<? extends IBinding> specializations = IndexUI.findSpecializations(index, callee);
 		for (IBinding spec : specializations) {
 			findCalledBy2(index, spec, includeOrdinaryCalls, project, result);
 		}
@@ -130,7 +130,7 @@ public class CHQueries {
 				if (CallHierarchyUI.isRelevantForCallHierarchy(binding)) {
 					while (true) {
 						ICElement[] defs= null;
-						if (binding instanceof ICPPMethod) {
+						if (binding instanceof ICPPMethod && name.couldBePolymorphicMethodCall()) {
 							defs = findOverriders(index, (ICPPMethod) binding);
 						}
 						if (defs == null) {

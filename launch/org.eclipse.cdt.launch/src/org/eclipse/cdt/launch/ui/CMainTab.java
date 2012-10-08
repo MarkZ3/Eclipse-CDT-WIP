@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@
  *     Ken Ryall (Nokia) - bug 178731
  *	   IBM Corporation
  *	   Sergey Prigogin (Google)
+ *     Anton Gorenkov
  *******************************************************************************/
 package org.eclipse.cdt.launch.ui;
 
@@ -31,6 +32,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.DebugUITools;
@@ -103,6 +105,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#createControl(org.eclipse.swt.widgets.Composite)
 	 */
+	@Override
 	public void createControl(Composite parent) {
 		Composite comp = new Composite(parent, SWT.NONE);
 		setControl(comp);
@@ -157,6 +160,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#initializeFrom(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public void initializeFrom(ILaunchConfiguration config) {
 		filterPlatform = getPlatform(config);
 		updateProjectFromConfig(config);
@@ -196,6 +200,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#performApply(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void performApply(ILaunchConfigurationWorkingCopy config) {
 		super.performApply(config);
 		ICProject cProject = this.getCProject();
@@ -221,6 +226,7 @@ public class CMainTab extends CAbstractMainTab {
 	/**
 	 * Show a dialog that lists all main types
 	 */
+	@Override
 	protected void handleSearchButtonSelected() {
 		if (getCProject() == null) {
 			MessageDialog.openInformation(getShell(), LaunchMessages.CMainTab_Project_required, 
@@ -292,6 +298,7 @@ public class CMainTab extends CAbstractMainTab {
 	/**
 	 * @since 6.0
 	 */
+	@Override
 	protected void createProjectGroup(Composite parent, int colSpan) {
 		Composite projComp = new Composite(parent, SWT.NONE);
 		GridLayout projLayout = new GridLayout();
@@ -314,6 +321,7 @@ public class CMainTab extends CAbstractMainTab {
 		fProjText.setLayoutData(gd);
 		fProjText.addModifyListener(new ModifyListener() {
 
+			@Override
 			public void modifyText(ModifyEvent evt) {
 				// if project changes, invalidate program name cache
 				fPreviouslyCheckedProgram = null;
@@ -337,7 +345,6 @@ public class CMainTab extends CAbstractMainTab {
 	protected void createExeFileGroup(Composite parent, int colSpan) {
 		Composite mainComp = new Composite(parent, SWT.NONE);
 		GridLayout mainLayout = new GridLayout();
-		mainLayout.numColumns = 3;
 		mainLayout.marginHeight = 0;
 		mainLayout.marginWidth = 0;
 		mainComp.setLayout(mainLayout);
@@ -347,18 +354,28 @@ public class CMainTab extends CAbstractMainTab {
 		fProgLabel = new Label(mainComp, SWT.NONE);
 		fProgLabel.setText(LaunchMessages.CMainTab_C_Application); 
 		gd = new GridData();
-		gd.horizontalSpan = 3;
 		fProgLabel.setLayoutData(gd);
 		fProgText = new Text(mainComp, SWT.SINGLE | SWT.BORDER);
 		gd = new GridData(GridData.FILL_HORIZONTAL);
 		fProgText.setLayoutData(gd);
 		fProgText.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent evt) {
 				updateLaunchConfigurationDialog();
 			}
 		});
 
-		fSearchButton = createPushButton(mainComp, LaunchMessages.CMainTab_Search, null); 
+		Composite buttonComp = new Composite(mainComp, SWT.NONE);
+		GridLayout layout = new GridLayout(3, false);
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		buttonComp.setLayout(layout);
+		gd = new GridData(GridData.HORIZONTAL_ALIGN_END);
+		buttonComp.setLayoutData(gd);
+		buttonComp.setFont(parent.getFont());
+
+		createVariablesButton(buttonComp, LaunchMessages.CMainTab_Variables, fProgText);
+		fSearchButton = createPushButton(buttonComp, LaunchMessages.CMainTab_Search, null); 
 		fSearchButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent evt) {
@@ -368,7 +385,7 @@ public class CMainTab extends CAbstractMainTab {
 		});
 
 		Button fBrowseForBinaryButton;
-		fBrowseForBinaryButton = createPushButton(mainComp, LaunchMessages.Launch_common_Browse_2, null); 
+		fBrowseForBinaryButton = createPushButton(buttonComp, LaunchMessages.Launch_common_Browse_2, null); 
 		fBrowseForBinaryButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent evt) {
@@ -425,6 +442,11 @@ public class CMainTab extends CAbstractMainTab {
 			}
 	
 			name = fProgText.getText().trim();
+       		try {
+       			name = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(name);
+			} catch (CoreException e) {
+				// Silently ignore substitution failure (for consistency with "Arguments" and "Work directory" fields)
+			}
 			if (name.length() == 0) {
 				setErrorMessage(LaunchMessages.CMainTab_Program_not_specified); 
 				return false;
@@ -476,6 +498,11 @@ public class CMainTab extends CAbstractMainTab {
 				// Notice that we don't check if exePath points to a valid executable since such
 				// check is too expensive to be done on the UI thread.
 				// See "https://bugs.eclipse.org/bugs/show_bug.cgi?id=328012".
+				// We only verify that the program path represents a file.
+				if (!exePath.toFile().isFile()) {
+					setErrorMessage(fPreviouslyCheckedProgramErrorMsg = LaunchMessages.CMainTab_Selection_must_be_file); 
+					return (fPreviouslyCheckedProgramIsValid = false);
+				}
 			}
 		}
 		
@@ -504,6 +531,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#setDefaults(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		// We set empty attributes for project & program so that when one config
 		// is
@@ -602,6 +630,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getName()
 	 */
+	@Override
 	public String getName() {
 		return LaunchMessages.CMainTab_Main; 
 	}

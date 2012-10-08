@@ -42,6 +42,7 @@ import org.eclipse.cdt.core.settings.model.extension.ICProjectConverter;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 import org.eclipse.cdt.internal.core.XmlUtil;
 import org.eclipse.cdt.internal.core.envvar.ContributedEnvironment;
+import org.eclipse.cdt.internal.core.language.settings.providers.LanguageSettingsProvidersSerializer;
 import org.eclipse.cdt.internal.core.settings.model.AbstractCProjectDescriptionStorage;
 import org.eclipse.cdt.internal.core.settings.model.CProjectDescription;
 import org.eclipse.cdt.internal.core.settings.model.CProjectDescriptionManager;
@@ -155,24 +156,27 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 			fElement = el;
 		}
 
+		@Override
 		public void run(IProgressMonitor monitor) throws CoreException {
 			JobChangeAdapter notifyJobCanceller = new NotifyJobCanceller();
 			try {
 				// See Bug 249951 & Bug 310007
 				Job.getJobManager().addJobChangeListener(notifyJobCanceller);
-				// Ensure we can check a null-job into the workspace 
+				// Ensure we can check a null-job into the workspace
 				// i.e. if notification is currently in progress wait for it to finish...
 				ResourcesPlugin.getWorkspace().run(new IWorkspaceRunnable() {
+					@Override
 					public void run(IProgressMonitor monitor) throws CoreException {
 					}
 				}, null, IWorkspace.AVOID_UPDATE, null);
 				// end Bug 249951 & Bug 310007
 				serializingLock.acquire();
+				LanguageSettingsProvidersSerializer.serializeLanguageSettings(fDes);
 				projectModificaitonStamp = serialize(fDes.getProject(), ICProjectDescriptionStorageType.STORAGE_FILE_NAME, fElement);
 				((ContributedEnvironment) CCorePlugin.getDefault().getBuildEnvironmentManager().getContributedEnvironment()).serialize(fDes);
 			} finally {
 				serializingLock.release();
-				Job.getJobManager().removeJobChangeListener(notifyJobCanceller);				
+				Job.getJobManager().removeJobChangeListener(notifyJobCanceller);
 			}
 		}
 
@@ -313,7 +317,7 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 		// the suggested solution is to use modStamp + modTime
 		//
 		// Both values are cached in resourceInfo, so this is fast.
-		return resource.getModificationStamp() + resource.getLocalTimeStamp();		
+		return resource.getModificationStamp() + resource.getLocalTimeStamp();
 	}
 
 	/**
@@ -362,6 +366,7 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 		if (!overwriteIfExists && fProjectDescription.get() != null)
 			return false;
 
+		ICProjectDescription oldDes = fProjectDescription.get();
 		if (des != null) {
 			if (project.exists() && project.isOpen()) {
 				fProjectDescription = new SoftReference<ICProjectDescription>(des);
@@ -372,6 +377,8 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 		} else {
 			fProjectDescription = new SoftReference<ICProjectDescription>(null);
 		}
+
+		LanguageSettingsProvidersSerializer.reRegisterListeners(oldDes, fProjectDescription.get());
 		return true;
 	}
 
@@ -484,6 +491,8 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 				try {
 					setThreadLocalProjectDesc(des);
 					des.loadDatas();
+
+					LanguageSettingsProvidersSerializer.loadLanguageSettings(des);
 					des.doneLoading();
 				} finally {
 					setThreadLocalProjectDesc(null);
@@ -736,6 +745,7 @@ public class XmlProjectDescriptionStorage extends AbstractCProjectDescriptionSto
 				// try refreshing
 				final Throwable[] t = new Throwable[1];
 				Job job = CProjectDescriptionManager.runWspModification(new IWorkspaceRunnable() {
+					@Override
 					public void run(IProgressMonitor monitor) throws CoreException {
 						try {
 							rscFile.refreshLocal(IResource.DEPTH_ZERO, null);

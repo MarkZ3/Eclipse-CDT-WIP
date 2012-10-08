@@ -27,6 +27,7 @@ public interface IIndexFragmentBinding extends IIndexBinding {
 	/**
 	 * Returns the linkage the binding belongs to.
 	 */
+	@Override
 	ILinkage getLinkage();
 	
 	/**
@@ -49,16 +50,18 @@ public interface IIndexFragmentBinding extends IIndexBinding {
 	/**
 	 * Returns the scope that contains this binding, or <code>null</code> for bindings in global scope.
 	 */
+	@Override
 	IIndexScope getScope();
 	
 	/**
 	 * {@inheritDoc}
 	 * @since 5.1
 	 */
+	@Override
 	IIndexFragmentBinding getOwner();
 
 	/**
-	 * Returns a unique id for the binding within the fragment
+	 * Returns a unique id for the binding within the fragment, or <code>null</code> for unknown bindings.
 	 * @since 5.1
 	 */
 	long getBindingID();

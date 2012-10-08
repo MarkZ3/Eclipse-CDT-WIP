@@ -53,13 +53,24 @@ public class WatchExpressionCellModifier implements ICellModifier {
     public WatchExpressionCellModifier() {
     }
 
-    public boolean canModify(Object element, String property) {
-        return IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property) && 
-               (getWatchExpression(element) != null  || element instanceof NewExpressionVMC); 
+    @Override
+	public boolean canModify(Object element, String property) {
+        if (element instanceof NewExpressionVMC) {
+            return IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property) ||
+                IDebugVMConstants.COLUMN_ID__NAME.equals(property);
+        } else {
+            return IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property) && 
+                    getWatchExpression(element) != null; 
+        }
     }
 
-    public Object getValue(Object element, String property) {
-        if (!IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property)) return ""; //$NON-NLS-1$
+    @Override
+	public Object getValue(Object element, String property) {
+        if (!IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property) && 
+            !IDebugVMConstants.COLUMN_ID__NAME.equals(property)) 
+        {
+            return ""; //$NON-NLS-1$
+        }
 
         IWatchExpression expression = getWatchExpression(element);
         
@@ -69,8 +80,13 @@ public class WatchExpressionCellModifier implements ICellModifier {
         return ""; //$NON-NLS-1$
     }
 
-    public void modify(Object element, String property, Object value) {
-        if (!IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property)) return;
+    @Override
+	public void modify(Object element, String property, Object value) {
+        if (!IDebugVMConstants.COLUMN_ID__EXPRESSION.equals(property) && 
+            !IDebugVMConstants.COLUMN_ID__NAME.equals(property)) 
+        {
+            return;
+        }
         if (!(value instanceof String)) return;
         
         String origStrValue = (String) value;

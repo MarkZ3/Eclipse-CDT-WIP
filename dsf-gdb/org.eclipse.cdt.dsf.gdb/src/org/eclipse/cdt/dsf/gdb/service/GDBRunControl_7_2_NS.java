@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Ericsson and others.
+ * Copyright (c) 2011, 2012 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,9 +14,11 @@ package org.eclipse.cdt.dsf.gdb.service;
 import java.util.Hashtable;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
+import org.eclipse.cdt.dsf.debug.service.IMultiRunControl;
 import org.eclipse.cdt.dsf.debug.service.IRunControl;
 import org.eclipse.cdt.dsf.debug.service.IRunControl2;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandControlService;
@@ -59,7 +61,7 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 
 	@Override
 	public void initialize(final RequestMonitor rm) {
-		super.initialize(new RequestMonitor(ImmediateExecutor.getInstance(), rm) {
+		super.initialize(new ImmediateRequestMonitor(rm) {
 			@Override
 			protected void handleSuccess() {
 				doInitialize(rm);
@@ -71,6 +73,7 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 		register(new String[]{ IRunControl.class.getName(), 
 				IRunControl2.class.getName(),
 				IMIRunControl.class.getName(),
+				IMultiRunControl.class.getName(),
 				GDBRunControl_7_0_NS.class.getName(),
 				GDBRunControl_7_2_NS.class.getName(),
 		}, 
@@ -113,7 +116,7 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 			return;
 		}
 
-		canSuspend(context, new DataRequestMonitor<Boolean>(ImmediateExecutor.getInstance(), rm) {
+		canSuspend(context, new ImmediateDataRequestMonitor<Boolean>(rm) {
 			@Override
 			protected void handleSuccess() {
 				if (getData()) {
@@ -142,17 +145,17 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 			return;
 		}
 
-		canResume(context, new DataRequestMonitor<Boolean>(ImmediateExecutor.getInstance(), rm) {
+		canResume(context, new ImmediateDataRequestMonitor<Boolean>(rm) {
 			@Override
 			protected void handleSuccess() {
 				if (getData()) {
 					if (thread != null) {
-						doResumeThread(thread, rm);
+						doResume(thread, rm);
 						return;
 					}
 
 					if (container != null) {
-						doResumeContainer(container, rm);
+						doResume(container, rm);
 						return;
 					}
 				} else {
@@ -164,7 +167,7 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 		});
 	}
 
-	private void doResumeThread(IMIExecutionDMContext context, final RequestMonitor rm) {
+	private void doResume(IMIExecutionDMContext context, final RequestMonitor rm) {
 		final MIThreadRunState threadState = fThreadRunStates.get(context);
 		if (threadState == null) {
             rm.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, INVALID_STATE,
@@ -183,7 +186,7 @@ public class GDBRunControl_7_2_NS extends GDBRunControl_7_0_NS
 		});
 	}
 
-	private void doResumeContainer(IMIContainerDMContext context, final RequestMonitor rm) {
+	private void doResume(IMIContainerDMContext context, final RequestMonitor rm) {
 		fConnection.queueCommand(fCommandFactory.createMIExecContinue(context), new DataRequestMonitor<MIInfo>(getExecutor(), rm));
 	}
 	

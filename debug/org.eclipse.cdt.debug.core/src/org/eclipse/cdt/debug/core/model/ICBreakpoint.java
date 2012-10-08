@@ -26,11 +26,17 @@ import org.eclipse.debug.core.model.IBreakpoint;
  */
 public interface ICBreakpoint extends IBreakpoint {
 
+    /** 
+     * Breakpoint marker type for this breakpoint type.
+     * @since 7.2
+     */
+    public static final String C_BREAKPOINT_MARKER = "org.eclipse.cdt.debug.core.cBreakpointMarker"; //$NON-NLS-1$
+    
     /**
      * This debug model identifier can be returned by a debug implementation 
      * to indicate that a given debugger integration is using C Breakpoints.
-     * This model ID will allow breakpoint actions to configure their default
-     * selection. 
+     * This model ID will allow toggle breakpoint actions to configure their 
+     * default selection. 
      * 
      * @since 7.0
      */
@@ -236,5 +242,5 @@ public interface ICBreakpoint extends IBreakpoint {
 	 * @return Extension instance.
 	 * @throws CoreException Throws exception in case the extension doesn't exist or cannot be initialized.
 	 */
-    public ICBreakpointExtension getExtension(String debugModelId, Class extensionType) throws CoreException ;
+    public <V extends ICBreakpointExtension> V getExtension(String debugModelId, Class<V> extensionType) throws CoreException;
 }

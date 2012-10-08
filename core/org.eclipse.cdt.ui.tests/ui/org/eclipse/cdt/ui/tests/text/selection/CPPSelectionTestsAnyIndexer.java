@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.ui.tests.text.selection;
 
@@ -34,11 +34,9 @@ import org.eclipse.cdt.ui.testplugin.CTestPlugin;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 
 /**
- * Test Ctrl_F3/F3 with the DOM Indexer for a C++ project.
+ * Test Ctrl-F3/F3 with the DOM Indexer for a C++ project.
  */
 public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsIndexer {
-	private static final int MAX_WAIT_TIME = 8000;
-
 	protected String sourceIndexerID;
 	protected IIndex index;
 	
@@ -87,10 +85,6 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
 		assertEquals(loc.getNodeLength(), name.length());
 	}
 
-	protected void waitUntilFileIsIndexed(IIndex index, IFile file, int maxmillis) throws Exception {
-		TestSourceReader.waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
-	}
-
 	// // header
     // class Point{ 
     //  public:    
@@ -124,7 +118,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("test93281.h", hcode); 
         IFile file = importFile("test93281.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int offset = scode.indexOf("p2->operator") + 6;
         IASTNode node = testF3(file, offset);
@@ -166,11 +160,11 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("test.h", hcode); 
         IFile file = importFile("test.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int hoffset= hcode.indexOf("testTemplate"); 
         int soffset = scode.indexOf("testTemplate"); 
-        IASTNode def = testF3(file, soffset+2);
+        IASTNode def = testF3(file, soffset + 2);
         assertTrue(def instanceof IASTName);
         assertEquals("testTemplate", ((IASTName) def).toString());
         assertEquals(hoffset, ((ASTNode) def).getOffset());
@@ -192,7 +186,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("test.h", hcode); 
         IFile file = importFile("test.cpp", scode);
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int hoffset= hcode.indexOf("assign"); 
         int soffset = scode.indexOf("assign"); 
@@ -223,12 +217,12 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("basicDefinition.h", hcode); 
         IFile file = importFile("testBasicDefinition.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int hoffset= hcode.indexOf("MyInt"); 
         int soffset = scode.indexOf("MyInt"); 
-        IASTNode decl = testF3(file, soffset+2);
-        IASTNode def = testF3(hfile, hoffset+2);
+        IASTNode decl = testF3(file, soffset + 2);
+        IASTNode def = testF3(hfile, hoffset + 2);
         assertTrue(def instanceof IASTName);
         assertTrue(decl instanceof IASTName);
         assertEquals("MyInt", ((IASTName) decl).toString());
@@ -240,8 +234,8 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         
         hoffset= hcode.indexOf("MyConst"); 
         soffset = scode.indexOf("MyConst"); 
-        decl = testF3(file, soffset+2);
-        def = testF3(hfile, hoffset+2);
+        decl = testF3(file, soffset + 2);
+        def = testF3(hfile, hoffset + 2);
         assertTrue(def instanceof IASTName);
         assertTrue(decl instanceof IASTName);
         assertEquals("MyConst", ((IASTName) decl).toString());
@@ -253,8 +247,8 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         
         hoffset= hcode.indexOf("MyFunc"); 
         soffset = scode.indexOf("MyFunc"); 
-        decl = testF3(file, soffset+2);
-        def = testF3(hfile, hoffset+2);
+        decl = testF3(file, soffset + 2);
+        def = testF3(hfile, hoffset + 2);
         assertTrue(def instanceof IASTName);
         assertTrue(decl instanceof IASTName);
         assertEquals("MyFunc", ((IASTName) decl).toString());
@@ -266,8 +260,8 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         
         hoffset= hcode.indexOf("MyStruct"); 
         soffset = scode.indexOf("MyStruct"); 
-        decl = testF3(file, soffset+2);
-        def = testF3(hfile, hoffset+2);
+        decl = testF3(file, soffset + 2);
+        def = testF3(hfile, hoffset + 2);
         assertTrue(def instanceof IASTName);
         assertTrue(decl instanceof IASTName);
         assertEquals("MyStruct", ((IASTName) decl).toString());
@@ -279,8 +273,8 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         
         hoffset= hcode.indexOf("MyClass"); 
         soffset = scode.indexOf("MyClass"); 
-        decl = testF3(file, soffset+2);
-        def = testF3(hfile, hoffset+2);
+        decl = testF3(file, soffset + 2);
+        def = testF3(hfile, hoffset + 2);
         assertTrue(def instanceof IASTName);
         assertTrue(decl instanceof IASTName);
         assertEquals("MyClass", ((IASTName) decl).toString());
@@ -304,7 +298,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBasicTemplateInstance.h", hcode); 
         IFile file = importFile("testBasicTemplateInstance.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int hoffset= hcode.indexOf("AAA"); 
         int soffset = scode.indexOf("AAA<int>");
@@ -338,7 +332,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug86829A.h", hcode); 
         IFile file = importFile("testBug86829A.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int offset = scode.indexOf("X(2)"); 
         int doffset= hcode.indexOf("X(int)");
@@ -370,7 +364,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug86829B.h", hcode); 
         IFile file = importFile("testBug86829B.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
 		
         int offset = scode.indexOf("X(a)"); 
         int doffset = hcode.indexOf("X()"); 
@@ -413,7 +407,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testCPPSpecDeclsDefs.h", hcode); 
         IFile file = importFile("testCPPSpecDeclsDefs.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int offset0= hcode.indexOf("a;");
         int offset1= scode.indexOf("a;"); 
@@ -564,7 +558,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug168533.h", hcode); 
         IFile file = importFile("testBug168533.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
 		        
         int offset0= hcode.indexOf("d;");
         int offset1= scode.indexOf("d;");
@@ -600,7 +594,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug95225.h", hcode); 
         IFile file = importFile("testBug95225.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 
@@ -642,7 +636,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug95202.h", hcode); 
         IFile file = importFile("testBug95202.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 
@@ -666,7 +660,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug101287.h", hcode); 
         IFile file = importFile("testBug101287.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 		        
@@ -692,7 +686,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug102258.h", hcode); 
         IFile file = importFile("testBug102258.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 
@@ -720,7 +714,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug103323.h", hcode); 
         IFile file = importFile("testBug103323.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 
@@ -750,7 +744,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug78354.h", hcode); 
         IFile file = importFile("testBug78354.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
         
@@ -776,12 +770,15 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
     //     return x;
     // }
     public void testBug103697() throws Exception {
+    	if (System.getProperty("cdt.skip.known.test.failures") == null) {
+    		return;
+    	}
         StringBuilder[] buffers= getContents(2);
         String hcode= buffers[0].toString();
         String scode= buffers[1].toString();
         IFile hfile = importFileWithLink("testBug103697.h", hcode); 
         IFile file = importFileWithLink("testBug103697.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
                 
@@ -808,7 +805,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug108202.h", hcode); 
         IFile file = importFile("testBug108202.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
     	
@@ -840,7 +837,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         IFile hcppfile = importFile("cpp.h", hcppcode); 
         IFile cppfile = importFile("cpp.cpp", cppcode); 
         CCorePlugin.getIndexManager().reindex(fCProject);
-        waitForIndex(MAX_WAIT_TIME);
+        waitForIndexer(fCProject); 
         
         IASTNode decl;
         int offset0, offset1;
@@ -875,7 +872,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug190730.h", hcode); 
         IFile file = importFile("testBug190730.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
         
@@ -901,7 +898,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testBug190730_2.h", hcode); 
         IFile file = importFile("testBug190730_2.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
         
@@ -929,7 +926,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("macrodef.h", hcode); 
         IFile file = importFile("macronavi.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
         
@@ -964,7 +961,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("macrodef.h", hcode); 
         IFile file = importFile("macronavi.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
         
@@ -983,6 +980,24 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         decl = testF3(file, offset1);
         assertNode("gvar", offset0, decl);
     }
+
+	//	#define MYMACRO
+
+	//	#undef MYMACRO
+	public void testUndef_312399() throws Exception {
+        StringBuilder[] buffers= getContents(2);
+        String hcode= buffers[0].toString();
+        String scode= buffers[1].toString();
+        IFile hfile = importFile("testUndef_312399.h", hcode); 
+        IFile file = importFile("testUndef_312399.cpp", scode); 
+        waitUntilFileIsIndexed(index, file);
+        
+        IASTNode target = testF3(file, scode.indexOf("MYMACRO"));
+        assertTrue(target instanceof IASTName);
+        assertEquals("MYMACRO", ((IASTName) target).toString());
+        assertEquals(hcode.indexOf("MYMACRO"), target.getFileLocation().getNodeOffset());
+        assertEquals("MYMACRO".length(), ((ASTNode) target).getLength());
+	}
     
     //  int wurscht;
 
@@ -993,7 +1008,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("aheader.h", hcode); 
         IFile file = importFile("includenavi.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset0, offset1;
 
@@ -1019,7 +1034,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile cfile = importFile("s.c", ccode); 
         IFile cppfile = importFile("s.cpp", scode); 
-        waitUntilFileIsIndexed(index, cppfile, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, cppfile);
         IASTNode decl;
         int offset1, offset2;
 
@@ -1057,7 +1072,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile cfile = importFile("s.c", ccode); 
         IFile cppfile = importFile("s.cpp", scode); 
-        waitUntilFileIsIndexed(index, cppfile, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, cppfile);
         IASTNode decl;
         int offset1, offset2;
 
@@ -1090,7 +1105,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         StringBuilder[] buffers= getContents(1);
         String code= buffers[0].toString();
         IFile file = importFile("s.cpp", code); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         IASTNode decl;
         int offset1, offset2;
 
@@ -1121,7 +1136,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
     	StringBuilder[] buffers= getContents(1);
         String code= buffers[0].toString();
         IFile file = importFile("in.cpp", code); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int offset1 = code.indexOf("operator +");
         int offset2 = code.indexOf("+ x;");
@@ -1162,7 +1177,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("test.h", hcode); 
         IFile file = importFile("test.cpp", scode);
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int hoffset= hcode.indexOf("operator+"); 
         int soffset = scode.indexOf("+"); 
@@ -1181,7 +1196,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
     public void testBug305487() throws Exception {
     	String code = getAboveComment();
         IFile file = importFile("testBug305487.cpp", code);
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         int offset= code.indexOf("test(0)"); 
         IASTNode def = testF3(file, offset + 1);
@@ -1208,7 +1223,7 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
         String scode= buffers[1].toString();
         IFile hfile = importFile("testImplicitConstructorCall_248855.h", hcode); 
         IFile file = importFile("testImplicitConstructorCall_248855.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        waitUntilFileIsIndexed(index, file);
         
         IASTNode target = testF3(file, scode.indexOf("a1"));
         assertTrue(target instanceof IASTName);
@@ -1230,21 +1245,31 @@ public abstract class CPPSelectionTestsAnyIndexer extends BaseSelectionTestsInde
 		}
 	}
 
-	//	#define MYMACRO
+	// namespace ns {
+	// void func();
+	// }
 
-	//	#undef MYMACRO
-	public void testUndef_312399() throws Exception {
-        StringBuilder[] buffers= getContents(2);
+	// #include "test.h"
+	// using ns::func;
+	//
+	// void test() {
+	//   func();
+	// }
+	public void testBug380197() throws Exception {
+		StringBuilder[] buffers= getContents(2);
         String hcode= buffers[0].toString();
         String scode= buffers[1].toString();
-        IFile hfile = importFile("testUndef_312399.h", hcode); 
-        IFile file = importFile("testUndef_312399.cpp", scode); 
-        waitUntilFileIsIndexed(index, file, MAX_WAIT_TIME);
+        IFile hfile = importFile("test.h", hcode); 
+        IFile file = importFile("test.cpp", scode);
+        waitUntilFileIsIndexed(index, file);
         
-        IASTNode target = testF3(file, scode.indexOf("MYMACRO"));
-        assertTrue(target instanceof IASTName);
-        assertEquals("MYMACRO", ((IASTName) target).toString());
-        assertEquals(hcode.indexOf("MYMACRO"), target.getFileLocation().getNodeOffset());
-        assertEquals("MYMACRO".length(), ((ASTNode) target).getLength());
+        int hoffset= hcode.indexOf("func"); 
+        int offset = scode.indexOf("func()"); 
+        IASTNode def = testF3(file, offset + 1);
+        assertTrue(def instanceof IASTName);
+        assertEquals("func", def.toString());
+        IASTFileLocation location = def.getFileLocation();
+        assertEquals(hfile.getLocation().toOSString(), location.getFileName());
+        assertEquals(hoffset, location.getNodeOffset());
 	}
 }

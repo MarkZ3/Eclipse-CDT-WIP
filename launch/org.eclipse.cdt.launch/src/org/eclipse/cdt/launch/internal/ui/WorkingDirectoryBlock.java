@@ -1,12 +1,12 @@
 /*******************************************************************************
- *  Copyright (c) 2000, 2009 IBM Corporation and others.
+ *  Copyright (c) 2000, 2012 IBM Corporation and others.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
  *  http://www.eclipse.org/legal/epl-v10.html
  * 
  *  Contributors:
- *     IBM Corporation - initial API and implementation
+ *      IBM Corporation - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.launch.internal.ui;
 
@@ -26,7 +26,6 @@ import org.eclipse.core.variables.IStringVariableManager;
 import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
-import org.eclipse.debug.ui.StringVariableSelectionDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.accessibility.AccessibleAdapter;
 import org.eclipse.swt.accessibility.AccessibleEvent;
@@ -69,10 +68,12 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 */
 	private class WidgetListener extends SelectionAdapter implements ModifyListener {
 
+		@Override
 		public void modifyText(ModifyEvent e) {
 			updateLaunchConfigurationDialog();
 		}
 
+		@Override
 		public void widgetSelected(SelectionEvent e) {
 			Object source = e.getSource();
 			if (source == fWorkspaceButton) {
@@ -81,8 +82,6 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 				handleWorkingDirBrowseButtonSelected();
 			} else if (source == fUseDefaultWorkingDirButton) {
 				handleUseDefaultWorkingDirButtonSelected();
-			} else if (source == fVariablesButton) {
-				handleWorkingDirVariablesButtonSelected();
 			}
 		}
 	}
@@ -94,6 +93,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#createControl(org.eclipse.swt.widgets.Composite)
 	 */
+	@Override
 	public void createControl(Composite parent) {
 		Font font = parent.getFont();
 
@@ -113,7 +113,8 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
     fWorkingDirText = new Text(group, SWT.SINGLE | SWT.BORDER);
     fWorkingDirText.getAccessible().addAccessibleListener(
 			new AccessibleAdapter() {                       
-                public void getName(AccessibleEvent e) {
+                @Override
+				public void getName(AccessibleEvent e) {
                         e.result = LaunchMessages.WorkingDirectoryBlock_Working_directory; 
                 }
             }
@@ -144,8 +145,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 		fFileSystemButton = createPushButton(buttonComp, LaunchMessages.WorkingDirectoryBlock_1, null); 
 		fFileSystemButton.addSelectionListener(fListener);
 
-		fVariablesButton = createPushButton(buttonComp, LaunchMessages.WorkingDirectoryBlock_17, null); 
-		fVariablesButton.addSelectionListener(fListener);
+		fVariablesButton = createVariablesButton(buttonComp, LaunchMessages.WorkingDirectoryBlock_17, null); 
 	}
 
 	/*
@@ -153,6 +153,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#dispose()
 	 */
+	@Override
 	public void dispose() {
 	}
 
@@ -229,19 +230,6 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 		fFileSystemButton.setEnabled(!def);
 	}
 
-	protected void handleWorkingDirVariablesButtonSelected() {
-		String variableText = getVariable();
-		if (variableText != null) {
-			fWorkingDirText.append(variableText);
-		}
-	}
-
-	private String getVariable() {
-		StringVariableSelectionDialog dialog = new StringVariableSelectionDialog(getShell());
-		dialog.open();
-		return dialog.getVariableExpression();
-	}
-
 	/**
 	 * Sets the default working directory
 	 */
@@ -265,6 +253,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#isValid(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public boolean isValid(ILaunchConfiguration config) {
 
 		setErrorMessage(null);
@@ -299,6 +288,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#setDefaults(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		//		config.setAttribute(IJavaLaunchConfigurationConstants.ATTR_WORKING_DIRECTORY,
 		// (String)null);
@@ -309,6 +299,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#initializeFrom(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public void initializeFrom(ILaunchConfiguration configuration) {
 		setLaunchConfiguration(configuration);
 		try {
@@ -332,6 +323,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#performApply(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void performApply(ILaunchConfigurationWorkingCopy configuration) {
 		String wd = null;
 		if (!isDefaultWorkingDirectory()) {
@@ -358,6 +350,7 @@ public class WorkingDirectoryBlock extends CLaunchConfigurationTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getName()
 	 */
+	@Override
 	public String getName() {
 		return LaunchMessages.WorkingDirectoryBlock_Working_Directory_8; 
 	}

@@ -7,16 +7,16 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- * Institute for Software - initial API and implementation
+ *     Institute for Software - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.parser.tests.rewrite.changegenerator.insertbefore;
 
 import junit.framework.Test;
 
+import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTTypeId;
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.parser.tests.rewrite.changegenerator.ChangeGeneratorTest;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTFunctionDeclarator;
@@ -24,15 +24,19 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTSimpleDeclSpecifier;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTypeId;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification;
-import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationStore;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification.ModificationKind;
+import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationStore;
 
 public class ExceptionTest extends ChangeGeneratorTest {
 
-	public ExceptionTest(){
-		super("Insert Before Exception Declaration"); //$NON-NLS-1$
+	ExceptionTest() {
+		super("ExceptionTest");
 	}
 
+	public static Test suite() {		
+		return new ExceptionTest();
+	}
+	
 	@Override
 	protected void setUp() throws Exception {
 		source = "void foo(int parameter) throw (/*Test*/float) /*Test2*/{\n}\n\n"; //$NON-NLS-1$
@@ -41,8 +45,7 @@ public class ExceptionTest extends ChangeGeneratorTest {
 	}
 	
 	@Override
-	protected ASTVisitor createModificator(
-			final ASTModificationStore modStore) {
+	protected ASTVisitor createModificator(final ASTModificationStore modStore) {
 		return new ASTVisitor() {
 			{
 				shouldVisitDeclarators = true;
@@ -51,7 +54,7 @@ public class ExceptionTest extends ChangeGeneratorTest {
 			@Override
 			public int visit(IASTDeclarator declarator) {
 				if (declarator instanceof CPPASTFunctionDeclarator) {
-					CPPASTFunctionDeclarator functionDeclarator = (CPPASTFunctionDeclarator)declarator;
+					CPPASTFunctionDeclarator functionDeclarator = (CPPASTFunctionDeclarator) declarator;
 					IASTTypeId existingException = functionDeclarator.getExceptionSpecification()[0];
 					
 					IASTTypeId exception = new CPPASTTypeId();
@@ -61,17 +64,12 @@ public class ExceptionTest extends ChangeGeneratorTest {
 					exDeclSpec.setType(IASTSimpleDeclSpecifier.t_int);
 					exception.setDeclSpecifier(exDeclSpec);
 					exception.setAbstractDeclarator(exceptionDeclarator);
-					ASTModification modification = new ASTModification(ModificationKind.INSERT_BEFORE, existingException, exception, null);
+					ASTModification modification = new ASTModification(ModificationKind.INSERT_BEFORE,
+							existingException, exception, null);
 					modStore.storeModification(null, modification);
-					
 				}
 				return PROCESS_CONTINUE;
 			}
 		};
-	}
-	
-	public static Test suite() {
-		return new ExceptionTest();
-		
 	}
 }

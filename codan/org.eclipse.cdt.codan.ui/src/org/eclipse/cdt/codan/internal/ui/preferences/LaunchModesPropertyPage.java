@@ -37,7 +37,11 @@ public class LaunchModesPropertyPage extends FieldEditorPreferencePage {
 		super(GRID);
 		CheckersRegistry registry = CheckersRegistry.getInstance();
 		IChecker checker = registry.getCheckerForProblem(problem);
-		runInEditor = (checker != null) ? Checkers.canCheckerRunAsYouType(checker) : false;
+		if (checker != null) {
+			runInEditor = Checkers.canCheckerRunAsYouType(checker);
+		} else {
+			runInEditor = false;
+		}
 		setPreferenceStore(prefStore);
 		editors = new ArrayList<FieldEditor>();
 	}
@@ -47,41 +51,26 @@ public class LaunchModesPropertyPage extends FieldEditorPreferencePage {
 		super.noDefaultAndApplyButton();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.eclipse.jface.preference.FieldEditorPreferencePage#createFieldEditors
-	 * ()
-	 */
 	@Override
 	protected void createFieldEditors() {
-		addField(new BooleanFieldEditor(CheckerLaunchMode.RUN_ON_FULL_BUILD.name(), CodanUIMessages.LaunchModesPropertyPage_RunOnFullBuild, getFieldEditorParent()));
-		addField(new BooleanFieldEditor(CheckerLaunchMode.RUN_ON_INC_BUILD.name(), CodanUIMessages.LaunchModesPropertyPage_RunOnIncrementalBuild, getFieldEditorParent()));
-		addField(new BooleanFieldEditor(CheckerLaunchMode.RUN_ON_DEMAND.name(), CodanUIMessages.LaunchModesPropertyPage_RunOnDemand, getFieldEditorParent()));
 		if (runInEditor) {
-			addField(new BooleanFieldEditor(CheckerLaunchMode.RUN_AS_YOU_TYPE.name(), CodanUIMessages.LaunchModesPropertyPage_RunAsYouType, getFieldEditorParent()));
+			addEditor(CheckerLaunchMode.RUN_AS_YOU_TYPE, CodanUIMessages.LaunchModesPropertyPage_RunAsYouType);
 		}
+		addEditor(CheckerLaunchMode.RUN_ON_FILE_OPEN, CodanUIMessages.LaunchModesPropertyPage_RunOnFileOpen);
+		addEditor(CheckerLaunchMode.RUN_ON_FILE_SAVE, CodanUIMessages.LaunchModesPropertyPage_RunOnFileSave);
+		addEditor(CheckerLaunchMode.RUN_ON_INC_BUILD, CodanUIMessages.LaunchModesPropertyPage_RunOnIncrementalBuild);
+		addEditor(CheckerLaunchMode.RUN_ON_FULL_BUILD, CodanUIMessages.LaunchModesPropertyPage_RunOnFullBuild);
+		addEditor(CheckerLaunchMode.RUN_ON_DEMAND, CodanUIMessages.LaunchModesPropertyPage_RunOnDemand);
+	}
+	
+	private void addEditor(CheckerLaunchMode launchMode, String label) {
+		addField(new BooleanFieldEditor(launchMode.name(), label, getFieldEditorParent()));
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.eclipse.jface.preference.FieldEditorPreferencePage#addField(org.eclipse
-	 * .jface.preference.FieldEditor)
-	 */
 	@Override
 	protected void addField(FieldEditor editor) {
 		editors.add(editor);
 		super.addField(editor);
-	}
-
-	/**
-	 * 
-	 */
-	protected void configureProjectSettings() {
-		// TODO Auto-generated method stub
 	}
 
 	@Override

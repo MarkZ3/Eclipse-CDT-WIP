@@ -20,6 +20,7 @@ import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorUndefStatement;
 import org.eclipse.cdt.core.dom.ast.IMacroBinding;
@@ -114,14 +115,17 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		container.addDefinition(this);
 	}
 
+	@Override
 	public PDOM getPDOM() {
 		return fLinkage.getPDOM();
 	}
 
+	@Override
 	public long getRecord() {
 		return fRecord;
 	}
 	
+	@Override
 	public void delete(PDOMLinkage linkage) throws CoreException {
 		// Delete from the binding chain
 		PDOMMacro prevName = getPrevInContainer();
@@ -207,6 +211,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return namerec != 0 ? new PDOMMacro(fLinkage, namerec) : null;
 	}
 
+	@Override
 	public char[][] getParameterList() {
 		if (fParameterList == UNINITIALIZED) {
 			fParameterList= null;
@@ -239,6 +244,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return fExpansion != null;
 	}
 
+	@Override
 	public char[] getExpansionImage() {
 		if (fExpansion == UNINITIALIZED1) {
 			try {
@@ -252,6 +258,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return fExpansion;
 	}
 
+	@Override
 	public char[] getNameCharArray() {
 		try {
 			return getContainer().getNameCharArray();
@@ -261,10 +268,12 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		}
 	}
 	
+	@Override
 	public String getName() {
 		return new String(getNameCharArray());
 	}
 	
+	@Override
 	public PDOMFile getFile() throws CoreException {
 		long filerec = fLinkage.getDB().getRecPtr(fRecord + FILE);
 		return filerec != 0 ? new PDOMFile(fLinkage, filerec) : null;
@@ -278,10 +287,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		fLinkage.getDB().putRecPtr(fRecord + FILE, file != null ? file.getRecord() : 0);
 	}
 
-	public int getEndingLineNumber() {
-		return 0;
-	}
-
+	@Override
 	public String getFileName() {
 		try {
 			IIndexFile file = getFile();
@@ -299,18 +305,32 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return null;
 	}
 
+	@Override
 	public int getStartingLineNumber() {
 		return 0;
 	}
 
+	@Override
+	public int getEndingLineNumber() {
+		return 0;
+	}
+
+	@Override
+	public IASTPreprocessorIncludeStatement getContextInclusionStatement() {
+		return null;
+	}
+
+	@Override
 	public IASTFileLocation asFileLocation() {
 		return this;
 	}
 	
+	@Override
 	public IASTFileLocation getFileLocation() {
 		return this;
 	}
 
+	@Override
 	public int getNodeLength() {
 		try {
 			return fLinkage.getDB().getShort(fRecord + NAME_LENGTH);
@@ -320,6 +340,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		}
 	}
 
+	@Override
 	public int getNodeOffset() {
 		try {
 			return fLinkage.getDB().getInt(fRecord + NAME_OFFSET);
@@ -329,11 +350,13 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		}
 	}
 
+	@Override
 	public char[] getExpansion() {
 		char[] expansionImage= getExpansionImage();
 		return MacroDefinitionParser.getExpansion(new CharArray(expansionImage), 0, expansionImage.length);
 	}
 
+	@Override
 	public char[][] getParameterPlaceholderList() {
 		char[][] params= getParameterList();
 		if (params != null && params.length > 0) {
@@ -349,22 +372,27 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return params;
 	}
 
+	@Override
 	public boolean isFunctionStyle() {
 		return getParameterList() != null;
 	}
 	
+	@Override
 	public boolean isDynamic() {
 		return false;
 	}
 
+	@Override
 	public PDOMLinkage getLinkage() {
 		return fLinkage;
 	}
 
+	@Override
 	public IIndexScope getScope() {
 		return null;
 	}
 
+	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Object getAdapter(Class adapter) {
 		if (adapter.isAssignableFrom(PDOMMacro.class)) {
@@ -373,6 +401,7 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return null;
 	}
 
+	@Override
 	public IIndexFragmentName getDefinition() throws CoreException {
 		if (!isMacroDefinition()) {
 			return null;
@@ -383,41 +412,51 @@ public class PDOMMacro implements IIndexMacro, IPDOMBinding, IASTFileLocation {
 		return fDefinition;
 	}
 
+	@Override
 	public IIndexFile getLocalToFile() throws CoreException {
 		return null;
 	}
 
+	@Override
 	public String[] getQualifiedName() {
 		return new String[]{getName()};
 	}
 
+	@Override
 	public boolean isFileLocal() throws CoreException {
 		return false;
 	}
 
+	@Override
 	public int getBindingConstant() {
 		return IIndexBindingConstants.MACRO_DEFINITION;
 	}
 
+	@Override
 	public IIndexFragment getFragment() {
 		return fLinkage.getPDOM();
 	}
 
+	@Override
 	public boolean hasDeclaration() throws CoreException {
 		return false;
 	}
 
+	@Override
 	public boolean hasDefinition() throws CoreException {
 		return true;
 	}
 
+	@Override
 	public IIndexFragmentBinding getOwner() {
 		return null;
 	}
 
+	@Override
 	public void accept(IPDOMVisitor visitor) {
 	}
 
+	@Override
 	public long getBindingID() {
 		return fRecord;
 	}

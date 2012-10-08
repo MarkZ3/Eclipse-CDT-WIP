@@ -12,7 +12,7 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.model;
 
- 
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -22,13 +22,13 @@ import java.util.Map;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.CCorePreferenceConstants;
-import org.eclipse.cdt.core.ISourceFinder;
-import org.eclipse.cdt.core.ISymbolReader;
 import org.eclipse.cdt.core.IBinaryParser.IBinaryExecutable;
 import org.eclipse.cdt.core.IBinaryParser.IBinaryFile;
 import org.eclipse.cdt.core.IBinaryParser.IBinaryObject;
 import org.eclipse.cdt.core.IBinaryParser.IBinaryShared;
 import org.eclipse.cdt.core.IBinaryParser.ISymbol;
+import org.eclipse.cdt.core.ISourceFinder;
+import org.eclipse.cdt.core.ISymbolReader;
 import org.eclipse.cdt.core.model.BinaryFilePresentation;
 import org.eclipse.cdt.core.model.CModelException;
 import org.eclipse.cdt.core.model.CoreModel;
@@ -45,6 +45,7 @@ import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.Platform;
 
 public class Binary extends Openable implements IBinary {
 
@@ -57,7 +58,7 @@ public class Binary extends Openable implements IBinary {
 	private long longBSS;
 	private String endian;
 	private String soname;
-	
+
 	private long fLastModification;
 
 	private IBinaryObject binaryObject;
@@ -83,22 +84,27 @@ public class Binary extends Openable implements IBinary {
 		showInBinaryContainer= determineShowInBinaryContainer(bin);
 	}
 
+	@Override
 	public boolean isSharedLib() {
 		return getType() == IBinaryFile.SHARED;
 	}
 
+	@Override
 	public boolean isExecutable() {
 		return getType() == IBinaryFile.EXECUTABLE;
 	}
 
+	@Override
 	public boolean isObject() {
 		return getType() == IBinaryFile.OBJECT;
 	}
 
+	@Override
 	public boolean isCore() {
 		return getType() == IBinaryFile.CORE;
 	}
 
+	@Override
 	public boolean hasDebug() {
 		if (isObject() || isExecutable() || isSharedLib()) {
 			if (hasDebug == null || hasChanged()) {
@@ -111,6 +117,7 @@ public class Binary extends Openable implements IBinary {
 		return Boolean.valueOf(hasDebug).booleanValue();
 	}
 
+	@Override
 	public String getCPU() {
 		if (isObject() || isExecutable() || isSharedLib() || isCore()) {
 			if (cpu == null || hasChanged()) {
@@ -121,6 +128,7 @@ public class Binary extends Openable implements IBinary {
 		return (cpu == null ? "" : cpu); //$NON-NLS-1$
 	}
 
+	@Override
 	public String[] getNeededSharedLibs() {
 		if (isExecutable() || isSharedLib()) {
 			if (needed == null || hasChanged()) {
@@ -133,6 +141,7 @@ public class Binary extends Openable implements IBinary {
 		return (needed == null ? new String[0] : needed);
 	}
 
+	@Override
 	public long getText() {
 		if (isObject() || isExecutable() || isSharedLib()) {
 			if (longText == -1 || hasChanged()) {
@@ -145,6 +154,7 @@ public class Binary extends Openable implements IBinary {
 		return longText;
 	}
 
+	@Override
 	public long getData() {
 		if (isObject() || isExecutable() || isSharedLib()) {
 			if (longData == -1 || hasChanged()) {
@@ -157,6 +167,7 @@ public class Binary extends Openable implements IBinary {
 		return longData;
 	}
 
+	@Override
 	public long getBSS() {
 		if (isObject() || isExecutable() || isSharedLib()) {
 			if (longBSS == -1 || hasChanged()) {
@@ -169,6 +180,7 @@ public class Binary extends Openable implements IBinary {
 		return longBSS;
 	}
 
+	@Override
 	public String getSoname() {
 		if (isSharedLib()) {
 			if (soname == null || hasChanged()) {
@@ -181,6 +193,7 @@ public class Binary extends Openable implements IBinary {
 		return (soname == null ? "" : soname); //$NON-NLS-1$
 	}
 
+	@Override
 	public boolean isLittleEndian() {
 		if (isObject() || isExecutable() || isSharedLib() || isCore()) {
 			if (endian == null || hasChanged()) {
@@ -273,24 +286,23 @@ public class Binary extends Openable implements IBinary {
 			if (obj != null) {
 				// First check if we can get the list of source
 				// files used to build the binary from the symbol
-				// information.  if not, fall back on information from the binary parser.
-				boolean showSourceFiles = CCorePlugin.getDefault().getPluginPreferences().getBoolean( CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES );
-				if (!showSourceFiles ||
-						!addSourceFiles(info, obj, hash))
-				{
+				// information.  If not, fall back on information from the binary parser.
+				boolean showSourceFiles = Platform.getPreferencesService().getBoolean(CCorePlugin.PLUGIN_ID,
+						CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES, false, null);
+				if (!showSourceFiles || !addSourceFiles(info, obj, hash)) {
 					ISymbol[] symbols = obj.getSymbols();
 					for (ISymbol symbol : symbols) {
 						switch (symbol.getType()) {
-							case ISymbol.FUNCTION :
-								addFunction(info, symbol, hash);
+						case ISymbol.FUNCTION:
+							addFunction(info, symbol, hash);
 							break;
 
-							case ISymbol.VARIABLE :
-								addVariable(info, symbol, hash);
+						case ISymbol.VARIABLE:
+							addVariable(info, symbol, hash);
 							break;
 						}
 					}
-				}				
+				}
 				ok = true;
 			}
 		}
@@ -311,34 +323,34 @@ public class Binary extends Openable implements IBinary {
 			ISourceFinder srcFinder = (ISourceFinder) getAdapter(ISourceFinder.class);
 			try {
 				for (String filename : sourceFiles) {
-					
+
 					// Find the file locally
 					if (srcFinder != null) {
 						String localPath = srcFinder.toLocalPath(filename);
 						if (localPath != null) {
-							filename  = localPath; 
+							filename  = localPath;
 						}
 					}
-	
+
 					// Be careful how you use this File object. If filename is a relative path, the resulting File
 					// object will apply the relative path to the working directory, which is not what we want.
 					// Stay away from methods that return or use the absolute path of the object. Note that
 					// File.isAbsolute() returns false when the object was constructed with a relative path.
 					File file = new File(filename);
-	
+
 					// Create a translation unit for this file and add it as a child of the binary
 					String id = CoreModel.getRegistedContentTypeId(getCProject().getProject(), file.getName());
 					if (id == null) {
 						// Don't add files we can't get an ID for.
 						continue;
 					}
-					
+
 					// See if this source file is already in the project.
 					// We check this to determine if we should create a TranslationUnit or ExternalTranslationUnit
 					IFile wkspFile = null;
 					if (file.isAbsolute()) {
 						IFile[] filesInWP = ResourceLookup.findFilesForLocation(new Path(filename));
-		
+
 						for (IFile element : filesInWP) {
 							if (element.isAccessible()) {
 								wkspFile = element;
@@ -346,7 +358,7 @@ public class Binary extends Openable implements IBinary {
 							}
 						}
 					}
-					
+
 					TranslationUnit tu;
 					if (wkspFile != null)
 						tu = new TranslationUnit(this, wkspFile, id);
@@ -362,12 +374,12 @@ public class Binary extends Openable implements IBinary {
 							tu = new ExternalTranslationUnit(this, Path.fromOSString(filename), id);
 						}
 						else {
-							tu = new ExternalTranslationUnit(this, URIUtil.toURI(filename, true), id);						
+							tu = new ExternalTranslationUnit(this, URIUtil.toURI(filename, true), id);
 						}
 					}
-	
+
 					if (! info.includesChild(tu))
-						info.addChild(tu);					
+						info.addChild(tu);
 				}
 				return true;
 			}
@@ -376,11 +388,11 @@ public class Binary extends Openable implements IBinary {
 					srcFinder.dispose();
 				}
 			}
-			
+
 		}
 		return false;
 	}
-	
+
 	private void addFunction(OpenableInfo info, ISymbol symbol, Map<IPath, BinaryModule> hash) throws CModelException {
 		IPath filename= symbol.getFilename();
 		BinaryFunction function = null;
@@ -431,7 +443,7 @@ public class Binary extends Openable implements IBinary {
 			variable.setLines(symbol.getStartLine(), symbol.getEndLine());
 			info.addChild(variable);
 		}
-		
+
 		//if (variable != null) {
 		//	if (!external) {
 		//		variable.getVariableInfo().setAccessControl(IConstants.AccStatic);
@@ -441,7 +453,7 @@ public class Binary extends Openable implements IBinary {
 
 	/**
 	 * @see org.eclipse.cdt.core.model.IOpenable#getBuffer()
-	 * 
+	 *
 	 * overridden from default as we do not need to create our children to provider a buffer since the buffer just contains
 	 * IBinaryOject contents which is not model specific.
 	 */
@@ -465,11 +477,11 @@ public class Binary extends Openable implements IBinary {
 	protected IBuffer openBuffer(IProgressMonitor pm) throws CModelException {
 
 		// create buffer -  translation units only use default buffer factory
-		BufferManager bufManager = getBufferManager();		
+		BufferManager bufManager = getBufferManager();
 		IBuffer buffer = getBufferFactory().createBuffer(this);
-		if (buffer == null) 
+		if (buffer == null)
 			return null;
-		
+
 		// set the buffer source
 		if (buffer.getCharacters() == null){
 			IBinaryObject bin = getBinaryObject();
@@ -496,13 +508,13 @@ public class Binary extends Openable implements IBinary {
 
 		// add buffer to buffer cache
 		bufManager.addBuffer(buffer);
-		
+
 		// listen to buffer changes
 		buffer.addBufferChangedListener(this);
-		
+
 		return buffer;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.internal.core.model.Openable#hasBuffer()
 	 */
@@ -534,6 +546,7 @@ public class Binary extends Openable implements IBinary {
 		super.closing(info);
 	}
 
+	@Override
 	public boolean showInBinaryContainer() {
 		return showInBinaryContainer;
 	}

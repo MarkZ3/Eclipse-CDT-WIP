@@ -15,7 +15,6 @@ import java.io.FileNotFoundException;
 import java.util.List;
 
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
 import org.eclipse.cdt.core.CCorePlugin;
@@ -48,12 +47,13 @@ import org.eclipse.cdt.core.model.IVariableDeclaration;
 import org.eclipse.cdt.core.parser.ast.ASTAccessVisibility;
 import org.eclipse.cdt.core.testplugin.CProjectHelper;
 import org.eclipse.cdt.core.testplugin.CTestPlugin;
+import org.eclipse.cdt.core.testplugin.util.BaseTestCase;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 
-public class StructuralCModelElementsTests extends TestCase {	
+public class StructuralCModelElementsTests extends BaseTestCase {	
 	private ICProject fCProject;
 	private IFile headerFile;
 	private IFile includedFile;
@@ -69,6 +69,7 @@ public class StructuralCModelElementsTests extends TestCase {
 		super(name);
 	}
 		
+	@Override
 	protected void setUp() throws Exception {
 		monitor = new NullProgressMonitor();
 		fCProject= CProjectHelper.createCCProject("TestProject1", "bin", IPDOMManager.ID_FAST_INDEXER); //$NON-NLS-1$ //$NON-NLS-2$
@@ -88,10 +89,11 @@ public class StructuralCModelElementsTests extends TestCase {
 				e.printStackTrace();
 			}
 		}
-		CCorePlugin.getIndexManager().joinIndexer(10000, new NullProgressMonitor());
+		waitForIndexer(fCProject);
 	}
 
 	
+	@Override
 	protected void tearDown() {
 		  CProjectHelper.delete(fCProject);
 	}	

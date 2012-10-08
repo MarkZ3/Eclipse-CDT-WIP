@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Bryan Wilkinson (QNX)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Bryan Wilkinson (QNX)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -26,12 +26,10 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespace;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTypeParameter;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPSemantics;
 
-public class CPPASTNamedTypeSpecifier extends CPPASTBaseDeclSpecifier implements
-        ICPPASTNamedTypeSpecifier, ICPPASTCompletionContext {
-
+public class CPPASTNamedTypeSpecifier extends CPPASTBaseDeclSpecifier
+		implements ICPPASTNamedTypeSpecifier, ICPPASTCompletionContext {
     private boolean typename;
     private IASTName name;
-
     
     public CPPASTNamedTypeSpecifier() {
 	}
@@ -40,36 +38,37 @@ public class CPPASTNamedTypeSpecifier extends CPPASTBaseDeclSpecifier implements
 		setName(name);
 	}
 
+	@Override
 	public CPPASTNamedTypeSpecifier copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTNamedTypeSpecifier copy(CopyStyle style) {
-		CPPASTNamedTypeSpecifier copy = new CPPASTNamedTypeSpecifier(name == null ? null
-				: name.copy(style));
-		copyBaseDeclSpec(copy);
+		CPPASTNamedTypeSpecifier copy =
+				new CPPASTNamedTypeSpecifier(name == null ? null : name.copy(style));
 		copy.typename = typename;
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return super.copy(copy, style);
 	}
 	
+	@Override
 	public boolean isTypename() {
         return typename;
     }
 
-    public void setIsTypename(boolean value) {
+    @Override
+	public void setIsTypename(boolean value) {
         assertNotFrozen();
         typename = value;
     }
 
-    public IASTName getName() {
+    @Override
+	public IASTName getName() {
         return name;
     }
 
-
-    public void setName(IASTName name) {
+    @Override
+	public void setName(IASTName name) {
         assertNotFrozen();
         this.name = name;
         if (name != null) {
@@ -106,12 +105,14 @@ public class CPPASTNamedTypeSpecifier extends CPPASTBaseDeclSpecifier implements
         return true;
     }
 	
+	@Override
 	public int getRoleForName(IASTName n) {
 		if (n == name)
 			return r_reference;
 		return r_unclear;
 	}
 
+	@Override
 	public IBinding[] findBindings(IASTName n, boolean isPrefix, String[] namespaces) {
 		IBinding[] bindings = CPPSemantics.findBindingsForContentAssist(n, isPrefix, namespaces);
 		List<IBinding> filtered = new ArrayList<IBinding>();
@@ -129,6 +130,7 @@ public class CPPASTNamedTypeSpecifier extends CPPASTBaseDeclSpecifier implements
 		return filtered.toArray(new IBinding[filtered.size()]);
 	}
 	
+	@Override
 	public IBinding[] findBindings(IASTName n, boolean isPrefix) {
 		return findBindings(n, isPrefix, null);
 	}

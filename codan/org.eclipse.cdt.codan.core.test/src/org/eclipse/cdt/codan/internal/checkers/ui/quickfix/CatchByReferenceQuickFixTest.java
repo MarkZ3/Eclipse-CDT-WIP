@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Tomasz Wesolowski - initial API and implementation
+ *     Tomasz Wesolowski - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
@@ -16,8 +16,8 @@ import org.eclipse.cdt.codan.ui.AbstractCodanCMarkerResolution;
 /**
  * @author Tomasz Wesolowski
  */
+@SuppressWarnings("restriction")
 public class CatchByReferenceQuickFixTest extends QuickFixTestCase {
-
 	@Override
 	public void setUp() throws Exception {
 		super.setUp();
@@ -41,7 +41,6 @@ public class CatchByReferenceQuickFixTest extends QuickFixTestCase {
 	//    } catch (C exception) {
 	//    }
 	// }
-	@SuppressWarnings("restriction")
 	public void testCatchByReference() throws Exception {
 		setQuickFix(new CatchByReferenceQuickFix());
 		loadcode(getAboveComment());
@@ -56,7 +55,6 @@ public class CatchByReferenceQuickFixTest extends QuickFixTestCase {
 	//    } catch (C) {
 	//    }
 	// }
-	@SuppressWarnings("restriction")
 	public void testCatchByReferenceNoDeclName() throws Exception {
 		setQuickFix(new CatchByReferenceQuickFix());
 		loadcode(getAboveComment());
@@ -71,7 +69,6 @@ public class CatchByReferenceQuickFixTest extends QuickFixTestCase {
 	//    } catch (C exception) {
 	//    }
 	// }
-	@SuppressWarnings("restriction")
 	public void testCatchByConstReference() throws Exception {
 		setQuickFix(new CatchByConstReferenceQuickFix());
 		loadcode(getAboveComment());
@@ -86,12 +83,10 @@ public class CatchByReferenceQuickFixTest extends QuickFixTestCase {
 	//    } catch (C) {
 	//    }
 	// }
-	@SuppressWarnings("restriction")
 	public void testCatchByConstReferenceNoDeclName() throws Exception {
 		setQuickFix(new CatchByConstReferenceQuickFix());
 		loadcode(getAboveComment());
 		String result = runQuickFixOneFile();
 		assertContainedIn("catch (const C &)", result); //$NON-NLS-1$
 	}
-
 }

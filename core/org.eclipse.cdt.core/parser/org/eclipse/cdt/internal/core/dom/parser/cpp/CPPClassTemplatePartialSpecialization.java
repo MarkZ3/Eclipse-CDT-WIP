@@ -33,58 +33,49 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPTemplates;
 public class CPPClassTemplatePartialSpecialization extends CPPClassTemplate 
 		implements ICPPClassTemplatePartialSpecialization, ICPPSpecialization {
 
-	private ICPPTemplateArgument[] arguments;
+	private final ICPPTemplateArgument[] arguments;
 
-	public CPPClassTemplatePartialSpecialization(ICPPASTTemplateId name) {
+	public CPPClassTemplatePartialSpecialization(ICPPASTTemplateId name, ICPPTemplateArgument[] arguments) {
 		super(name);
+		this.arguments= arguments;
 	}
 
-	public ICPPTemplateArgument[] getTemplateArguments() throws DOMException {
-		if (arguments == null) {
-			arguments= CPPTemplates.createTemplateArgumentArray((ICPPASTTemplateId) getTemplateName());
-		}
+	@Override
+	public ICPPTemplateArgument[] getTemplateArguments() {
 		return arguments;
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplatePartialSpecialization#getPrimaryClassTemplate()
 	 */
+	@Override
 	public ICPPClassTemplate getPrimaryClassTemplate() {
 		ICPPASTTemplateId id = (ICPPASTTemplateId) getTemplateName();
 		return (ICPPClassTemplate) id.getTemplateName().resolveBinding();
 	}
 
+	@Override
 	public IBinding getSpecializedBinding() {
 		return getPrimaryClassTemplate();
 	}
 
+	@Override
 	public ICPPTemplateParameterMap getTemplateParameterMap() {
-		try {
-			return CPPTemplates.createParameterMap(getPrimaryClassTemplate(), getTemplateArguments());
-		} catch (DOMException e) {
-			return CPPTemplateParameterMap.EMPTY;
-		}
+		return CPPTemplates.createParameterMap(getPrimaryClassTemplate(), getTemplateArguments());
 	}
 	
-	@Override
-	protected ICPPDeferredClassInstance createDeferredInstance() throws DOMException {
-		return new CPPDeferredClassInstance(this, getTemplateArguments(), getCompositeScope());
-	}
-
 	@Override
 	public String toString() {
-		try {
-			return super.toString() + ASTTypeUtil.getArgumentListString(getTemplateArguments(), true);
-		} catch (DOMException e) {
-			return super.toString() + '<' + e.getProblem().toString() + '>';
-		}
+		return super.toString() + ASTTypeUtil.getArgumentListString(getTemplateArguments(), true);
 	}
 	
+	@Override
 	@Deprecated
 	public ObjectMap getArgumentMap() {
 		return CPPTemplates.getArgumentMap(getPrimaryClassTemplate(), getTemplateParameterMap());
 	}
 	
+	@Override
 	@Deprecated
 	public IType[] getArguments() throws DOMException {
 		return CPPTemplates.getArguments(getTemplateArguments());
@@ -109,23 +100,19 @@ public class CPPClassTemplatePartialSpecialization extends CPPClassTemplate
 	public static boolean isSamePartialClassSpecialization(
 			ICPPClassTemplatePartialSpecialization lhs,
 			ICPPClassTemplatePartialSpecialization rhs) {
-		try {
-			ICPPClassType ct1= lhs.getPrimaryClassTemplate();
-			ICPPClassType ct2= rhs.getPrimaryClassTemplate();
-			if(!ct1.isSameType(ct2))
-				return false;
-
-			ICPPTemplateArgument[] args1= lhs.getTemplateArguments();
-			ICPPTemplateArgument[] args2= rhs.getTemplateArguments();
-			if (args1.length != args2.length)
-				return false;
-
-			for (int i = 0; i < args2.length; i++) {
-				if (args1[i].isSameValue(args2[i])) 
-					return false;
-			}
-		} catch (DOMException e) {
+		ICPPClassType ct1= lhs.getPrimaryClassTemplate();
+		ICPPClassType ct2= rhs.getPrimaryClassTemplate();
+		if(!ct1.isSameType(ct2))
 			return false;
+
+		ICPPTemplateArgument[] args1= lhs.getTemplateArguments();
+		ICPPTemplateArgument[] args2= rhs.getTemplateArguments();
+		if (args1.length != args2.length)
+			return false;
+
+		for (int i = 0; i < args2.length; i++) {
+			if (!args1[i].isSameValue(args2[i])) 
+				return false;
 		}
 		return true;
 	}

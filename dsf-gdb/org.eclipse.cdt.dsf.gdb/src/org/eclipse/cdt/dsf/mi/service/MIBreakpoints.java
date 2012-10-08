@@ -20,7 +20,7 @@ import java.util.Map;
 
 import org.eclipse.cdt.dsf.concurrent.CountingRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Immutable;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
@@ -188,6 +188,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 			super(DMContexts.getAncestorOfType(bp, IBreakpointsTargetDMContext.class));
 			fEventBreakpoints = new IBreakpointDMContext[] { bp };
 		}
+		@Override
 		public IBreakpointDMContext[] getBreakpoints() {
 			return fEventBreakpoints;
 		}
@@ -255,7 +256,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
          */
         @Override
         public boolean equals(Object obj) {
-            return baseEquals(obj) && (fReference == ((MIBreakpointDMContext) obj).fReference);
+            return baseEquals(obj) && (fReference.equals(((MIBreakpointDMContext)obj).fReference));
         }
         
         /* (non-Javadoc)
@@ -293,7 +294,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	 */
 	@Override
 	public void initialize(final RequestMonitor rm) {
-		super.initialize(new RequestMonitor(ImmediateExecutor.getInstance(), rm) {
+		super.initialize(new ImmediateRequestMonitor(rm) {
 			@Override
 			protected void handleSuccess() {
 				doInitialize(rm);
@@ -383,6 +384,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.dsf.debug.service.IBreakpoints#getBreakpoints(org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointsTargetDMContext, org.eclipse.cdt.dsf.concurrent.DataRequestMonitor)
 	 */
+	@Override
 	public void getBreakpoints(final IBreakpointsTargetDMContext context, final DataRequestMonitor<IBreakpointDMContext[]> drm)
 	{
 		// Validate the context
@@ -430,6 +432,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.dsf.debug.service.IBreakpoints#getBreakpointDMData(org.eclipse.cdt.dsf.debug.service.IBreakpoints.IDsfBreakpointDMContext, org.eclipse.cdt.dsf.concurrent.DataRequestMonitor)
 	 */
+	@Override
 	public void getBreakpointDMData(IBreakpointDMContext dmc, DataRequestMonitor<IBreakpointDMData> drm)
 	{
 		// Validate the breakpoint context
@@ -479,6 +482,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.dsf.debug.service.IBreakpoints#insertBreakpoint(org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointsTargetDMContext, java.util.Map, org.eclipse.cdt.dsf.concurrent.DataRequestMonitor)
 	 */
+	@Override
 	public void insertBreakpoint(IBreakpointsTargetDMContext context, Map<String, Object> attributes, DataRequestMonitor<IBreakpointDMContext> drm) {
 		
 		// Validate the context
@@ -524,6 +528,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/**
      * @since 3.0
      */
+	@Override
 	public void getExecutionContextBreakpoints(IExecutionDMContext ctx, DataRequestMonitor<IBreakpointDMContext[]> rm) {
 	    IBreakpointDMContext[] bps = fBreakpointHitMap.get(ctx);
 	    if (bps == null && ctx instanceof IContainerDMContext) {
@@ -834,16 +839,12 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 								// Flag the event
 								getSession().dispatchEvent(new BreakpointAddedEvent(dmc), getProperties());
 
-								// Break/Watch/Catchpoints that are disabled when set are delayed (we
-								// don't tell gdb about them until the user enables them). So, we shouldn't 
-								// be here if this is a disabled breakpoint
-								assert ((Boolean)getProperty(attributes, IS_ENABLED, true)) == true;
-								
-			               		// Condition, ignore count and cannot be specified at creation time.
+			               		// Condition, ignore count and state cannot be specified at creation time.
 			               		// Therefore, we have to update the catchpoint if any of these is present
 			               		Map<String,Object> delta = new HashMap<String,Object>();
 			               		delta.put(CONDITION,    getProperty(attributes, CONDITION, NULL_STRING));
 			               		delta.put(IGNORE_COUNT, getProperty(attributes, IGNORE_COUNT, 0 ));
+			               		delta.put(IS_ENABLED,   getProperty(attributes, IS_ENABLED, true));
 			               		modifyBreakpoint(dmc, delta, rm, false);
 							}
 
@@ -866,6 +867,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.dsf.debug.service.IBreakpoints#removeBreakpoint(org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointDMContext, org.eclipse.cdt.dsf.concurrent.RequestMonitor)
 	 */
+	@Override
 	public void removeBreakpoint(final IBreakpointDMContext dmc, final RequestMonitor finalRm) {
 
 		// Validate the breakpoint context
@@ -940,6 +942,7 @@ public class MIBreakpoints extends AbstractDsfService implements IBreakpoints, I
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.dsf.debug.service.IBreakpoints#updateBreakpoint(org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointDMContext, java.util.Map, org.eclipse.cdt.dsf.concurrent.RequestMonitor)
 	 */
+	@Override
 	public void updateBreakpoint(IBreakpointDMContext dmc, Map<String, Object> properties, RequestMonitor rm)
 	{
 		// Validate the breakpoint context

@@ -6,7 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
+ *     Doug Schaefer (IBM) - Initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -16,20 +17,18 @@ package org.eclipse.cdt.core.dom.ast;
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  */
-public interface IASTStatement extends IASTNode {
-	/**
-	 * Constant.
-	 */
-	public static final IASTStatement[] EMPTY_STATEMENT_ARRAY = new IASTStatement[0];
+public interface IASTStatement extends IASTAttributeOwner {
+	public static final IASTStatement[] EMPTY_STATEMENT_ARRAY = {};
 	
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTStatement copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTStatement copy(CopyStyle style);
-
 }

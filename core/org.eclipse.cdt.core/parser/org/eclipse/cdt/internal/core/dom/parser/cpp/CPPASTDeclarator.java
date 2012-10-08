@@ -1,18 +1,19 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
- *    Sergey Prigogin (Google)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
+import org.eclipse.cdt.core.dom.ast.IASTAttribute;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
@@ -47,6 +48,7 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 	private IASTImplicitName[] implicitNames; 
     private IASTDeclarator nested;
     private IASTPointerOperator[] pointerOps;
+    private IASTAttribute[] attributes;
     private boolean isPackExpansion;
    
     public CPPASTDeclarator() {
@@ -61,10 +63,12 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		setInitializer(initializer);
 	}
 
-    public CPPASTDeclarator copy() {
+    @Override
+	public CPPASTDeclarator copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTDeclarator copy(CopyStyle style) {
 		CPPASTDeclarator copy = new CPPASTDeclarator();
 		copyBaseDeclarator(copy, style);
@@ -79,34 +83,61 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		copy.setInitializer(initializer == null ? null : initializer.copy(style));
 		copy.setNestedDeclarator(nested == null ? null : nested.copy(style));
 		copy.isPackExpansion= isPackExpansion;
-		for (IASTPointerOperator pointer : getPointerOperators())
-			copy.addPointerOperator(pointer == null ? null : pointer.copy(style));
+		for (IASTPointerOperator pointer : getPointerOperators()) {
+			copy.addPointerOperator(pointer.copy(style));
+		}
+		for (IASTAttribute attribute : getAttributes()) {
+			copy.addAttribute(attribute.copy(style));
+		}
 		copy.setOffsetAndLength(this);
     }
 
+	@Override
 	public boolean declaresParameterPack() {
 		return isPackExpansion;
 	}
 
+	@Override
 	public IASTPointerOperator[] getPointerOperators() {
         if (pointerOps == null) return IASTPointerOperator.EMPTY_ARRAY;
-        pointerOps = (IASTPointerOperator[]) ArrayUtil.trim(IASTPointerOperator.class, pointerOps);
+        pointerOps = ArrayUtil.trim(IASTPointerOperator.class, pointerOps);
         return pointerOps;
     }
 
-    public IASTDeclarator getNestedDeclarator() {
+	@Override
+	public IASTAttribute[] getAttributes() {
+        if (attributes == null) return IASTAttribute.EMPTY_ATTRIBUTE_ARRAY;
+        attributes = ArrayUtil.trim(IASTAttribute.class, attributes);
+        return attributes;
+    }
+
+    @Override
+	public void addAttribute(IASTAttribute attribute) {
+        assertNotFrozen();
+    	if (attribute != null) {
+    		attribute.setParent(this);
+			attribute.setPropertyInParent(ATTRIBUTE);
+    		attributes = ArrayUtil.append(IASTAttribute.class, attributes, attribute);
+    	}
+    }
+
+    @Override
+	public IASTDeclarator getNestedDeclarator() {
         return nested;
     }
 
-    public IASTName getName() {
+    @Override
+	public IASTName getName() {
         return name;
     }
 
-    public IASTInitializer getInitializer() {
+    @Override
+	public IASTInitializer getInitializer() {
         return initializer;
     }
 
-    public void setInitializer(IASTInitializer initializer) {
+    @Override
+	public void setInitializer(IASTInitializer initializer) {
         assertNotFrozen();
         this.initializer = initializer;
         if (initializer != null) {
@@ -115,16 +146,18 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		}
     }
 
-    public void addPointerOperator(IASTPointerOperator operator) {
+    @Override
+	public void addPointerOperator(IASTPointerOperator operator) {
         assertNotFrozen();
     	if (operator != null) {
     		operator.setParent(this);
 			operator.setPropertyInParent(POINTER_OPERATOR);
-    		pointerOps = (IASTPointerOperator[]) ArrayUtil.append(IASTPointerOperator.class, pointerOps, operator);
+    		pointerOps = ArrayUtil.append(IASTPointerOperator.class, pointerOps, operator);
     	}
     }
 
-    public void setNestedDeclarator(IASTDeclarator nested) {
+    @Override
+	public void setNestedDeclarator(IASTDeclarator nested) {
         assertNotFrozen();
         this.nested = nested;
         if (nested != null) {
@@ -133,7 +166,8 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		}
     }
 
-    public void setName(IASTName name) {
+    @Override
+	public void setName(IASTName name) {
         assertNotFrozen();
         this.name = name;
         if (name != null) {
@@ -142,7 +176,8 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		}
     }
 
-    public void setDeclaresParameterPack(boolean val) {
+    @Override
+	public void setDeclaresParameterPack(boolean val) {
     	assertNotFrozen();
     	isPackExpansion= val;
 	}
@@ -162,6 +197,15 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
         		if (op == null)
         			break;
                 if (!op.accept(action))
+                	return false;
+        	}
+        }
+
+        if (attributes != null) {
+        	for (IASTAttribute attribute : attributes) {
+        		if (attribute == null)
+        			break;
+                if (!attribute.accept(action))
                 	return false;
         	}
         }
@@ -196,6 +240,7 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 		return initializer == null || initializer.accept(action);
     }
 
+	@Override
 	public int getRoleForName(IASTName n) {
 		// 3.1.2
         IASTNode parent = ASTQueries.findOutermostDeclarator(this).getParent();
@@ -257,6 +302,7 @@ public class CPPASTDeclarator extends ASTNode implements ICPPASTDeclarator, IAST
 	/**
 	 * @see IASTImplicitNameOwner#getImplicitNames()
 	 */
+	@Override
 	public IASTImplicitName[] getImplicitNames() {
 		if (implicitNames == null) {
 			ICPPConstructor ctor = CPPSemantics.findImplicitlyCalledConstructor(this);

@@ -211,54 +211,6 @@
       </statusHandler>
    </extension>
    <extension
-         point="org.eclipse.ui.popupMenus">
-      <viewerContribution
-            id="org.eclipse.cdt.dsf.gdb.ui.debugview.context"
-            targetID="org.eclipse.debug.ui.DebugView">
-         <action
-               class="org.eclipse.cdt.dsf.gdb.internal.ui.actions.ConnectActionDelegate"
-               icon="icons/full/obj16/connect.gif"
-               id="org.eclipse.cdt.dsf.gdb.ui.connect"
-               label="%action.connect.label"
-               menubarPath="threadGroup"
-               tooltip="%action.connect.tooltip">
-            <enablement>
-               <pluginState
-                     id="org.eclipse.cdt.dsf.gdb.ui"
-                     value="activated">
-               </pluginState>
-            </enablement>
-         </action>
-         <visibility>
-            <pluginState
-                  id="org.eclipse.cdt.dsf.gdb.ui"
-                  value="activated">
-            </pluginState>
-         </visibility>
-      </viewerContribution>
-   </extension>
-   <extension
-         point="org.eclipse.ui.viewActions">
-      <viewContribution
-            id="org.eclipse.cdt.dsf.gdb.ui.debugview.toolbar"
-            targetID="org.eclipse.debug.ui.DebugView">
-         <action
-               class="org.eclipse.cdt.dsf.gdb.internal.ui.actions.ConnectActionDelegate"
-               icon="icons/full/obj16/connect.gif"
-               id="org.eclipse.cdt.dsf.gdb.ui.connect"
-               label="%action.connect.label"
-               toolbarPath="threadGroup"
-               tooltip="%action.connect.tooltip">
-            <enablement>
-               <pluginState
-                     id="org.eclipse.cdt.dsf.gdb.ui"
-                     value="activated">
-               </pluginState>
-            </enablement>
-         </action>
-      </viewContribution>
-   </extension>
-   <extension
          point="org.eclipse.core.expressions.definitions">
       <definition
             id="org.eclipse.cdt.dsf.gdb.ui.testIsGdbUIPluginActive">
@@ -310,6 +262,13 @@
             icon="icons/full/view16/tracecontrol_view.gif"
             id="org.eclipse.cdt.dsf.gdb.ui.tracecontrol.view"
             name="%view.traceControl.name">
+      </view>
+      <view
+            category="org.eclipse.debug.ui"
+            class="org.eclipse.cdt.dsf.gdb.internal.ui.osview.OSResourcesView"
+            id="org.eclipse.cdt.dsf.gdb.ui.osresources.view"
+            name="%view.osresources.name"
+            icon="icons/full/view16/osresources_view.gif">
       </view>
    </extension>
    <extension
@@ -469,10 +428,19 @@
                      definitionId="org.eclipse.cdt.debug.ui.testIsTracepointActionSetActive">
                </reference>      
                <test
-                     property="org.eclipse.cdt.dsf.debug.ui.isCLaunchTypeDisassembly">
+                     property="org.eclipse.cdt.dsf.debug.ui.isDisassemblyViewSupportsCBreakpoint">
                </test>
             </and>  
          </enablement>
       </toggleTargetFactory>
+   </extension>
+   <extension
+         point="org.eclipse.debug.core.statusHandlers">
+      <statusHandler
+            class="org.eclipse.cdt.dsf.gdb.internal.ui.GdbStatusHandler"
+            code="20001"
+            id="org.eclipse.cdt.dsf.gdb.ui.statusHandler"
+            plugin="org.eclipse.cdt.dsf.gdb">
+      </statusHandler>
    </extension>
 </plugin>

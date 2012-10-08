@@ -22,6 +22,7 @@ import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IFunction;
 import org.eclipse.cdt.core.dom.ast.IFunctionType;
+import org.eclipse.cdt.core.dom.ast.IScope.ScopeLookupData;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPEnumeration;
@@ -60,6 +61,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		super(linkage, record);
 	}
 	
+	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Object getAdapter(Class adapter) {
 		if (adapter.isAssignableFrom(PDOMBinding.class))
@@ -85,6 +87,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 				&& db.getRecPtr(record + FIRST_REF_OFFSET) == 0;
 	}
 	
+	@Override
 	public final boolean hasDeclaration() throws CoreException {
 		if (hasDeclaration == -1) {
 			final Database db = getDB();
@@ -99,7 +102,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		return hasDeclaration != 0;
 	}
 	
-	public void addDeclaration(PDOMName name) throws CoreException {
+	public final void addDeclaration(PDOMName name) throws CoreException {
 		PDOMName first = getFirstDeclaration();
 		if (first != null) {
 			first.setPrevInBinding(name);
@@ -108,7 +111,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		setFirstDeclaration(name);
 	}
 	
-	public void addDefinition(PDOMName name) throws CoreException {
+	public final void addDefinition(PDOMName name) throws CoreException {
 		PDOMName first = getFirstDefinition();
 		if (first != null) {
 			first.setPrevInBinding(name);
@@ -117,7 +120,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		setFirstDefinition(name);
 	}
 	
-	public void addReference(PDOMName name) throws CoreException {
+	public final void addReference(PDOMName name) throws CoreException {
 		PDOMName first = getFirstReference();
 		if (first != null) {
 			first.setPrevInBinding(name);
@@ -156,6 +159,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		getDB().putRecPtr(record + FIRST_REF_OFFSET, namerec);
 	}
 	
+	@Override
 	public final PDOMFile getLocalToFile() throws CoreException {
 		final long filerec = getLocalToFileRec(getDB(), record);
 		return filerec == 0 ? null : new PDOMFile(getLinkage(), filerec);
@@ -173,6 +177,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		getDB().putRecPtr(record + LOCAL_TO_FILE, rec);
 	}
 
+	@Override
 	public String getName() {
 		try {
 			return super.getDBName().getString();
@@ -204,6 +209,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		return null;
 	}
 	
+	@Override
 	public final IIndexScope getScope() {
 		// The parent node in the binding hierarchy is the scope. 
 		try {
@@ -232,6 +238,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		return null;
 	}
 	
+	@Override
 	public IIndexFragment getFragment() {
 		return getPDOM();
 	}
@@ -303,14 +310,17 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		}
 	}
 
+	@Override
 	public String[] getQualifiedName() {
 		return new String[] { getName() };
 	}
 	
+	@Override
 	final public boolean isFileLocal() throws CoreException {
 		return getDB().getRecPtr(record + LOCAL_TO_FILE) != 0;
 	}
 
+	@Override
 	public boolean hasDefinition() throws CoreException {
 		return getDB().getRecPtr(record + FIRST_DEF_OFFSET) != 0;
 	}
@@ -382,6 +392,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		return pdomCompareTo(other)==0;
 	}
 	
+	@Override
 	public final int getBindingConstant() {
 		return getNodeType();
 	}
@@ -416,10 +427,15 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	}
 
 	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix) {
-		return getBindings(name, resolve, prefix, null);
+		return getBindings(new ScopeLookupData(name, resolve, prefix));
 	}
 
+	@Deprecated
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix, IIndexFileSet fileSet) {
-		return null;
+		return IBinding.EMPTY_BINDING_ARRAY;
+	}
+
+	public IBinding[] getBindings(ScopeLookupData lookup) {
+		return IBinding.EMPTY_BINDING_ARRAY;
 	}
 }

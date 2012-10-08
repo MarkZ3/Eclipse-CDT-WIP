@@ -19,16 +19,16 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 
 /**
- * Base class for the UNC path conversion extension point. UNC paths are used to represent remote include
- * locations, and this class is used to translate between UNC, IPath and URI representations. By default,
- * paths are translated into the equivalent local file version to preserve existing behavior, but by providing
- * an appropriate extension, these paths can be mapped into locations on a remote system.
+ * Base class for the UNC path conversion extension point. UNC paths are used to represent remote
+ * include locations, and this class is used to translate between UNC, IPath and URI
+ * representations. By default, paths are translated into the equivalent local file version to
+ * preserve existing behavior, but by providing an appropriate extension, these paths can be mapped
+ * into locations on a remote system.
  * 
  * May be subclassed by clients.
  * @since 5.3
  */
 public abstract class UNCPathConverter {
-
 	/**
 	 * Get the instance of the class that combines the registered converters.
 	 * @return instance of UNCPathConverter
@@ -36,7 +36,6 @@ public abstract class UNCPathConverter {
 	public static UNCPathConverter getInstance() {
 		return UNCPathConverterImpl.getInstance();
 	}
-
 
 	/**
 	 * Test if the string path is in UNC format.
@@ -56,20 +55,24 @@ public abstract class UNCPathConverter {
 		return false;
 	}
 
-
 	/**
-	 * Convert a URI to an IPath. If URI has a host section, return a UNC rather than a file based path.
+	 * Convert a URI to an IPath. 
+	 * Resolves to local path if possible, including using EFS where required.
 	 * 
 	 * @param uri
 	 *            URI to convert to an IPath
 	 * @return IPath representation of the URI
 	 */
 	public static IPath toPath(URI uri) {
+		IPath localPath = URIUtil.toPath(uri);
 		String host = uri.getHost();
-		if (host != null) {
+		// try local path first
+		// that'll give EFS a chance to resolve a custom protocol path.
+		if (host != null && localPath == null) { 
 			return new Path(host + uri.getPath()).makeUNC(true);
-		}
-		return URIUtil.toPath(uri);
+		} else {
+			return localPath;
+		}	
 	}
 
 	/**

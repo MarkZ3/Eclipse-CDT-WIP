@@ -1,292 +1,94 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2009 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik
  * Rapperswil, University of applied sciences and others
- * All rights reserved. This program and the accompanying materials 
- * are made available under the terms of the Eclipse Public License v1.0 
- * which accompanies this distribution, and is available at 
- * http://www.eclipse.org/legal/epl-v10.html  
- *  
- * Contributors: 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
  *     Institute for Software - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.preferences.IPreferencesService;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.DOMException;
-import org.eclipse.cdt.core.dom.ast.IASTArrayDeclarator;
-import org.eclipse.cdt.core.dom.ast.IASTArrayModifier;
-import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
-import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
+import org.eclipse.cdt.core.dom.ast.IASTFieldReference;
+import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTMacroExpansionLocation;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
-import org.eclipse.cdt.core.dom.ast.IASTNode.CopyStyle;
 import org.eclipse.cdt.core.dom.ast.IASTNodeLocation;
-import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTPointerOperator;
-import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IBinding;
-import org.eclipse.cdt.core.dom.ast.INodeFactory;
 import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTReferenceOperator;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTSimpleTypeTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPBinding;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPNodeFactory;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTypeParameter;
+import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.ui.CUIPlugin;
+import org.eclipse.cdt.ui.PreferenceConstants;
 
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
-import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVariableReadWriteFlags;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.pdom.dom.PDOMName;
+import org.eclipse.cdt.internal.corext.refactoring.code.flow.FlowContext;
+import org.eclipse.cdt.internal.corext.refactoring.code.flow.FlowInfo;
+import org.eclipse.cdt.internal.corext.refactoring.code.flow.InputFlowAnalyzer;
+import org.eclipse.cdt.internal.corext.refactoring.code.flow.Selection;
+import org.eclipse.cdt.internal.corext.util.ASTNodes;
 
 public class NodeContainer {
-	public final NameInformation NULL_NAME_INFORMATION = new NameInformation(new CPPASTName());
-
-	private final ArrayList<IASTNode> vec;
-	private final ArrayList<NameInformation> names;
-
-	public class NameInformation {
-		private IASTName name;
-		private IASTName declaration;
-		private final ArrayList<IASTName> references;
-		private ArrayList<IASTName> referencesAfterCached;
-		private int lastCachedReferencesHash;
-		private boolean isReference;
-		private boolean isReturnValue;
-		private boolean isConst;
-		private boolean isWriteAccess;
-
-		private boolean userSetIsReference;
-		private boolean userSetIsReturnValue;
-		private String userSetName;
-		private int userOrder;
-
-		public int getUserOrder() {
-			return userOrder;
-		}
-
-		public void setUserOrder(int userOrder) {
-			this.userOrder = userOrder;
-		}
-
-		public NameInformation(IASTName name) {
-			super();
-			this.name = name;
-			references = new ArrayList<IASTName>();
-		}
-
-		public IASTName getDeclaration() {
-			return declaration;
-		}
-
-		public void setDeclaration(IASTName declaration) {
-			this.declaration = declaration;
-		}
-
-		public IASTName getName() {
-			return name;
-		}
-
-		public void setName(IASTName name) {
-			this.name = name;
-		}
-
-		public void addReference(IASTName name) {
-			references.add(name);
-		}
-
-		public ArrayList<IASTName> getReferencesAfterSelection() {
-			if (referencesAfterCached == null
-					|| lastCachedReferencesHash != references.hashCode()) {
-				lastCachedReferencesHash = references.hashCode();
-				referencesAfterCached = new ArrayList<IASTName>();
-				for (IASTName ref : references) {
-					IASTFileLocation loc = ref.getFileLocation();
-					if (loc.getNodeOffset() >= getEndOffset()) {
-						referencesAfterCached.add(ref);
-					}
-				}
-			}
-			return referencesAfterCached;
-		}
-
-		public boolean isUsedAfterReferences() {
-			return getReferencesAfterSelection().size() > 0;
-		}
-
-		public IASTParameterDeclaration getParameterDeclaration(boolean isReference,
-				INodeFactory nodeFactory) {
-			IASTDeclarator sourceDeclarator = (IASTDeclarator) getDeclaration().getParent();
-
-			IASTDeclSpecifier declSpec= null;
-			IASTDeclarator declarator= null;
-			
-			if (sourceDeclarator.getParent() instanceof IASTSimpleDeclaration) {
-				IASTSimpleDeclaration decl = (IASTSimpleDeclaration) sourceDeclarator.getParent();
-				declSpec = decl.getDeclSpecifier().copy(CopyStyle.withLocations);
-			} else if (sourceDeclarator.getParent() instanceof IASTParameterDeclaration) {
-				IASTParameterDeclaration decl = (IASTParameterDeclaration) sourceDeclarator.getParent();
-				declSpec = decl.getDeclSpecifier().copy(CopyStyle.withLocations);
-			}
-
-			IASTName name= nodeFactory.newName(getDeclaration().toCharArray());
-			if (sourceDeclarator instanceof IASTArrayDeclarator) {
-				IASTArrayDeclarator arrDeclarator = (IASTArrayDeclarator) sourceDeclarator;
-				IASTArrayDeclarator arrayDtor = nodeFactory.newArrayDeclarator(name);
-				IASTArrayModifier[] arrayModifiers = arrDeclarator.getArrayModifiers();
-				for (IASTArrayModifier arrayModifier : arrayModifiers) {
-					arrayDtor.addArrayModifier(arrayModifier.copy(CopyStyle.withLocations));
-				}
-				declarator= arrayDtor;
-			} else {
-				declarator = nodeFactory.newDeclarator(name);
-			}
-			for (IASTPointerOperator pointerOp : sourceDeclarator.getPointerOperators()) {
-				declarator.addPointerOperator(pointerOp.copy(CopyStyle.withLocations));
-			}
-
-			if (isReference && !hasReferenceOperartor(declarator)) {
-				if (nodeFactory instanceof ICPPNodeFactory) {
-					declarator.addPointerOperator(((ICPPNodeFactory) nodeFactory).newReferenceOperator(false));
-				} else {
-					declarator.addPointerOperator(nodeFactory.newPointer());
-				}
-			}
-
-			declarator.setNestedDeclarator(sourceDeclarator.getNestedDeclarator());
-
-			return nodeFactory.newParameterDeclaration(declSpec, declarator);
-		}
-
-		public boolean hasReferenceOperartor(IASTDeclarator declarator) {
-			for (IASTPointerOperator pOp : declarator.getPointerOperators()) {
-				if (pOp instanceof ICPPASTReferenceOperator) {
-					return true;
-				}
-			}
-			return false;
-		}
-
-		public String getType() {
-			IASTDeclSpecifier declSpec = null;
-
-			IASTNode node = getDeclaration().getParent();
-			if (node instanceof ICPPASTSimpleTypeTemplateParameter) {
-				ICPPASTSimpleTypeTemplateParameter parameter = (ICPPASTSimpleTypeTemplateParameter) node;
-				return parameter.getName().toString();
-			}
-			IASTDeclarator sourceDeclarator = (IASTDeclarator) node;
-			if (sourceDeclarator.getParent() instanceof IASTSimpleDeclaration) {
-				IASTSimpleDeclaration decl = (IASTSimpleDeclaration) sourceDeclarator.getParent();
-				declSpec = decl.getDeclSpecifier();
-			} else if (sourceDeclarator.getParent() instanceof IASTParameterDeclaration) {
-				IASTParameterDeclaration decl = (IASTParameterDeclaration) sourceDeclarator.getParent();
-				declSpec = decl.getDeclSpecifier();
-			}
-
-			ASTWriter writer = new ASTWriter();
-			return writer.write(declSpec);
-		}
-
-		public boolean isDeclarationInScope() {
-			if (declaration != null && declaration.toCharArray().length > 0) {
-				int declOffset = declaration.getFileLocation().getNodeOffset();
-				return declOffset >= getStartOffset()
-				&& declOffset <= getEndOffset();
-			}
-			return true;
-		}
-
-		@Override
-		public String toString() {
-			return Messages.NodeContainer_Name + name + ' ' + isDeclarationInScope();
-		}
-
-		public boolean isReference() {
-			return isReference;
-		}
-
-		public void setReference(boolean isReference) {
-			this.isReference = isReference;
-		}
-
-		public boolean isReturnValue() {
-			return isReturnValue;
-		}
-
-		public void setReturnValue(boolean isReturnValue) {
-			this.isReturnValue = isReturnValue;
-		}
-
-		public boolean isUserSetIsReference() {
-			return userSetIsReference;
-		}
-
-		public void setUserSetIsReference(boolean userSetIsReference) {
-			this.userSetIsReference = userSetIsReference;
-		}
-
-		public boolean isUserSetIsReturnValue() {
-			return userSetIsReturnValue;
-		}
-
-		public void setUserSetIsReturnValue(boolean userSetIsReturnValue) {
-			this.userSetIsReturnValue = userSetIsReturnValue;
-		}
-
-		public String getUserSetName() {
-			return userSetName;
-		}
-
-		public void setUserSetName(String userSetName) {
-			this.userSetName = userSetName;
-		}
-
-		public boolean isConst() {
-			return isConst;
-		}
-
-		public void setConst(boolean isConst) {
-			this.isConst = isConst;
-		}
-
-		public boolean isWriteAccess() {
-			return isWriteAccess;
-		}
-
-		public void setWriteAccess(boolean isWriteAceess) {
-			this.isWriteAccess = isWriteAceess;
-		}
-	}
+	private final List<IASTNode> nodes;
+	private List<NameInformation> names;
+	private List<NameInformation> interfaceNames;
 
 	public NodeContainer() {
 		super();
-		vec = new ArrayList<IASTNode>();
-		names = new ArrayList<NameInformation>();
+		nodes = new ArrayList<IASTNode>();
 	}
 
 	public final int size() {
-		return vec.size();
+		return nodes.size();
 	}
 
 	public final boolean isEmpty() {
-		return vec.isEmpty();
+		return nodes.isEmpty();
 	}
 
 	public void add(IASTNode node) {
-		vec.add(node);
+		nodes.add(node);
 	}
 
-	public void findAllNames() {
-		for (IASTNode node : vec) {
+	private void findAllNames() {
+		if (names != null) {
+			return;
+		}
+		names = new ArrayList<NameInformation>();
+		final int startOffset = getStartOffset();
+		final int endOffset = getEndOffset();
+
+		IPreferencesService preferences = Platform.getPreferencesService();
+		final boolean passOutputByPointer = preferences.getBoolean(CUIPlugin.PLUGIN_ID,
+				PreferenceConstants.FUNCTION_PASS_OUTPUT_PARAMETERS_BY_POINTER, false,
+				PreferenceConstants.getPreferenceScopes(getProject()));
+
+		for (IASTNode node : nodes) {
 			node.accept(new ASTVisitor() {
 				{
 					shouldVisitNames = true;
@@ -294,143 +96,175 @@ public class NodeContainer {
 
 				@Override
 				public int visit(IASTName name) {
-					IBinding bind = name.resolveBinding();
+					if (name.getPropertyInParent() != IASTFieldReference.FIELD_NAME) {
+						IBinding binding = name.resolveBinding();
 
-					if (bind instanceof ICPPBinding
-							&& !(bind instanceof ICPPTemplateTypeParameter)) {
-						ICPPBinding cppBind = (ICPPBinding) bind;
-						try {
-							if (!cppBind.isGloballyQualified()) {
-								NameInformation nameInformation = new NameInformation(name);
-								IASTName[] refs = name.getTranslationUnit().getReferences(bind);
-								for (IASTName ref : refs) {
-									nameInformation.addReference(ref);
+						if (binding instanceof ICPPBinding && !(binding instanceof ICPPTemplateTypeParameter)) {
+							ICPPBinding cppBinding = (ICPPBinding) binding;
+							try {
+								if (!cppBinding.isGloballyQualified()) {
+									NameInformation nameInfo = new NameInformation(name);
+									nameInfo.setPassOutputByPointer(passOutputByPointer);
+									IASTName[] refs = name.getTranslationUnit().getReferences(binding);
+									for (IASTName ref : refs) {
+										nameInfo.addReference(ref, startOffset, endOffset);
+									}
+									names.add(nameInfo);
 								}
-								names.add(nameInformation);
+							} catch (DOMException e) {
+								IStatus status = new Status(IStatus.WARNING, CUIPlugin.PLUGIN_ID,
+										e.getMessage(), e);
+								CUIPlugin.log(status);
 							}
-						} catch (DOMException e) {
-							ILog logger = CUIPlugin.getDefault().getLog();
-							IStatus status = new Status(IStatus.WARNING,
-									CUIPlugin.PLUGIN_ID, IStatus.OK, e.getMessage(), e);
-							logger.log(status);
-						}
-					} else if (bind instanceof IVariable) {
-						NameInformation nameInformation = new NameInformation(name);
+						} else if (binding instanceof IVariable) {
+							NameInformation nameInformation = new NameInformation(name);
 
-						IASTName[] refs = name.getTranslationUnit().getReferences(bind);
-						for (IASTName ref : refs) {
-							nameInformation.addReference(ref);
+							IASTName[] refs = name.getTranslationUnit().getReferences(binding);
+							for (IASTName ref : refs) {
+								nameInformation.addReference(ref, startOffset, endOffset);
+							}
+							names.add(nameInformation);
 						}
-						names.add(nameInformation);
 					}
 					return super.visit(name);
 				}
 			});
 		}
 
-		for (NameInformation nameInf : names) {
-			IASTName name = nameInf.getName();
+		for (NameInformation nameInfo : names) {
+			IASTName name = nameInfo.getName();
 
-			IASTTranslationUnit unit = name.getTranslationUnit();
-			IASTName[] decls = unit.getDeclarationsInAST(name.resolveBinding());
-			for (IASTName declaration : decls) {
-				nameInf.setDeclaration(declaration);
+			IASTTranslationUnit ast = name.getTranslationUnit();
+			IASTName[] nameDeclarations = ast.getDeclarationsInAST(name.resolveBinding());
+			if (nameDeclarations.length != 0) {
+				nameInfo.setDeclarationName(nameDeclarations[nameDeclarations.length - 1]);
 			}
 		}
 	}
 
-	/*
-	 * Returns all local names in the selection which will be used after the
-	 * selection expected the ones which are pointers
+	private IProject getProject() {
+		IProject project = null;
+		if (nodes.isEmpty()) {
+			ITranslationUnit tu = nodes.get(0).getTranslationUnit().getOriginatingTranslationUnit();
+			if (tu != null)
+				project = tu.getCProject().getProject();
+		}
+		return project;
+	}
+
+	/**
+	 * Returns names that are either parameter or return value candidates.
 	 */
-	public ArrayList<NameInformation> getAllAfterUsedNames() {
-		ArrayList<IASTName> declarations = new ArrayList<IASTName>();
-		ArrayList<NameInformation> usedAfter = new ArrayList<NameInformation>();
-
-		if (names.size() <= 0) {
+	private List<NameInformation> getInterfaceNames() {
+		if (interfaceNames == null) {
 			findAllNames();
-		}
 
-		for (NameInformation nameInf : names) {
-			if (!declarations.contains(nameInf.getDeclaration())) {
-				declarations.add(nameInf.getDeclaration());
-				if (nameInf.isUsedAfterReferences()) {
-					usedAfter.add(nameInf);
-					nameInf.setReference(true);
-				}
-			}
-		}
+			Set<IVariable> externalReads = getVariablesReadOutside();
 
-		return usedAfter;
-	}
+			Set<IASTName> declarations = new HashSet<IASTName>();
+			interfaceNames = new ArrayList<NameInformation>();
 
-	public ArrayList<NameInformation> getAllAfterUsedNamesChoosenByUser() {
-		ArrayList<IASTName> declarations = new ArrayList<IASTName>();
-		ArrayList<NameInformation> usedAfter = new ArrayList<NameInformation>();
-
-		for (NameInformation nameInf : names) {
-			if (!declarations.contains(nameInf.getDeclaration())) {
-
-				declarations.add(nameInf.getDeclaration());
-				if (nameInf.isUserSetIsReference() || nameInf.isUserSetIsReturnValue()) {
-					usedAfter.add(nameInf);
-				}
-			}
-		}
-
-		return usedAfter;
-	}
-
-	public ArrayList<NameInformation> getUsedNamesUnique() {
-		ArrayList<IASTName> declarations = new ArrayList<IASTName>();
-		ArrayList<NameInformation> usedAfter = new ArrayList<NameInformation>();
-
-		if (names.size() <= 0) {
-			findAllNames();
-		}
-
-		for (NameInformation nameInf : names) {
-			if (!declarations.contains(nameInf.getDeclaration())) {
-				declarations.add(nameInf.getDeclaration());
-				usedAfter.add(nameInf);
-			} else {
-				for (NameInformation nameInformation : usedAfter) {
-					if (nameInf.isWriteAccess()
-							&& nameInf.getDeclaration() == nameInformation.getDeclaration()) {
-						nameInformation.setWriteAccess(true);
+			for (NameInformation nameInfo : names) {
+				IASTName declarationName = nameInfo.getDeclarationName();
+				if (declarations.add(declarationName)) {
+					if (isDeclaredInSelection(nameInfo)) {
+						if (externalReads.contains(nameInfo.getName().resolveBinding())) {
+							nameInfo.setMustBeReturnValue(true);
+							interfaceNames.add(nameInfo);
+						}
+					} else {
+						IASTDeclarator declarator = (IASTDeclarator) declarationName.getParent();
+						if (!hasReferenceOperator(declarator)) {
+							for (NameInformation n2 : names) {
+								if (n2.getDeclarationName() == declarationName) {
+									int flag = CPPVariableReadWriteFlags.getReadWriteFlags(n2.getName());
+									if ((flag & PDOMName.WRITE_ACCESS) != 0) {
+										nameInfo.setWriteAccess(true);
+										break;
+									}
+								}
+							}
+							if (nameInfo.isWriteAccess() &&
+									externalReads.contains(nameInfo.getName().resolveBinding())) {
+								nameInfo.setOutput(true);
+							}
+						}
+						interfaceNames.add(nameInfo);
 					}
 				}
 			}
 		}
 
-		return usedAfter;
+		return interfaceNames;
 	}
 
-	/*
-	 * Returns all local names in the selection which will be used after the
-	 * selection expected the ones which are pointers
-	 * XXX Was soll dieser Kommentar aussagen? --Mirko
-	 */
-	public ArrayList<NameInformation> getAllDeclaredInScope() {
-		ArrayList<IASTName> declarations = new ArrayList<IASTName>();
-		ArrayList<NameInformation> usedAfter = new ArrayList<NameInformation>();
+	private Set<IVariable> getVariablesReadOutside() {
+		if (nodes.isEmpty())
+			return Collections.emptySet();
 
-		for (NameInformation nameInf : names) {
-			if (nameInf.isDeclarationInScope()
-					&& !declarations.contains(nameInf.getDeclaration()) && nameInf.isUsedAfterReferences()) {
-				declarations.add(nameInf.getDeclaration());
-				usedAfter.add(nameInf);
-				// is return value candidate, set return value to true and reference to false
-				nameInf.setReturnValue(true);
-				nameInf.setReference(false);
+		IASTNode firstNode = nodes.get(0);
+		IASTFunctionDefinition enclosingFunction =
+				CPPVisitor.findAncestorWithType(firstNode, IASTFunctionDefinition.class);
+		FlowContext flowContext= new FlowContext(enclosingFunction);
+		flowContext.setConsiderAccessMode(true);
+		flowContext.setComputeMode(FlowContext.ARGUMENTS);
+		// Compute a selection that exactly covers the selected nodes
+		Selection selection= Selection.createFromStartEnd(ASTNodes.offset(firstNode),
+				ASTNodes.endOffset(nodes.get(nodes.size() - 1)));
+
+		InputFlowAnalyzer analyzer = new InputFlowAnalyzer(flowContext, selection, true);
+		FlowInfo argInfo= analyzer.perform(enclosingFunction);
+		return argInfo.get(flowContext, FlowInfo.READ | FlowInfo.READ_POTENTIAL | FlowInfo.UNKNOWN);
+	}
+
+	public static boolean hasReferenceOperator(IASTDeclarator declarator) {
+		IASTPointerOperator[] operators = declarator.getPointerOperators();
+		return operators.length != 0 && operators[operators.length - 1] instanceof ICPPASTReferenceOperator;
+	}
+
+	public boolean isDeclaredInSelection(NameInformation nameInfo) {
+		IASTName declaration = nameInfo.getDeclarationName();
+		if (declaration != null && declaration.toCharArray().length > 0) {
+			int declOffset = declaration.getFileLocation().getNodeOffset();
+			return declOffset >= getStartOffset() && declOffset <= getEndOffset();
+		}
+		return true;
+	}
+
+	private List<NameInformation> getInterfaceNames(boolean isReturnValue) {
+		List<NameInformation> selectedNames = null;
+
+		for (NameInformation nameInfo : getInterfaceNames()) {
+			if (nameInfo.mustBeReturnValue() == isReturnValue) {
+				if (selectedNames == null) {
+					selectedNames = new ArrayList<NameInformation>();
+				}
+				selectedNames.add(nameInfo);
 			}
 		}
+		if (selectedNames == null) {
+			selectedNames = Collections.emptyList();
+		}
+		return selectedNames;
+	}
 
-		return usedAfter;
+	/**
+	 * Returns names that are candidates to be used as function parameters.
+	 */
+	public List<NameInformation> getParameterCandidates() {
+		return getInterfaceNames(false);
+	}
+
+	/**
+	 * Returns names that are candidates for being used as the function return value. Multiple
+	 * return value candidates mean that the function cannot be extracted.
+	 */
+	public List<NameInformation> getReturnValueCandidates() {
+		return getInterfaceNames(true);
 	}
 
 	public List<IASTNode> getNodesToWrite() {
-		return vec;
+		return nodes;
 	}
 
 	public int getStartOffset() {
@@ -444,7 +278,7 @@ public class NodeContainer {
 	private int getOffset(boolean includeComments) {
 		int start = Integer.MAX_VALUE;
 
-		for (IASTNode node : vec) {
+		for (IASTNode node : nodes) {
 			int nodeStart = Integer.MAX_VALUE;
 
 			IASTNodeLocation[] nodeLocations = node.getNodeLocations();
@@ -475,7 +309,7 @@ public class NodeContainer {
 	public int getEndOffset() {
 		return getEndOffset(false);
 	}
-	
+
 	public int getEndOffsetIncludingComments() {
 		return getEndOffset(true);
 	}
@@ -483,7 +317,7 @@ public class NodeContainer {
 	private int getEndOffset(boolean includeComments) {
 		int end = 0;
 
-		for (IASTNode node : vec) {
+		for (IASTNode node : nodes) {
 			int fileOffset = 0;
 			int length = 0;
 
@@ -514,10 +348,11 @@ public class NodeContainer {
 
 	@Override
 	public String toString() {
-		return vec.toString();
+		return nodes.toString();
 	}
 
 	public List<NameInformation> getNames() {
+		findAllNames();
 		return names;
 	}
 }

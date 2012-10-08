@@ -5,6 +5,7 @@
      <extension-point id="CDebuggerPage" name="%CDebuggerPage" schema="schema/CDebuggerPage.exsd"/>
      <extension-point id="BreakpointActionPage" name="%BreakpointActionPage" schema="schema/BreakpointActionPage.exsd"/>
      <extension-point id="breakpointContribution" name="%breakpointContribution" schema="schema/BreakpointUIContribution.exsd"/>
+     <extension-point id="disassemblyRulerColumns" name="%extPoint.disassemblyRulerColumn" schema="schema/disassemblyRulerColumns.exsd"/>
 
 <!-- Extensions -->
    <extension
@@ -271,6 +272,17 @@
                helpContextId="move_to_line_action_context"
                label="%GlobalMoveToLineAction.label"
                menubarPath="org.eclipse.ui.run/stepGroup"/>
+         <action
+               class="org.eclipse.cdt.debug.internal.ui.actions.ToggleInstructionStepModeActionDelegate"
+               helpContextId="toggle_instruction_step_mode_action_context"
+               icon="icons/elcl16/instr_step.gif"
+               id="org.eclipse.cdt.debug.ui.actions.ToggleInstructionStepMode"
+               label="%ToggleInstructionStepModeAction.label"
+               menubarPath="org.eclipse.ui.run/stepGroup"
+               state="false"
+               style="toggle"
+               toolbarPath="org.eclipse.debug.ui.main.toolbar/renderGroup">
+		 </action>                              
       </actionSet>
    </extension>
    <extension
@@ -397,7 +409,6 @@
                style="toggle"
                id="org.eclipse.cdt.debug.internal.ui.actions.ToggleInstructionStepModeActionDelegate"
                class="org.eclipse.cdt.debug.internal.ui.actions.ToggleInstructionStepModeActionDelegate"
-               enablesFor="1"
                icon="icons/elcl16/instr_step.gif"
                helpContextId="toggle_instruction_step_mode_action_context"
                label="%ToggleInstructionStepModeAction.label"
@@ -415,32 +426,33 @@
             targetID="#CEditorRulerContext"
             id="org.eclipse.cdt.debug.ui.CEditorRulerActions">
          <action
-               label="%BreakpointTypes.label"
-               class="org.eclipse.debug.ui.actions.RulerBreakpointTypesActionDelegate"
-               id="org.eclipse.cdt.debug.ui.breakpointTypesAction"
-               menubarPath="debug"
-               style="pulldown">
-         </action>
-         <action
-               label="%BreakpointProperties.label"
+               label="%RulerBreakpointProperties.label"
                helpContextId="breakpoint_properties_action_context"
-               class="org.eclipse.cdt.debug.internal.ui.actions.CBreakpointPropertiesRulerActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CBreakpointPropertiesRulerActionDelegate"
                menubarPath="debug"
                id="org.eclipse.cdt.debug.internal.ui.actions.CBreakpointPropertiesRulerActionDelegate">
          </action>
          <action
                label="%EnableBreakpoint.label"
                helpContextId="enable_disable_breakpoint_action_context"
-               class="org.eclipse.cdt.debug.internal.ui.actions.EnableDisableBreakpointRulerActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CRulerEnableDisableBreakpointActionDelegate"
                menubarPath="debug"
                id="org.eclipse.cdt.debug.internal.ui.actions.EnableDisableBreakpointRulerActionDelegate">
          </action>
          <action
+               label="%AddBreakpointInteractive.label"
+               helpContextId="add_breakpoint_interactive_action_context"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CAddBreakpointInteractiveRulerActionDelegate"
+               menubarPath="debug"
+               id="org.eclipse.cdt.debug.ui.actions.RulerCreateBreakpointInteractiveAction">
+         </action>         
+         <action
                label="%AddBreakpoint.label"
                helpContextId="manage_breakpoint_action_context"
-               class="org.eclipse.debug.ui.actions.RulerToggleBreakpointActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CRulerToggleBreakpointActionDelegate"
+               definitionId="org.eclipse.debug.ui.commands.ToggleBreakpoint"
                menubarPath="debug"
-               id="org.eclipse.debug.ui.actions.RulerToggleBreakpointAction">
+               id="org.eclipse.cdt.debug.ui.actions.RulerToggleBreakpointAction">
          </action>
       </viewerContribution>
       <viewerContribution
@@ -493,25 +505,33 @@
             targetID="#ASMEditorRulerContext"
             id="org.eclipse.cdt.debug.ui.AsmEditorRulerActions">
          <action
-               label="%BreakpointProperties.label"
+               label="%RulerBreakpointProperties.label"
                helpContextId="breakpoint_properties_action_context"
-               class="org.eclipse.cdt.debug.internal.ui.actions.CBreakpointPropertiesRulerActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CBreakpointPropertiesRulerActionDelegate"
                menubarPath="debug"
-               id="org.eclipse.cdt.debug.internal.ui.actions.CBreakpointPropertiesRulerActionDelegate">
+               id="org.eclipse.cdt.debug.internal.ui.actions.asm.CBreakpointPropertiesRulerActionDelegate">
          </action>
          <action
                label="%EnableBreakpoint.label"
                helpContextId="enable_disable_breakpoint_action_context"
-               class="org.eclipse.cdt.debug.internal.ui.actions.EnableDisableBreakpointRulerActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CRulerEnableDisableBreakpointActionDelegate"
                menubarPath="debug"
-               id="org.eclipse.cdt.debug.internal.ui.actions.EnableDisableBreakpointRulerActionDelegate">
+               id="org.eclipse.cdt.debug.internal.ui.actions.asm.EnableDisableBreakpointRulerActionDelegate">
          </action>
+         <action
+               label="%AddBreakpointInteractive.label"
+               helpContextId="add_breakpoint_interactive_action_context"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CAddBreakpointInteractiveRulerActionDelegate"
+               menubarPath="debug"
+               id="org.eclipse.cdt.debug.ui.actions.asm.RulerCreateBreakpointInteractiveAction">
+         </action>         
          <action
                label="%AddBreakpoint.label"
                helpContextId="manage_breakpoint_action_context"
-               class="org.eclipse.debug.ui.actions.RulerToggleBreakpointActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CRulerToggleBreakpointActionDelegate"
+               definitionId="org.eclipse.debug.ui.commands.ToggleBreakpoint"
                menubarPath="debug"
-               id="org.eclipse.debug.ui.actions.RulerToggleBreakpointAction">
+               id="org.eclipse.cdt.debug.ui.actions.asm.RulerToggleBreakpointAction">
          </action>
       </viewerContribution>
       <viewerContribution
@@ -604,7 +624,7 @@
                icon="icons/elcl16/function_brkpt_co.gif"
                helpContextId="manage_function_breakpoint_action_context"
                tooltip="%ManageFunctionBreakpointAction.tooltip"
-               class="org.eclipse.debug.ui.actions.ToggleMethodBreakpointActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CToggleMethodBreakpointActionDelegate"
                menubarPath="additions"
                enablesFor="1"
                id="org.eclipse.cdt.debug.ui.actions.function.ToggleMethodBreakpointAction">
@@ -618,7 +638,7 @@
                icon="icons/elcl16/function_brkpt_co.gif"
                helpContextId="manage_function_breakpoint_action_context"
                tooltip="%ManageFunctionBreakpointAction.tooltip"
-               class="org.eclipse.debug.ui.actions.ToggleMethodBreakpointActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CToggleMethodBreakpointActionDelegate"
                menubarPath="additions"
                enablesFor="1"
                id="org.eclipse.cdt.debug.ui.actions.method.ToggleMethodBreakpointAction">
@@ -628,7 +648,7 @@
             objectClass="org.eclipse.cdt.debug.internal.core.ICWatchpointTarget"
             id="org.eclipse.cdt.debug.ui.WatchpointActions">
          <action
-               class="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnVariableActionDelegate"
+               class="org.eclipse.cdt.debug.ui.breakpoints.AddWatchpointOnVariableActionDelegate"
                enablesFor="1"
                icon="icons/elcl16/watchpoint_co.gif"
                id="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnVariableActionDelegate"
@@ -853,7 +873,7 @@
             id="org.eclipse.debug.ui.MemoryView.RenderingViewPane.popupMenu.1"
             targetID="org.eclipse.debug.ui.MemoryView.RenderingViewPane.1">
          <action
-               class="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnMemoryActionDelegate"
+               class="org.eclipse.cdt.debug.ui.breakpoints.AddWatchpointActionDelegate"
                enablesFor="1"
                icon="icons/elcl16/watchpoint_co.gif"
                id="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnMemoryActionDelegate.1"
@@ -866,7 +886,7 @@
             id="org.eclipse.debug.ui.MemoryView.RenderingViewPane.popupMenu.2"
             targetID="org.eclipse.debug.ui.MemoryView.RenderingViewPane.2">
          <action
-               class="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnMemoryActionDelegate"
+               class="org.eclipse.cdt.debug.ui.breakpoints.AddWatchpointActionDelegate"
                enablesFor="1"
                icon="icons/elcl16/watchpoint_co.gif"
                id="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointOnMemoryActionDelegate.2"
@@ -889,7 +909,6 @@
                class="org.eclipse.cdt.debug.internal.ui.actions.ToggleInstructionStepModeActionDelegate"
                disabledIcon="icons/dlcl16/instr_step.gif"
                icon="icons/elcl16/instr_step.gif"
-               enablesFor="1"
                label="%ToggleInstructionStepModeAction.label"
                helpContextId="toggle_instruction_step_mode_action_context"
                tooltip="%ToggleInstructionStepModeAction.tooltip">
@@ -945,7 +964,7 @@
             </enablement>
          </action>
          <action
-               class="org.eclipse.cdt.debug.internal.ui.actions.AddWatchpointActionDelegate"
+               class="org.eclipse.cdt.debug.ui.breakpoints.AddWatchpointActionDelegate"
                icon="icons/elcl16/watchpoint_co.gif"
                id="org.eclipse.cdt.debug.ui.addWatchpoint"
                label="%AddWatchpoint.label"
@@ -954,7 +973,7 @@
                helpContextId="add_watchpoint_action_context"
                tooltip="%AddWatchpoint.tooltip"/>
          <action
-               class="org.eclipse.cdt.debug.internal.ui.actions.AddEventBreakpointActionDelegate"
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.AddEventBreakpointActionDelegate"
                icon="icons/obj16/eventbreakpoint_obj.gif"
                id="org.eclipse.cdt.debug.internal.ui.actions.AddEventBreakpointActionDelegate"
                label="%AddEventBreakpoint.label"
@@ -962,6 +981,15 @@
                style="push"
                tooltip="%AddEventBreakpoint.tooltip">
          </action>
+         <action
+               class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.AddFunctionBreakpointActionDelegate"
+               icon="icons/elcl16/function_brkpt_co.gif"
+               id="org.eclipse.cdt.debug.ui.addFunctionBreakpoint"
+               label="%AddFunctionBreakpoint.label"
+               menubarPath="cDebugActions"
+               style="push"
+               helpContextId="add_function_breakpoint_action_context"
+               tooltip="%AddFunctionBreakpoint.tooltip"/>
       </viewContribution>
       <viewContribution
             targetID="org.eclipse.debug.ui.VariableView"
@@ -1171,18 +1199,28 @@
    <extension
          point="org.eclipse.ui.propertyPages">
       <page
-            class="org.eclipse.cdt.debug.internal.ui.propertypages.CBreakpointPropertyPage"
+            class="org.eclipse.cdt.debug.internal.ui.breakpoints.CBreakpointPropertyPage"
             id="org.eclipse.cdt.debug.ui.propertypages.breakpoint.common"
             name="%CommonBreakpointPage.label">
          <enabledWhen>
-            <and>   
-               <adapt type="org.eclipse.cdt.debug.core.model.ICBreakpoint">
-               </adapt>
-               <not>   
-                  <adapt type="org.eclipse.cdt.debug.core.model.ICTracepoint">
+            <or>
+               <and>   
+                  <adapt type="org.eclipse.cdt.debug.core.model.ICBreakpoint">
                   </adapt>
-               </not>  
-            </and>
+                  <not>   
+                     <adapt type="org.eclipse.cdt.debug.core.model.ICTracepoint">
+                     </adapt>
+                  </not>
+                 
+               </and>
+               <and>
+                  <instanceof value="org.eclipse.cdt.debug.ui.breakpoints.ICBreakpointContext"/>
+                  <test property="org.eclipse.cdt.debug.ui.createBreakpointAdapt" value="org.eclipse.cdt.debug.core.model.ICBreakpoint" />
+                  <not>   
+                     <test property="org.eclipse.cdt.debug.ui.createBreakpointAdapt" value="org.eclipse.cdt.debug.core.model.ICTracepoint"/>
+                  </not>
+               </and>
+            </or>
          </enabledWhen>
       </page>
       <page
@@ -1200,7 +1238,7 @@
             </and>
          </enabledWhen>
       </page>
-      <page class="org.eclipse.cdt.debug.internal.ui.propertypages.CBreakpointFilteringPage"
+      <page class="org.eclipse.cdt.debug.internal.ui.breakpoints.CBreakpointFilteringPage"
             id="org.eclipse.cdt.debug.ui.propertypages.breakpoint.filtering"
             name="%FilteringBreakpointPage.label">
          <filter name="debugModelId" value="org.eclipse.cdt.debug.core"/>
@@ -1295,7 +1333,7 @@
    <extension
          point="org.eclipse.ui.editors.markerAnnotationSpecification">
       <specification
-            annotationImageProvider="org.eclipse.cdt.debug.internal.ui.BreakpointImageProvider"
+            annotationImageProvider="org.eclipse.cdt.debug.internal.ui.breakpoints.BreakpointImageProvider"
             annotationType="org.eclipse.cdt.debug.core.breakpoint"
             colorPreferenceKey="breakpointIndicationColor"
             colorPreferenceValue="0,0,255"
@@ -1306,6 +1344,14 @@
             presentationLayer="3"
             textPreferenceKey="breakpointIndication"
             textPreferenceValue="false"
+            textStylePreferenceKey="breakpointTextStyle"
+            textStylePreferenceValue="SQUIGGLES"
+            showInNextPrevDropdownToolbarActionKey="showBreakpointIndicationInNextPrevDropdownToolbarAction"
+            showInNextPrevDropdownToolbarAction="true"
+            isGoToNextNavigationTargetKey="isBreakpointIndicationGoToNextNavigationTarget"
+            isGoToNextNavigationTarget="false"
+            isGoToPreviousNavigationTargetKey="isBreakpointIndicationGoToPreviousNavigationTarget"
+            isGoToPreviousNavigationTarget="false"
             verticalRulerPreferenceKey="breakpointVerticalRuler"
             verticalRulerPreferenceValue="true">
       </specification>
@@ -1331,7 +1377,7 @@
          <adapter type="org.eclipse.cdt.debug.internal.ui.actions.IMoveToLineTarget"/>
       </factory>
       <factory
-            class="org.eclipse.cdt.debug.internal.ui.CBreakpointWorkbenchAdapterFactory"
+            class="org.eclipse.cdt.debug.internal.ui.breakpoints.CBreakpointWorkbenchAdapterFactory"
             adaptableType="org.eclipse.cdt.debug.core.model.ICBreakpoint">
          <adapter type="org.eclipse.ui.model.IWorkbenchAdapter"/>
       </factory>
@@ -1723,10 +1769,30 @@
              id="org.eclipse.cdt.debug.menu.command.breakpointProperties"
              label="%BreakpointProperties.label"
              tooltip="%BreakpointProperties.label">
-          <visibleWhen checkEnabled="true">
+          <visibleWhen>
+             <with variable="selection">
+               <count value="1"/>
+               <iterate>
+                   <or>
+	                  <adapt type="org.eclipse.cdt.debug.core.model.ICBreakpoint"/>
+	               </or>
+               </iterate>
+             </with>
           </visibleWhen>
        </command>
     </menuContribution>    
+    <menuContribution
+          locationURI="popup:#CEditorRulerContext?after=debug">
+    <menu 
+         id="breakpointTypes" 
+    	 label="%BreakpointTypes.label">
+       <dynamic
+           id="org.eclipse.debug.ui.actions.BreakpointTypesContribution"
+           class="org.eclipse.debug.ui.actions.BreakpointTypesContribution">
+       </dynamic>
+    </menu>         
+    </menuContribution>    
+          
    </extension>
    <extension
          point="org.eclipse.core.runtime.adapters">
@@ -1757,14 +1823,14 @@
      <extension
            point="org.eclipse.core.expressions.propertyTesters">
         <propertyTester
-              class="org.eclipse.cdt.debug.internal.ui.ToggleCBreakpointTester"
+              class="org.eclipse.cdt.debug.internal.ui.breakpoints.ToggleCBreakpointTester"
               id="org.eclipse.cdt.debug.ui.editorToggleBreakpointTester"
               namespace="org.eclipse.cdt.debug.ui"
               properties="isCEditorSupportsCBreakpoint,isAsmEditorSupportsCBreakpoint,isDisassemblyEditorSupportsCBreakpoint"
               type="org.eclipse.ui.IWorkbenchPart">
         </propertyTester>
         <propertyTester
-              class="org.eclipse.cdt.debug.internal.ui.ToggleCBreakpointTester"
+              class="org.eclipse.cdt.debug.internal.ui.breakpoints.ToggleCBreakpointTester"
               id="org.eclipse.cdt.debug.ui.declarationToggleBreakpointTester"
               namespace="org.eclipse.cdt.debug.ui"
               properties="isCDeclarationSupportsCBreakpoint"
@@ -1775,15 +1841,13 @@
    <extension point="org.eclipse.debug.ui.toggleBreakpointsTargetFactories">
       <toggleTargetFactory
             id="org.eclipse.cdt.debug.ui.ToggleCBreakpointsTargetFactory"
-            class="org.eclipse.cdt.debug.internal.ui.actions.ToggleCBreakpointsTargetFactory">
+            class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.ToggleCBreakpointsTargetFactory">
             <enablement>
             <!-- Enable the breakpoint toggle for CDT's editors and model elements -->
             <or>
                <test property="org.eclipse.cdt.debug.ui.isCEditorSupportsCBreakpoint"/>
                <test property="org.eclipse.cdt.debug.ui.isAsmEditorSupportsCBreakpoint"/>
-               <test
-                     property="org.eclipse.cdt.debug.ui.isDisassemblyEditorSupportsCBreakpoint">
-               </test>                             
+               <test property="org.eclipse.cdt.debug.ui.isDisassemblyEditorSupportsCBreakpoint" />
                <with variable="selection">
                   <count value="1"/>
                    <test property="org.eclipse.cdt.debug.ui.isCDeclarationSupportsCBreakpoint"/>
@@ -1793,7 +1857,7 @@
       </toggleTargetFactory>
       <toggleTargetFactory
             id="org.eclipse.cdt.debug.ui.ToggleCTracepointsTargetFactory"
-            class="org.eclipse.cdt.debug.internal.ui.actions.ToggleCTracepointsTargetFactory">
+            class="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.ToggleCTracepointsTargetFactory">
             <enablement>
             <!-- Enable the breakpoint toggle for CDT's editors and model elements -->
             <and>
@@ -1802,7 +1866,8 @@
                </reference>
                <or>
                <test property="org.eclipse.cdt.debug.ui.isCEditorSupportsCBreakpoint"/>
-               <test property="org.eclipse.cdt.debug.ui.isAsmEditorSupportsCBreakpoint"/>                             
+               <test property="org.eclipse.cdt.debug.ui.isAsmEditorSupportsCBreakpoint"/>
+               <test property="org.eclipse.cdt.debug.ui.isDisassemblyEditorSupportsCBreakpoint" />                                            
                <with variable="selection">
                   <count value="1"/>
                    <test property="org.eclipse.cdt.debug.ui.isCDeclarationSupportsCBreakpoint"/>
@@ -1925,6 +1990,13 @@
           id="org.eclipse.cdt.debug.ui.command.ungroupDebugContexts"
           name="%UngroupDebugContexts.name">
     </command>
+    <command
+          categoryId="org.eclipse.cdt.debug.ui.category.debugViewLayout"
+          description="%Connect.description"
+          id="org.eclipse.cdt.debug.ui.command.connect"
+          name="%Connect.name">
+    </command>
+    
  </extension>
  <extension
          point="org.eclipse.ui.handlers">
@@ -1986,6 +2058,10 @@
       <handler
             class="org.eclipse.cdt.debug.internal.ui.commands.UngroupDebugContextsCommandHandler"
             commandId="org.eclipse.cdt.debug.ui.command.ungroupDebugContexts">
+      </handler>
+      <handler
+            class="org.eclipse.cdt.debug.internal.ui.commands.ConnectCommandHandler"
+            commandId="org.eclipse.cdt.debug.ui.command.connect">
       </handler>
  </extension>
  <extension
@@ -2084,7 +2160,7 @@
        point="org.eclipse.ui.commands">
     <command
           categoryId="org.eclipse.debug.ui.category.run"
-          defaultHandler="org.eclipse.cdt.debug.internal.ui.actions.CBreakpointPropertiesHandler"
+          defaultHandler="org.eclipse.cdt.debug.internal.ui.actions.breakpoints.CBreakpointPropertiesHandler"
           description="%BreakpointPropertiesCommand.description"
           helpContextId="breakpoint_properties_action_context"
           id="org.eclipse.cdt.debug.command.breakpointProperties"
@@ -2093,6 +2169,8 @@
  </extension>
  <extension
        point="org.eclipse.ui.menus">
+       
+ <!-- Reverse debugging contributions to Debug view -->      
     <menuContribution
             locationURI="toolbar:org.eclipse.debug.ui.DebugView?after=additions">
          <command
@@ -2100,11 +2178,11 @@
                icon="icons/obj16/reverse_toggle.gif"
                label="%ReverseToggle.label"
                style="toggle">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <and>
+                  <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive"/>
+                  <systemTest property="org.eclipse.debug.ui.debugViewToolbarVisible" value="true"/>
+               </and>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2115,11 +2193,11 @@
                icon="icons/obj16/reverse_resume.gif"
                label="%ReverseResume.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <and>
+                  <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+                  <systemTest property="org.eclipse.debug.ui.debugViewToolbarVisible" value="true"/>
+               </and>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2130,11 +2208,11 @@
                icon="icons/obj16/reverse_stepinto.gif"
                label="%ReverseStepInto.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <and>
+                  <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+                  <systemTest property="org.eclipse.debug.ui.debugViewToolbarVisible" value="true"/>
+               </and>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2145,11 +2223,11 @@
                icon="icons/obj16/reverse_stepover.gif"
                label="%ReverseStepOver.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <and>
+                  <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+                  <systemTest property="org.eclipse.debug.ui.debugViewToolbarVisible" value="true"/>
+               </and>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2160,14 +2238,16 @@
                icon="icons/obj16/uncall.gif"
                label="%Uncall.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <and>
+                  <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+                  <systemTest property="org.eclipse.debug.ui.debugViewToolbarVisible" value="true"/>
+               </and>
             </visibleWhen>
          </command>
       </menuContribution>
+      
+  <!-- Reverse debugging contributions to Run menu -->           
       <menuContribution
             locationURI="menu:org.eclipse.ui.run?before=stepGroup">
          <command
@@ -2175,14 +2255,11 @@
                icon="icons/obj16/reverse_toggle.gif"
                label="%ReverseToggle.label"
                style="toggle">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive"/>
             </visibleWhen>
          </command>
-      </menuContribution>
+      </menuContribution>      
       <menuContribution
             locationURI="menu:org.eclipse.ui.run?after=stepGroup">
          <command
@@ -2190,11 +2267,8 @@
                icon="icons/obj16/reverse_resume.gif"
                label="%ReverseResume.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2205,11 +2279,8 @@
                icon="icons/obj16/reverse_stepinto.gif"
                label="%ReverseStepInto.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2220,11 +2291,8 @@
                icon="icons/obj16/reverse_stepover.gif"
                label="%ReverseStepOver.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2235,14 +2303,13 @@
                icon="icons/obj16/uncall.gif"
                label="%Uncall.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
+      
+  <!-- Reverse debugging contributions to Debug view popup -->           
       <menuContribution
             locationURI="popup:org.eclipse.debug.ui.DebugView?before=stepGroup">
          <command
@@ -2250,11 +2317,8 @@
                icon="icons/obj16/reverse_toggle.gif"
                label="%ReverseToggle.label"
                style="toggle">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2265,11 +2329,8 @@
                icon="icons/obj16/reverse_resume.gif"
                label="%ReverseResume.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2280,11 +2341,8 @@
                icon="icons/obj16/reverse_stepinto.gif"
                label="%ReverseStepInto.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2295,11 +2353,8 @@
                icon="icons/obj16/reverse_stepover.gif"
                label="%ReverseStepOver.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
@@ -2310,14 +2365,13 @@
                icon="icons/obj16/uncall.gif"
                label="%Uncall.label"
                style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <reference
-                     definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled">
-               </reference>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
             </visibleWhen>
          </command>
       </menuContribution>
+      
+ <!-- Tracepoint contributions to Debug view popup -->
       <menuContribution
           locationURI="popup:org.eclipse.debug.ui.DebugView?before=renderGroup">
        <command
@@ -2325,26 +2379,84 @@
              icon="icons/obj16/start_tracing_obj.gif"
              label="%StartTracing.name"
              style="push">
-          <visibleWhen
-                checkEnabled="false">
-             <reference
-                   definitionId="org.eclipse.cdt.debug.ui.testIsTracepointActionSetActive">
-             </reference>
-          </visibleWhen>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsTracepointActionSetActive"/>
+            </visibleWhen>
        </command>
        <command
              commandId="org.eclipse.cdt.debug.ui.command.stopTracing"
              icon="icons/obj16/stop_tracing_obj.gif"
              label="%StopTracing.name"
              style="push">
-          <visibleWhen
-                checkEnabled="false">
-             <reference
-                   definitionId="org.eclipse.cdt.debug.ui.testIsTracepointActionSetActive">
-             </reference>
-          </visibleWhen>
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsTracepointActionSetActive"/>
+            </visibleWhen>
        </command>
     </menuContribution>
+
+ <!-- Reverse debugging contributions to Main Debug Menu -->      
+    <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.main.toolbar?after=additions">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.reverseToggle"
+               icon="icons/obj16/reverse_toggle.gif"
+               label="%ReverseToggle.label"
+               style="toggle">
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingActionSetActive"/>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+      <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.main.toolbar?before=threadGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.reverseResume"
+               icon="icons/obj16/reverse_resume.gif"
+               label="%ReverseResume.label"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+      <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.main.toolbar?before=stepIntoGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.reverseStepInto"
+               icon="icons/obj16/reverse_stepinto.gif"
+               label="%ReverseStepInto.label"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+      <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.main.toolbar?before=stepOverGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.reverseStepOver"
+               icon="icons/obj16/reverse_stepover.gif"
+               label="%ReverseStepOver.label"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+      <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.main.toolbar?before=stepReturnGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.uncall"
+               icon="icons/obj16/uncall.gif"
+               label="%Uncall.label"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <reference definitionId="org.eclipse.cdt.debug.ui.testIsReverseDebuggingEnabled"/>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+      
+ <!-- Group context contributions to Debug view toolbar -->      
       <menuContribution
             locationURI="popup:org.eclipse.debug.ui.DebugView?after=emptyStepGroup">
          <command
@@ -2392,6 +2504,28 @@
           	</visibleWhen>
          </command>
       </menuContribution>
+      
+      <!-- Connect contributions to debug view menu, toolbar menu -->
+      <menuContribution
+            locationURI="toolbar:org.eclipse.debug.ui.DebugView?before=stepGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.connect"
+               icon="icons/obj16/connect.gif"
+               label="%Connect.label"
+               style="push"
+               tooltip="%Connect.tooltip">
+         </command>
+      </menuContribution>
+      <menuContribution
+          locationURI="popup:org.eclipse.debug.ui.DebugView?before=emptyLaunchGroup">
+         <command
+               commandId="org.eclipse.cdt.debug.ui.command.connect"
+               icon="icons/obj16/connect.gif"
+               label="%Connect.label"
+               style="push"
+               tooltip="%Connect.tooltip">
+         </command>
+       </menuContribution>
  </extension>
  
  <!-- Cast to Type / Display as Array -->
@@ -2525,5 +2659,15 @@
         </activeWhen>
     </handler>
     </extension>
+  <extension
+        point="org.eclipse.core.expressions.propertyTesters">
+     <propertyTester
+           class="org.eclipse.cdt.debug.internal.ui.breakpoints.CreateBreakpointTester"
+           id="org.eclipse.cdt.debug.ui.CreateBreakpointTester"
+           namespace="org.eclipse.cdt.debug.ui"
+           properties="createBreakpointAdapt"
+           type="org.eclipse.cdt.debug.ui.breakpoints.ICBreakpointContext">
+     </propertyTester>
+  </extension>
     
 </plugin>

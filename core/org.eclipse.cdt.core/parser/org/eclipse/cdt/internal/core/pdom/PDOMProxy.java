@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2010 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,7 @@ import org.eclipse.cdt.core.index.IIndexFileLocation;
 import org.eclipse.cdt.core.index.IIndexLinkage;
 import org.eclipse.cdt.core.index.IIndexMacro;
 import org.eclipse.cdt.core.index.IndexFilter;
+import org.eclipse.cdt.core.parser.ISignificantMacros;
 import org.eclipse.cdt.internal.core.index.IIndexFragmentBinding;
 import org.eclipse.cdt.internal.core.index.IIndexFragmentFile;
 import org.eclipse.cdt.internal.core.index.IIndexFragmentFileSet;
@@ -40,7 +41,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 /**
  * The PDOMProxy is returned by the PDOMManager before the indexer kicks in. Also and more
  * importantly it is returned when the indexer has been shut down (clients may not be aware
- * of this yet). Doing that prevents the creation of empty pdoms for deleted projects.
+ * of this yet). Doing that prevents the creation of empty PDOMs for deleted projects.
  */
 public class PDOMProxy implements IPDOM {
 	private PDOM fDelegate;
@@ -53,6 +54,8 @@ public class PDOMProxy implements IPDOM {
 			fLockDebugging= new HashMap<Thread, DebugLockInfo>();
 		}
 	}
+
+	@Override
 	public synchronized void acquireReadLock() throws InterruptedException {
 		if (fDelegate != null) {
 			fDelegate.acquireReadLock();
@@ -64,6 +67,7 @@ public class PDOMProxy implements IPDOM {
 		}
 	}
 
+	@Override
 	public IIndexMacro[] findMacros(char[] name, boolean isPrefix, boolean caseSensitive,
 			IndexFilter filter, IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -71,18 +75,21 @@ public class PDOMProxy implements IPDOM {
 		return IIndexMacro.EMPTY_INDEX_MACRO_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding adaptBinding(IBinding binding) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.adaptBinding(binding);
 		return null;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding findBinding(IASTName astName) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.findBinding(astName);
 		return null;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding[] findBindings(char[][] names, IndexFilter filter,
 			IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -91,6 +98,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding[] findBindings(Pattern[] patterns, boolean isFullyQualified,
 			IndexFilter filter, IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -99,6 +107,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding[] findBindings(char[] name, boolean filescope,
 			IndexFilter filter, IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -107,6 +116,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding[] findBindingsForPrefix(char[] prefix, boolean filescope,
 			IndexFilter filter, IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -115,6 +125,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentBinding[] findBindingsForContentAssist(char[] prefix, boolean filescope,
 			IndexFilter filter, IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null)
@@ -123,6 +134,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public synchronized IIndexFragmentInclude[] findIncludedBy(IIndexFragmentFile file) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.findIncludedBy(file);
@@ -130,6 +142,7 @@ public class PDOMProxy implements IPDOM {
 		return new IIndexFragmentInclude[0];
 	}
 
+	@Override
 	public synchronized IIndexFragmentName[] findNames(IBinding binding, int flags)
 			throws CoreException {
 		if (fDelegate != null)
@@ -138,6 +151,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentName.EMPTY_NAME_ARRAY;
 	}
 
+	@Override
 	public synchronized long getCacheHits() {
 		if (fDelegate != null)
 			return fDelegate.getCacheHits();
@@ -145,6 +159,7 @@ public class PDOMProxy implements IPDOM {
 		return 0;
 	}
 
+	@Override
 	public synchronized long getCacheMisses() {
 		if (fDelegate != null)
 			return fDelegate.getCacheMisses();
@@ -152,6 +167,8 @@ public class PDOMProxy implements IPDOM {
 		return 0;
 	}
 
+	@Deprecated
+	@Override
 	public synchronized IIndexFragmentFile getFile(int linkageID, IIndexFileLocation location) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.getFile(linkageID, location);
@@ -159,6 +176,25 @@ public class PDOMProxy implements IPDOM {
 		return null;
 	}
 
+	@Override
+	public IIndexFragmentFile getFile(int linkageID, IIndexFileLocation location,
+			ISignificantMacros sigMacros) throws CoreException {
+		if (fDelegate != null)
+			return fDelegate.getFile(linkageID, location, sigMacros);
+
+		return null;
+	}
+
+	@Override
+	public IIndexFragmentFile[] getFiles(int linkageID, IIndexFileLocation location)
+			throws CoreException {
+		if (fDelegate != null)
+			return fDelegate.getFiles(linkageID, location);
+
+		return IIndexFragmentFile.EMPTY_ARRAY;
+	}
+
+	@Override
 	public synchronized IIndexFragmentFile[] getFiles(IIndexFileLocation location) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.getFiles(location);
@@ -166,6 +202,7 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentFile.EMPTY_ARRAY;
 	}
 
+	@Override
 	public synchronized long getLastWriteAccess() {
 		if (fDelegate != null)
 			return fDelegate.getLastWriteAccess();
@@ -173,6 +210,7 @@ public class PDOMProxy implements IPDOM {
 		return 0;
 	}
 
+	@Override
 	public synchronized IIndexLinkage[] getLinkages() {
 		if (fDelegate != null)
 			return fDelegate.getLinkages();
@@ -180,6 +218,7 @@ public class PDOMProxy implements IPDOM {
 		return new IIndexLinkage[0];
 	}
 
+	@Override
 	public synchronized String getProperty(String propertyName) throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.getProperty(propertyName);
@@ -187,6 +226,7 @@ public class PDOMProxy implements IPDOM {
 		return null;
 	}
 
+	@Override
 	public synchronized void releaseReadLock() {
 		// read-locks not forwarded to delegate need to be released here
 		if (fReadLockCount > 0) {
@@ -198,10 +238,12 @@ public class PDOMProxy implements IPDOM {
 		}
 	}
 
+	@Override
 	public boolean hasWaitingReaders() {
 		return fDelegate != null && fDelegate.hasWaitingReaders();
 	}
 
+	@Override
 	public synchronized void resetCacheCounters() {
 		if (fDelegate != null)
 			fDelegate.resetCacheCounters();
@@ -215,6 +257,7 @@ public class PDOMProxy implements IPDOM {
 		return null;
 	}
 
+	@Override
 	public synchronized void addListener(IListener listener) {
 		if (fDelegate != null) {
 			fDelegate.addListener(listener);
@@ -223,6 +266,7 @@ public class PDOMProxy implements IPDOM {
 		}
 	}
 
+	@Override
 	public synchronized PDOMLinkage[] getLinkageImpls() {
 		if (fDelegate != null)
 			return fDelegate.getLinkageImpls();
@@ -230,6 +274,7 @@ public class PDOMProxy implements IPDOM {
 		return new PDOMLinkage[0];
 	}
 
+	@Override
 	public synchronized void removeListener(IListener listener) {
 		if (fDelegate != null) {
 			fDelegate.removeListener(listener);
@@ -261,19 +306,33 @@ public class PDOMProxy implements IPDOM {
 		}
 	}
 
+	@Override
 	public IIndexFragmentFileSet createFileSet() {
 		return new PDOMFileSet();
 	}
 
+	@Override
 	public synchronized IIndexFragmentFile[] getAllFiles() throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.getAllFiles();
 		return IIndexFragmentFile.EMPTY_ARRAY;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.internal.core.index.IIndexFragment#findMacroContainers(java.util.regex.Pattern, org.eclipse.cdt.core.index.IndexFilter, org.eclipse.core.runtime.IProgressMonitor)
-	 */
+	@Override
+	public synchronized IIndexFragmentFile[] getDefectiveFiles() throws CoreException {
+		if (fDelegate != null)
+			return fDelegate.getDefectiveFiles();
+		return IIndexFragmentFile.EMPTY_ARRAY;
+	}
+
+	@Override
+	public synchronized IIndexFragmentFile[] getFilesWithUnresolvedIncludes() throws CoreException {
+		if (fDelegate != null)
+			return fDelegate.getFilesWithUnresolvedIncludes();
+		return IIndexFragmentFile.EMPTY_ARRAY;
+	}
+
+	@Override
 	public synchronized IIndexFragmentBinding[] findMacroContainers(Pattern pattern, IndexFilter filter,
 			IProgressMonitor monitor) throws CoreException {
 		if (fDelegate != null) {
@@ -282,24 +341,33 @@ public class PDOMProxy implements IPDOM {
 		return IIndexFragmentBinding.EMPTY_INDEX_BINDING_ARRAY;
 	}
 
+	@Override
 	public Object getCachedResult(Object key) {
 		return null;
 	}
 
+	@Override
 	public Object putCachedResult(Object key, Object value, boolean replace) {
 		return value;
 	}
+
+	@Override
 	public void clearResultCache() {
 		if (fDelegate != null)
 			fDelegate.clearResultCache();
 	}
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.internal.core.index.IIndexFragment#getInlineNamespaces()
-	 */
+
+	@Override
 	public IIndexScope[] getInlineNamespaces() throws CoreException {
 		if (fDelegate != null)
 			return fDelegate.getInlineNamespaces();
 
 		return IIndexScope.EMPTY_INDEX_SCOPE_ARRAY;
+	}
+
+
+	@Override
+	public synchronized boolean isFullyInitialized() {
+		return fDelegate != null;
 	}
 }

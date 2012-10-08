@@ -48,6 +48,7 @@
       <complexType>
          <sequence>
             <element ref="pattern" minOccurs="0" maxOccurs="unbounded"/>
+            <element ref="context" minOccurs="0" maxOccurs="unbounded"/>
          </sequence>
          <attribute name="id" type="string">
             <annotation>
@@ -141,6 +142,27 @@
             <annotation>
                <documentation>
                   The attribute defines if a line matched by the pattern is prevented or allowed to be processed by the rest of patterns. &quot;No&quot; allows several patterns to evaluate one line.
+               </documentation>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <element name="context">
+      <annotation>
+         <documentation>
+            Use this element to specify the context where an error parser can be used. If none is specified, a default context type will be &quot;build&quot;.
+
+An example of context type is &quot;build&quot;. Only error parsers in this context are used to parse build output. You can see these error parsers in the &quot;C/C++&quot; &gt; &quot;Build&quot; &gt; &quot;Settings&quot; preference page.
+
+An error parser can be assigned to more than one context type. Clients contributing error parsers are free to define their own context types.
+         </documentation>
+      </annotation>
+      <complexType>
+         <attribute name="type" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The type of context where an error parser can be used.
                </documentation>
             </annotation>
          </attribute>

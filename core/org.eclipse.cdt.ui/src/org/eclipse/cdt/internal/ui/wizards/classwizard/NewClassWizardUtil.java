@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2009 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -45,6 +45,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespace;
 import org.eclipse.cdt.core.index.IIndex;
+import org.eclipse.cdt.core.index.IIndexManager;
 import org.eclipse.cdt.core.index.IndexFilter;
 import org.eclipse.cdt.core.model.CModelException;
 import org.eclipse.cdt.core.model.CoreModel;
@@ -72,7 +73,7 @@ public class NewClassWizardUtil {
         ICElement curr = element;
         while (curr != null && !foundSourceRoot) {
             if (curr instanceof ICContainer && folder == null) {
-                folder = (ICContainer)curr;
+                folder = (ICContainer) curr;
             }
             foundSourceRoot = (curr instanceof ISourceRoot);
             curr = curr.getParent();
@@ -117,31 +118,6 @@ public class NewClassWizardUtil {
         return null;
     }
 
-    //XXX Remove
-//    /**
-//     * Returns the parent source folder for the given resource. If the given
-//     * resource is already a source folder, the corresponding C element is returned.
-//     * 
-//     * @param resource the resource
-//     * @return the source folder
-//     */
-//    public static ICContainer getSourceFolder(IResource resource) {
-//        if (resource != null && resource.exists()) {
-//            int resType = resource.getType();
-//            if (resType == IResource.PROJECT || resType == IResource.FOLDER) {
-//                ICElement elem = CoreModel.getDefault().create(resource.getFullPath());
-//                if (elem != null) {
-//                    ICContainer sourceFolder = getSourceFolder(elem);
-//                    if (sourceFolder != null)
-//                        return sourceFolder;
-//                }
-//            } else {
-//                return getSourceFolder(resource.getParent());
-//            }
-//        }
-//        return null;
-//    }
-    
     /**
      * Checks if a given resource is under a source root.
      * 
@@ -360,7 +336,7 @@ public class NewClassWizardUtil {
 		IIndex index= null;
 		try {
 			if (project != null) {
-				index = CCorePlugin.getIndexManager().getIndex(project);
+				index = CCorePlugin.getIndexManager().getIndex(project, IIndexManager.ADD_DEPENDENCIES | IIndexManager.ADD_DEPENDENT | IIndexManager.ADD_EXTENSION_FRAGMENTS_NAVIGATION);
 				index.acquireReadLock();
 			}
 		} catch (CoreException e) {

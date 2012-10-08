@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.dom.rewrite;
 
@@ -30,11 +30,13 @@ public class ASTLiteralNode implements IASTNode {
 	public ASTLiteralNode(String code) {
 		fCode= code;
 	}
-	
+
+	@Override
 	public String getRawSignature() {
 		return fCode;
 	}
 
+	@Override
 	public boolean accept(ASTVisitor visitor) {
 		if (visitor instanceof ASTWriterVisitor) {
 			((ASTWriterVisitor) visitor).visit(this);
@@ -42,73 +44,96 @@ public class ASTLiteralNode implements IASTNode {
 		return true;
 	}
 
+	@Override
 	public boolean contains(IASTNode node) {
 		return false;
 	}
 
+	@Override
 	public String getContainingFilename() {
 		return null;
 	}
 
+	@Override
 	public IASTFileLocation getFileLocation() {
 		return null;
 	}
 
+	@Override
 	public IASTNodeLocation[] getNodeLocations() {
-		return null;
+		return IASTNodeLocation.EMPTY_ARRAY;
 	}
 
+	@Override
 	public IASTNode getParent() {
 		return null;
 	}
 	
+	@Override
 	public IASTNode[] getChildren() {
 		return IASTNode.EMPTY_NODE_ARRAY;
 	}
 
+	@Override
 	public ASTNodeProperty getPropertyInParent() {
 		return null;
 	}
 
+	@Override
 	public IASTTranslationUnit getTranslationUnit() {
 		return null;
 	}
 
+	@Override
 	public boolean isPartOfTranslationUnitFile() {
 		return false;
 	}
 
+	@Override
 	public void setParent(IASTNode node) {
 	}
 
+	@Override
 	public void setPropertyInParent(ASTNodeProperty property) {
 	}
 
+	@Override
 	public IToken getSyntax() {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public IToken getLeadingSyntax() {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public IToken getTrailingSyntax() {
 		throw new UnsupportedOperationException();
 	}
 	
+	@Override
 	public boolean isFrozen() {
 		return false;
 	}
 	
+	@Override
 	public IASTNode copy() {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public IASTNode copy(CopyStyle style) {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public boolean isActive() {
 		return true;
+	}
+
+	@Override
+	public IASTNode getOriginalNode() {
+		return this;
 	}
 }

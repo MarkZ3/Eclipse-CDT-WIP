@@ -27,9 +27,10 @@ public class Messages extends NLS {
 	public static String BuilderSettingsTab_0;
 	public static String BuilderSettingsTab_1;
 	public static String BuilderSettingsTab_10;
-	public static String BuilderSettingsTab_11;
-	public static String BuilderSettingsTab_12;
-	public static String BuilderSettingsTab_13;
+	public static String BuilderSettingsTab_EnableParallelBuild;
+	public static String BuilderSettingsTab_UseOptimalJobs;
+	public static String BuilderSettingsTab_UseUnlimitedJobs;
+	public static String BuilderSettingsTab_UseParallelJobs;
 	public static String BuilderSettingsTab_14;
 	public static String BuilderSettingsTab_15;
 	public static String BuilderSettingsTab_16;
@@ -60,6 +61,10 @@ public class Messages extends NLS {
 	public static String BuildToolSettingsPage_tool_advancedSettings;
 	public static String BuildToolSettingsPage_tool_command;
 	public static String BuildToolSettingsPage_tool_commandLinePattern;
+	public static String BuiltinSpecsDetectorOptionPage_AllocateConsole;
+	public static String BuiltinSpecsDetectorOptionPage_Browse;
+	public static String BuiltinSpecsDetectorOptionPage_ChooseFile;
+	public static String BuiltinSpecsDetectorOptionPage_CompilerSpecsCommand;
 	public static String CConfigWizardPage_0;
 	public static String CConfigWizardPage_1;
 	public static String CConfigWizardPage_10;
@@ -104,6 +109,12 @@ public class Messages extends NLS {
 	public static String DiscoveryTab_ErrorClearingEntries;
 	public static String EnvironmentTab_15;
 	public static String EnvironmentTab_23;
+	public static String GCCBuildCommandParserOptionPage_CompilerPattern;
+	public static String GCCBuildCommandParserOptionPage_ContainerForDiscoveredEntries;
+	public static String GCCBuildCommandParserOptionPage_File;
+	public static String GCCBuildCommandParserOptionPage_Folder;
+	public static String GCCBuildCommandParserOptionPage_Project;
+	public static String GCCBuildCommandParserOptionPage_ResolvePaths;
 	public static String MacrosBlock_label_delete_all_confirm_message;
 	public static String MacrosBlock_label_delete_all_confirm_title;
 	public static String MacrosBlock_label_delete_confirm_message;
@@ -160,7 +171,8 @@ public class Messages extends NLS {
 	public static String NewConfiguration_label_group;
 	public static String NewConfiguration_label_name;
 	public static String NewConfiguration_label_warning;
-	public static String NewMakeProjFromExisting_0;
+	public static String NewMakeProjFromExisting_wizard_title;
+	public static String NewMakeProjFromExistingPage_show_only_supported;
 	public static String NewMakeProjFromExisting_1;
 	public static String NewMakeProjFromExistingPage_0;
 	public static String NewMakeProjFromExistingPage_1;
@@ -210,6 +222,8 @@ public class Messages extends NLS {
 	public static String PropertyPageDefsTab_8;
 	public static String PropertyPageDefsTab_9;
 	public static String PropertyPageDefsTab_showIncludeFileTab;
+	public static String PropertyPageDefsTab_showProvidersTab;
+	public static String PropertyPageDefsTab_showScannerDiscoveryTab;
 	public static String RefreshPolicyExceptionDialog_addDialogLabel;
 	public static String RefreshPolicyExceptionDialog_AddExceptionInfoDialog_message;
 	public static String RefreshPolicyExceptionDialog_AddExceptionInfoDialog_title;
@@ -278,6 +292,8 @@ public class Messages extends NLS {
 	public static String WizardDefaultsTab_0;
 	public static String WizardDefaultsTab_1;
 	public static String RefreshPolicyTab_resourcesTreeLabel;
+	public static String ToolChainSelectionPage_Description;
+	public static String ToolChainSelectionPage_Title;
 
 	static {
 		// Initialize resource bundle.

@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Andrew Niefer (IBM Corporation) - Initial API and implementation 
- *    Markus Schorn (Wind River Systems)
+ *     Andrew Niefer (IBM Corporation) - Initial API and implementation 
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -27,21 +27,21 @@ public class CPPTemplateScope extends CPPScope implements ICPPTemplateScope {
 		super(physicalNode);
 	}
 
+	@Override
 	public EScopeKind getKind() {
 		return EScopeKind.eTemplateDeclaration;
 	}
 
+	@Override
 	public ICPPTemplateDefinition getTemplateDefinition() {
 		return null;
 	}
 	
+	@Override
 	public ICPPASTTemplateDeclaration getTemplateDeclaration() {
 		return (ICPPASTTemplateDeclaration) getPhysicalNode();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.core.dom.ast.cpp.ICPPScope#getScopeName()
-	 */
 	@Override
 	public IName getScopeName() {
 		ICPPASTTemplateDeclaration template = (ICPPASTTemplateDeclaration) getPhysicalNode();

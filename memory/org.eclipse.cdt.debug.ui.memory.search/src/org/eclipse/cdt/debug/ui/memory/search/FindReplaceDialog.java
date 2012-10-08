@@ -239,6 +239,7 @@ public class FindReplaceDialog extends SelectionDialog
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.dialogs.Dialog#createButtonsForButtonBar(org.eclipse.swt.widgets.Composite)
 	 */
+	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
 		
 		fFindButton = createButton(parent, 10, Messages.getString("FindReplaceDialog.ButtonFind"), true); //$NON-NLS-1$
@@ -306,6 +307,7 @@ public class FindReplaceDialog extends SelectionDialog
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.dialogs.SelectionDialog#getResult()
 	 */
+	@Override
 	public Object[] getResult() {
 		
 		Object[] results = super.getResult();
@@ -320,6 +322,7 @@ public class FindReplaceDialog extends SelectionDialog
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.dialogs.Dialog#cancelPressed()
 	 */
+	@Override
 	protected void cancelPressed() {
 		
 		fProperties.setProperty(SEARCH_FIND, fFindText.getText());
@@ -355,6 +358,7 @@ public class FindReplaceDialog extends SelectionDialog
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.dialogs.Dialog#okPressed()
 	 */
+	@Override
 	protected void okPressed() {
 		setSelectionResult(new Object[]{ fProperties });
 		
@@ -436,7 +440,7 @@ public class FindReplaceDialog extends SelectionDialog
 		for(String string : strings)
 			if(string != null)
 				nonNullStrings.addElement(string);
-		return (String[]) nonNullStrings.toArray(new String[0]);	
+		return nonNullStrings.toArray(new String[0]);	
 	}
 	
 	private String getMemoryBlockBaseAddress()
@@ -532,6 +536,7 @@ public class FindReplaceDialog extends SelectionDialog
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.dialogs.Dialog#createDialogArea(org.eclipse.swt.widgets.Composite)
 	 */
+	@Override
 	protected Control createDialogArea(Composite parent) {
 
 		PlatformUI.getWorkbench().getHelpSystem().setHelp(parent, MemorySearchPlugin.getUniqueIdentifier() + ".FindReplaceDialog_context"); //$NON-NLS-1$
@@ -1129,7 +1134,15 @@ public class FindReplaceDialog extends SelectionDialog
 							{
 								try
 								{
-									fMemoryBlock.setValue(currentPosition.subtract(fMemoryBlock.getBigBaseAddress()), replaceData);
+									if ((searchPhrase instanceof BigIntegerSearchPhrase) && (bytes.length > 0) && bytes[0].isEndianessKnown() && !bytes[0].isBigEndian())
+									{
+										// swap the bytes when replacing an integer on little-endian targets
+										fMemoryBlock.setValue(currentPosition.subtract(fMemoryBlock.getBigBaseAddress()), swapBytes(replaceData));
+									}
+									else
+									{
+										fMemoryBlock.setValue(currentPosition.subtract(fMemoryBlock.getBigBaseAddress()), replaceData);
+									}
 								}
 								catch(DebugException de)
 								{
@@ -1245,6 +1258,7 @@ public class FindReplaceDialog extends SelectionDialog
 		else
 		{
 			Job job = new Job("Searching memory for " + searchPhrase){ //$NON-NLS-1$
+				@Override
 				public IStatus run(IProgressMonitor monitor) {
 					return query.run(monitor);
 				}
@@ -1277,6 +1291,7 @@ public class FindReplaceDialog extends SelectionDialog
 			return fPhrase.length();
 		}
 		
+		@Override
 		public String toString()
 		{
 			return fPhrase;
@@ -1320,6 +1335,7 @@ public class FindReplaceDialog extends SelectionDialog
 			}
 		}
 		
+		@Override
 		public String toString()
 		{
 			if(fBytes == null)
@@ -1357,6 +1373,7 @@ public class FindReplaceDialog extends SelectionDialog
 			return removeZeroPrefixByte(fPhrase.toByteArray()).length;
 		}
 		
+		@Override
 		public String toString()
 		{
 			return fPhrase.toString(fRadix);
@@ -1367,9 +1384,18 @@ public class FindReplaceDialog extends SelectionDialog
 			byte[] targetBytes = new byte[bytes.length + 1];
 			targetBytes[0] = 0;
 			for(int i = 0; i < bytes.length; i++)
-				targetBytes[i + 1] = bytes[i].getValue();
+			{
+				if (bytes[i].isEndianessKnown() && !bytes[i].isBigEndian())
+				{
+					// swap the bytes when matching an integer on little-endian targets
+					targetBytes[i + 1] = bytes[bytes.length - i - 1].getValue(); 
+				}
+				else
+				{
+					targetBytes[i + 1] = bytes[i].getValue();
+				}
+			}
 			
-			// TODO endian?
 			BigInteger targetBigInteger = new BigInteger(targetBytes);
 
 			return fPhrase.equals(targetBigInteger);
@@ -1385,6 +1411,14 @@ public class FindReplaceDialog extends SelectionDialog
 		System.arraycopy(bytes, 1, processedBytes, 0, processedBytes.length);
 		return processedBytes;
 	}
+	
+	private byte[] swapBytes(byte[] bytes)
+	{
+		byte[] processedBytes = new byte[bytes.length];
+		for (int i = 0; i < bytes.length; i++)
+			processedBytes[i] = bytes[bytes.length - i - 1];
+		return processedBytes;
+	}	
 	
 	interface IMemorySearchQuery extends ISearchQuery
 	{

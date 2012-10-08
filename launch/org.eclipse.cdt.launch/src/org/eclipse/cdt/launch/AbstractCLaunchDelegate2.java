@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2011 Nokia and others.
+ * Copyright (c) 2010, 2012 Nokia and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -43,6 +43,7 @@ import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -201,6 +202,7 @@ public abstract class AbstractCLaunchDelegate2 extends LaunchConfigurationDelega
 		throw new CoreException(status);
 	}
 
+	@Override
 	public void launch(ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor) throws CoreException {
 		// TODO Auto-generated method stub
 		
@@ -252,6 +254,7 @@ public abstract class AbstractCLaunchDelegate2 extends LaunchConfigurationDelega
 			// If automatic configuration detection then discover the build config corresponding to the executable
 			if (configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROJECT_BUILD_CONFIG_AUTO, false)) {
 				String programPath = configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, ""); //$NON-NLS-1$
+				programPath = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programPath);
 				ICConfigurationDescription buildConfig = LaunchUtils.getBuildConfigByProgramPath(project, programPath);
 				if (buildConfig != null)
 					buildConfigID = buildConfig.getId();
@@ -311,6 +314,7 @@ public abstract class AbstractCLaunchDelegate2 extends LaunchConfigurationDelega
 		// utility. See bug 313927
 
 		IWorkspaceRunnable build = new IWorkspaceRunnable(){
+			@Override
 			public void run(IProgressMonitor pm) throws CoreException {
 				SubMonitor localmonitor = SubMonitor.convert(pm, "", TOTAL_TICKS); //$NON-NLS-1$
 

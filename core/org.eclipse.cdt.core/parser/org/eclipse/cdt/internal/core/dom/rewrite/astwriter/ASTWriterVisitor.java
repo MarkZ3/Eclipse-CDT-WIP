@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Institute for Software, HSR Hochschule fuer Technik
+ * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -9,16 +9,14 @@
  * Contributors:
  *     Institute for Software - initial API and implementation
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.rewrite.astwriter;
-
-import java.util.ArrayList;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTArrayModifier;
 import org.eclipse.cdt.core.dom.ast.IASTComment;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
-import org.eclipse.cdt.core.dom.ast.IASTCopyLocation;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
@@ -26,8 +24,8 @@ import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTInitializer;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
-import org.eclipse.cdt.core.dom.ast.IASTNodeLocation;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
+import org.eclipse.cdt.core.dom.ast.IASTPointerOperator;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTNamespaceDefinition;
@@ -36,17 +34,18 @@ import org.eclipse.cdt.core.dom.ast.gnu.IGNUASTCompoundStatementExpression;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTLiteralNode;
 import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
 
+import java.util.List;
+
 /**
  * Visits all nodes, prints leading comments and handles macro expansions. The
- * source code generation is delegated to severals <code>NodeWriters</code>.
+ * source code generation is delegated to severals {@code NodeWriter}s.
  *
- * @see NodeWriter
  * @see MacroExpansionHandler
  *
  * @author Emanuel Graf IFS
  */
 public class ASTWriterVisitor extends ASTVisitor {
-	protected Scribe scribe = new Scribe();
+	protected final Scribe scribe = new Scribe();
 	protected NodeCommentMap commentMap;
 	protected ExpressionWriter expWriter;
 	protected DeclSpecWriter declSpecWriter;
@@ -57,32 +56,40 @@ public class ASTWriterVisitor extends ASTVisitor {
 	protected NameWriter nameWriter;
 	protected TemplateParameterWriter tempParameterWriter;
 	protected MacroExpansionHandler macroHandler;
+	private boolean insertLeadingBlankLine;
+	private boolean suppressLeadingBlankLine;
+	private boolean spaceNeededBeforeName;
 
 	{
-		shouldVisitExpressions = true;
-		shouldVisitStatements = true;
-		shouldVisitNames = true;
-		shouldVisitDeclarations = true;
-		shouldVisitDeclSpecifiers = true;
-		shouldVisitDeclarators = true;
-		shouldVisitArrayModifiers= true;
-		shouldVisitInitializers = true;
+		shouldVisitArrayModifiers = true;
 		shouldVisitBaseSpecifiers = true;
+		shouldVisitDeclarations = true;
+		shouldVisitDeclarators = true;
+		shouldVisitDeclSpecifiers = true;
+		shouldVisitExpressions = true;
+		shouldVisitInitializers = true;
+		shouldVisitNames = true;
 		shouldVisitNamespaces = true;
-		shouldVisitTemplateParameters = true;
 		shouldVisitParameterDeclarations = true;
+		shouldVisitPointerOperators = true;
+		shouldVisitStatements = true;
+		shouldVisitTemplateParameters = true;
 		shouldVisitTranslationUnit = true;
+		shouldVisitTypeIds = true;
+	}
+
+	/**
+	 * Creates a writer with an empty comment map.
+	 */
+	public ASTWriterVisitor() {
+		this(new NodeCommentMap());
 	}
 
 	public ASTWriterVisitor(NodeCommentMap commentMap) {
-		this("", commentMap); //$NON-NLS-1$
-	}
-
-	public ASTWriterVisitor(String givenIndentation, NodeCommentMap commentMap) {
 		super();
-		scribe.setGivenIndentation(givenIndentation);
 		init(commentMap);
 		this.commentMap = commentMap;
+		this.suppressLeadingBlankLine = true;
 	}
 
 	private void init(NodeCommentMap commentMap) {
@@ -119,22 +126,25 @@ public class ASTWriterVisitor extends ASTVisitor {
 		}
 	}
 
-	private ArrayList<IASTComment> getLeadingComments(IASTNode node) {
-		ArrayList<IASTComment> leadingComments = commentMap.getLeadingCommentsForNode(node);
-		IASTNodeLocation[] locs = node.getNodeLocations();
-		if (locs != null && locs.length > 0 && locs[0] instanceof IASTCopyLocation) {
-			IASTCopyLocation copyLoc = (IASTCopyLocation) locs[0];
-			leadingComments.addAll(commentMap.getLeadingCommentsForNode(copyLoc.getOriginalNode()));
-		}
+	private List<IASTComment> getLeadingComments(IASTNode node) {
+		List<IASTComment> leadingComments = commentMap.getLeadingCommentsForNode(node);
+		IASTNode originalNode = node.getOriginalNode();
+		if (originalNode != node)
+			leadingComments.addAll(commentMap.getLeadingCommentsForNode(originalNode));
 		return leadingComments;
 	}
 
 	public void visit(ASTLiteralNode lit) {
+		insertBlankLineIfNeeded(lit);
 		scribe.print(lit.getRawSignature());
 	}
 
 	@Override
 	public int visit(IASTName name) {
+		if (spaceNeededBeforeName && name.getSimpleID().length != 0) {
+			scribe.printSpace();
+			spaceNeededBeforeName = false;
+		}
 		writeLeadingComments(name);
 		if (!macroHandler.checkisMacroExpansionNode(name)) {
 			nameWriter.writeName(name);
@@ -166,24 +176,31 @@ public class ASTWriterVisitor extends ASTVisitor {
 
 	@Override
 	public int visit(IASTStatement statement) {
+		insertBlankLineIfNeeded(statement);
 		writeLeadingComments(statement);
-		if (macroHandler.isStatementWithMixedLocation(statement) &&
-				!(statement instanceof IASTCompoundStatement)) {
-			return statementWriter.writeMixedStatement(statement);
+		try {
+			if (macroHandler.isStatementWithMixedLocation(statement) &&
+					!(statement instanceof IASTCompoundStatement)) {
+				return statementWriter.writeMixedStatement(statement);
+			}
+			if (macroHandler.checkisMacroExpansionNode(statement)) {
+				return ASTVisitor.PROCESS_SKIP;
+			}
+			return statementWriter.writeStatement(statement, true);
+		} finally {
+			setLeadingBlankLineFlags(statement);
 		}
-		if (macroHandler.checkisMacroExpansionNode(statement)) {
-			return ASTVisitor.PROCESS_SKIP;
-		}
-		return statementWriter.writeStatement(statement, true);
 	}
 
 	@Override
 	public int visit(IASTDeclaration declaration) {
+		insertBlankLineIfNeeded(declaration);
 		writeLeadingComments(declaration);
 		if (!macroHandler.checkisMacroExpansionNode(declaration)) {
 			declarationWriter.writeDeclaration(declaration);
+			setLeadingBlankLineFlags(declaration);
 		}
-		return  ASTVisitor.PROCESS_SKIP;
+		return ASTVisitor.PROCESS_SKIP;
 	}
 
 	@Override
@@ -219,10 +236,17 @@ public class ASTWriterVisitor extends ASTVisitor {
 			parameterDeclaration.getDeclSpecifier().accept(this);
 			IASTDeclarator declarator = getParameterDeclarator(parameterDeclaration);
 
-			if (getParameterName(declarator).toString().length() != 0) {
-				scribe.printSpaces(1);
-			}
+			spaceNeededBeforeName = true;
 			declarator.accept(this);
+		}
+		return ASTVisitor.PROCESS_SKIP;
+	}
+
+	@Override
+	public int visit(IASTPointerOperator pointerOperator) {
+		writeLeadingComments(pointerOperator);
+		if (!macroHandler.checkisMacroExpansionNode(pointerOperator)) {
+			declaratorWriter.writePointerOperator(pointerOperator);
 		}
 		return ASTVisitor.PROCESS_SKIP;
 	}
@@ -237,9 +261,11 @@ public class ASTWriterVisitor extends ASTVisitor {
 
 	@Override
 	public int visit(ICPPASTNamespaceDefinition namespace) {
+		insertBlankLineIfNeeded(namespace);
 		writeLeadingComments(namespace);
 		if (!macroHandler.checkisMacroExpansionNode(namespace)) {
 			declarationWriter.writeDeclaration(namespace);
+			setLeadingBlankLineFlags(namespace);
 		}
 		return ASTVisitor.PROCESS_SKIP;
 	}
@@ -256,5 +282,43 @@ public class ASTWriterVisitor extends ASTVisitor {
 	public void cleanCache() {
 		scribe.cleanCache();
 		macroHandler.reset();
+	}
+
+	private void insertBlankLineIfNeeded(IASTNode node) {
+		if (!suppressLeadingBlankLine &&
+				(insertLeadingBlankLine || ASTWriter.requiresLeadingBlankLine(node))) {
+			scribe.newLine();
+		}
+		insertLeadingBlankLine = false;
+		suppressLeadingBlankLine = false;
+	}
+
+	private void setLeadingBlankLineFlags(IASTNode node) {
+		insertLeadingBlankLine = ASTWriter.requiresTrailingBlankLine(node);
+		suppressLeadingBlankLine = ASTWriter.suppressesTrailingBlankLine(node);
+	}
+
+	public boolean isSuppressLeadingBlankLine() {
+		return suppressLeadingBlankLine;
+	}
+
+	public void setSuppressLeadingBlankLine(boolean value) {
+		this.suppressLeadingBlankLine = value;
+	}
+
+	public boolean isSpaceNeededBeforeName() {
+		return spaceNeededBeforeName;
+	}
+
+	public void setSpaceNeededBeforeName(boolean value) {
+		this.spaceNeededBeforeName = value;
+	}
+
+	public Scribe getScribe() {
+		return scribe;
+	}
+
+	public void newLine() {
+		scribe.newLine();
 	}
 }

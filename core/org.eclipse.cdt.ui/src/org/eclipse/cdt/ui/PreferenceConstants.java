@@ -17,23 +17,21 @@ package org.eclipse.cdt.ui;
 
 import java.util.Locale;
 
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ProjectScope;
+import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.DefaultScope;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.IScopeContext;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.preference.IPreferenceStore;
-import org.eclipse.jface.preference.PreferenceConverter;
-import org.eclipse.jface.resource.ColorRegistry;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.RGB;
-import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants;
 
 import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.ui.text.ICColorConstants;
 
-import org.eclipse.cdt.internal.ui.ICThemeConstants;
 import org.eclipse.cdt.internal.ui.preferences.formatter.FormatterProfileManager;
 import org.eclipse.cdt.internal.ui.text.spelling.SpellCheckEngine;
 
@@ -555,6 +553,45 @@ public class PreferenceConstants {
 	public final static String EDITOR_ASM_DIRECTIVE_ITALIC= ICColorConstants.ASM_DIRECTIVE + EDITOR_ITALIC_SUFFIX;
 
 	/**
+	 * A named preference that holds the color used to render doxygen tags.
+	 * <p>
+	 * Value is of type <code>String</code>. A RGB color value encoded as a string
+	 * using class <code>PreferenceConverter</code>
+	 * </p>
+	 *
+	 * @see org.eclipse.jface.resource.StringConverter
+	 * @see org.eclipse.jface.preference.PreferenceConverter
+	 * @since 5.4
+	 */
+	public static final String DOXYGEN_TAG_COLOR= "org.eclipse.cdt.internal.ui.text.doctools.doxygen.recognizedTag"; //$NON-NLS-1$
+
+	/**
+	 * A named preference that holds the color used to render doxygen single line comments.
+	 * <p>
+	 * Value is of type <code>String</code>. A RGB color value encoded as a string
+	 * using class <code>PreferenceConverter</code>
+	 * </p>
+	 *
+	 * @see org.eclipse.jface.resource.StringConverter
+	 * @see org.eclipse.jface.preference.PreferenceConverter
+	 * @since 5.4
+	 */
+	public static final String DOXYGEN_SINGLE_LINE_COLOR= "org.eclipse.cdt.internal.ui.text.doctools.doxygen.single"; //$NON-NLS-1$
+
+	/**
+	 * A named preference that holds the color used to render doxygen multi-line comments.
+	 * <p>
+	 * Value is of type <code>String</code>. A RGB color value encoded as a string
+	 * using class <code>PreferenceConverter</code>
+	 * </p>
+	 *
+	 * @see org.eclipse.jface.resource.StringConverter
+	 * @see org.eclipse.jface.preference.PreferenceConverter
+	 * @since 5.4
+	 */
+	public static final String DOXYGEN_MULTI_LINE_COLOR= "org.eclipse.cdt.internal.ui.text.doctools.doxygen.multi"; //$NON-NLS-1$
+
+	/**
 	 * The symbolic font name for the C/C++ editor text font
 	 * (value <code>"org.eclipse.cdt.ui.editors.textfont"</code>).
 	 *
@@ -563,7 +600,8 @@ public class PreferenceConstants {
 	public final static String EDITOR_TEXT_FONT= "org.eclipse.cdt.ui.editors.textfont"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that controls whether the cview's selection is linked to the active editor.
+	 * A named preference that controls whether the cview's selection is linked to the active
+	 * editor.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -571,7 +609,8 @@ public class PreferenceConstants {
 	public static final String PREF_LINK_TO_EDITOR= "org.eclipse.cdt.ui.editor.linkToEditor"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that speficies whether children of a translation unit are shown in the CView.
+	 * A named preference that specifies whether children of a translation unit are shown in
+	 * the CView.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -579,7 +618,8 @@ public class PreferenceConstants {
 	public static final String PREF_SHOW_CU_CHILDREN= "org.eclipse.cdt.ui.editor.CUChildren"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that speficies whether to use the parser's structural mode to build the CModel.
+	 * A named preference that speficies whether to use the parser's structural mode to build
+	 * the CModel.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -587,7 +627,8 @@ public class PreferenceConstants {
 	public static final String PREF_USE_STRUCTURAL_PARSE_MODE= "org.eclipse.cdt.ui.editor.UseStructuralMode"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that controls if segmented view (show selected element only) is turned on or off.
+	 * A named preference that controls if segmented view (show selected element only) is turned
+	 * on or off.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -784,8 +825,8 @@ public class PreferenceConstants {
 	public static final String OUTLINE_LINK_TO_EDITOR = "org.eclipse.cdt.ui.outline.linktoeditor"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that controls whether include directives should be grouped in the
-	 * C/C++ Projects view and the Project Explorer view.
+	 * A named preference that controls whether include directives should be grouped in
+	 * the C/C++ Projects view and the Project Explorer view.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -793,8 +834,8 @@ public class PreferenceConstants {
 	public static final String CVIEW_GROUP_INCLUDES= "org.eclipse.cdt.ui.cview.groupincludes"; //$NON-NLS-1$
 	
 	/**
-	 * A named preference that controls whether macro defintions should be grouped in the
-	 * C/C++ Projects view and the Project Explorer view.
+	 * A named preference that controls whether macro definitions should be grouped in
+	 * the C/C++ Projects view and the Project Explorer view.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -803,8 +844,8 @@ public class PreferenceConstants {
 	public static final String CVIEW_GROUP_MACROS= "org.eclipse.cdt.ui.cview.groupmacros"; //$NON-NLS-1$
 
 	/**
-	 * A named preference that controls whether header and source files should be separated in the
-	 * C/C++ Projects view and the Project Explorer view.
+	 * A named preference that controls whether header and source files should be separated in
+	 * the C/C++ Projects view and the Project Explorer view.
 	 * <p>
 	 * Value is of type <code>Boolean</code>.
 	 * </p>
@@ -1621,8 +1662,42 @@ public class PreferenceConstants {
 	public static final String NAME_STYLE_FIELD_WORD_DELIMITER = "nameStyle.field.wordDelimiter"; //$NON-NLS-1$
 
 	/**
+	 * A named preference that controls how capitalization of a method name.
+	 * <p>
+	 * Value is of type <code>Integer</code>.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String NAME_STYLE_METHOD_CAPITALIZATION = "nameStyle.method.capitalization"; //$NON-NLS-1$
+	/**
+	 * A named preference that controls prefix of a method name.
+	 * <p>
+	 * Value is of type <code>String</code>.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String NAME_STYLE_METHOD_PREFIX = "nameStyle.method.prefix"; //$NON-NLS-1$
+	/**
+	 * A named preference that controls suffix of a method name.
+	 * <p>
+	 * Value is of type <code>String</code>.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String NAME_STYLE_METHOD_SUFFIX = "nameStyle.method.suffix"; //$NON-NLS-1$
+	/**
+	 * A named preference that controls delimiter that is inserted between words
+	 * of a method name.
+	 * <p>
+	 * Value is of type <code>String</code>.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String NAME_STYLE_METHOD_WORD_DELIMITER = "nameStyle.method.wordDelimiter"; //$NON-NLS-1$
+
+	/**
 	 * A named preference that controls how capitalization of the getter name
-	 * depends on capitalization of the field name.
+	 * depends on capitalization of the method name.
 	 * <p>
 	 * Value is of type <code>Integer</code>.
 	 * 
@@ -1843,7 +1918,41 @@ public class PreferenceConstants {
 	 * @since 5.3
 	 */
 	public static final int NAME_STYLE_CAPITALIZATION_LOWER_CAMEL_CASE = 4;
-	
+
+	/**
+	 * A named preference that controls the order of private/protected/public class members in
+	 * generated code.
+	 * <p>
+	 * Value is of type <code>Boolean</code>. The <code>true</code> value means that private members
+	 * are before public ones. The default is to put public members before private ones.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String CLASS_MEMBER_ASCENDING_VISIBILITY_ORDER = "class_member_ascending_visibility_order"; //$NON-NLS-1$
+
+	/**
+	 * A named preference that controls the order of parameters of generated functions.
+	 * <p>
+	 * Value is of type <code>Boolean</code>. The <code>true</code> value means that output
+	 * parameters are before the input ones. The default is to put outputparameters after the input
+	 * ones.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String FUNCTION_OUTPUT_PARAMETERS_BEFORE_INPUT = "function_output_parameters_before_input"; //$NON-NLS-1$
+
+	/**
+	 * A named preference that controls whether output parameters of generated functions are passed
+	 * by pointer or by reference.
+	 * <p>
+	 * Value is of type <code>Boolean</code>. The <code>true</code> value means that output
+	 * parameters are passed by pointer. The default is to pass output parameters by reference.
+	 * 
+	 * @since 5.4
+	 */
+	public static final String FUNCTION_PASS_OUTPUT_PARAMETERS_BY_POINTER = "function_pass_output_parameters_by_pointer"; //$NON-NLS-1$
+
+
 	/**
 	 * Returns the CDT-UI preference store.
 	 *
@@ -1859,8 +1968,6 @@ public class PreferenceConstants {
      * @param store the preference store to be initialized
      */
     public static void initializeDefaultValues(IPreferenceStore store) {
-		ColorRegistry registry= PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getColorRegistry();
-
 		store.setDefault(PreferenceConstants.EDITOR_CORRECTION_INDICATION, false);
 		store.setDefault(PreferenceConstants.EDITOR_SHOW_SEGMENTS, false);
 		store.setDefault(PreferenceConstants.PREF_SHOW_CU_CHILDREN, true);
@@ -1875,77 +1982,62 @@ public class PreferenceConstants {
 
 		store.setDefault(EDITOR_SOURCE_HOVER_BACKGROUND_COLOR_SYSTEM_DEFAULT, true);
 
-		// Coloring
-		PreferenceConverter.setDefault(store, EDITOR_MULTI_LINE_COMMENT_COLOR, new RGB(63, 127, 95));
+		// Syntax highlighting
 		store.setDefault(EDITOR_MULTI_LINE_COMMENT_BOLD, false);
 		store.setDefault(EDITOR_MULTI_LINE_COMMENT_ITALIC, false);
 
-		PreferenceConverter.setDefault(store, EDITOR_SINGLE_LINE_COMMENT_COLOR, new RGB(63, 127, 95));
 		store.setDefault(EDITOR_SINGLE_LINE_COMMENT_BOLD, false);
 		store.setDefault(EDITOR_SINGLE_LINE_COMMENT_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, PreferenceConstants.EDITOR_TASK_TAG_COLOR, new RGB(127, 159, 191));
-        store.setDefault(PreferenceConstants.EDITOR_TASK_TAG_BOLD, true);
-        store.setDefault(PreferenceConstants.EDITOR_TASK_TAG_ITALIC, false);
+		store.setDefault(EDITOR_TASK_TAG_BOLD, true);
+        store.setDefault(EDITOR_TASK_TAG_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_C_KEYWORD_COLOR, new RGB(127, 0, 85));
 		store.setDefault(EDITOR_C_KEYWORD_BOLD, true);
 		store.setDefault(EDITOR_C_KEYWORD_ITALIC, false);
 
-		PreferenceConverter.setDefault(store, EDITOR_C_BUILTIN_TYPE_COLOR, new RGB(127, 0, 85));
 		store.setDefault(EDITOR_C_BUILTIN_TYPE_BOLD, true);
 		store.setDefault(EDITOR_C_BUILTIN_TYPE_ITALIC, false);
 
-		PreferenceConverter.setDefault(store, EDITOR_C_STRING_COLOR, new RGB(42, 0, 255));
 		store.setDefault(EDITOR_C_STRING_BOLD, false);
 		store.setDefault(EDITOR_C_STRING_ITALIC, false);
 
-		PreferenceConverter.setDefault(store, EDITOR_C_DEFAULT_COLOR, new RGB(0, 0, 0));
 		store.setDefault(EDITOR_C_DEFAULT_BOLD, false);
 		store.setDefault(EDITOR_C_DEFAULT_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_C_OPERATOR_COLOR, new RGB(0, 0, 0));
         store.setDefault(EDITOR_C_OPERATOR_BOLD, false);
         store.setDefault(EDITOR_C_OPERATOR_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_C_BRACES_COLOR, new RGB(0, 0, 0));
         store.setDefault(EDITOR_C_BRACES_BOLD, false);
         store.setDefault(EDITOR_C_BRACES_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_C_NUMBER_COLOR, new RGB(0, 0, 0));
         store.setDefault(EDITOR_C_NUMBER_BOLD, false);
         store.setDefault(EDITOR_C_NUMBER_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_PP_DIRECTIVE_COLOR, new RGB(127, 0, 85));
 		store.setDefault(EDITOR_PP_DIRECTIVE_BOLD, true);
 		store.setDefault(EDITOR_PP_DIRECTIVE_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_PP_HEADER_COLOR, new RGB(42, 0, 255));
         store.setDefault(EDITOR_PP_HEADER_BOLD, false);
         store.setDefault(EDITOR_PP_HEADER_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_PP_DEFAULT_COLOR, new RGB(0, 0, 0));
         store.setDefault(EDITOR_PP_DEFAULT_BOLD, false);
         store.setDefault(EDITOR_PP_DEFAULT_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_ASM_LABEL_COLOR, new RGB(127, 0, 85));
 		store.setDefault(EDITOR_ASM_LABEL_BOLD, true);
 		store.setDefault(EDITOR_ASM_LABEL_ITALIC, false);
 
-        PreferenceConverter.setDefault(store, EDITOR_ASM_DIRECTIVE_COLOR, new RGB(127, 0, 85));
 		store.setDefault(EDITOR_ASM_DIRECTIVE_BOLD, true);
 		store.setDefault(EDITOR_ASM_DIRECTIVE_ITALIC, false);
 
 		// Folding
-		store.setDefault(PreferenceConstants.EDITOR_FOLDING_ENABLED, false);
+		store.setDefault(PreferenceConstants.EDITOR_FOLDING_ENABLED, true);
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_PROVIDER, "org.eclipse.cdt.ui.text.defaultFoldingProvider"); //$NON-NLS-1$
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_FUNCTIONS, false);
-		store.setDefault(PreferenceConstants.EDITOR_FOLDING_STRUCTURES, true);
+		store.setDefault(PreferenceConstants.EDITOR_FOLDING_STRUCTURES, false);
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_METHODS, false);
-		store.setDefault(PreferenceConstants.EDITOR_FOLDING_MACROS, true);
+		store.setDefault(PreferenceConstants.EDITOR_FOLDING_MACROS, false);
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_COMMENTS, false);
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_HEADERS, true);
-		store.setDefault(PreferenceConstants.EDITOR_FOLDING_INACTIVE_CODE, true);
+		store.setDefault(PreferenceConstants.EDITOR_FOLDING_INACTIVE_CODE, false);
 		store.setDefault(PreferenceConstants.EDITOR_FOLDING_PREPROCESSOR_BRANCHES_ENABLED, false);
 
 		// Smart edit
@@ -1971,23 +2063,6 @@ public class PreferenceConstants {
 		store.setDefault(PreferenceConstants.CODEASSIST_CATEGORY_ORDER, "org.eclipse.cdt.ui.parserProposalCategory:65539\0org.eclipse.cdt.ui.textProposalCategory:65541\0org.eclipse.cdt.ui.templateProposalCategory:2\0org.eclipse.cdt.ui.helpProposalCategory:5\0"); //$NON-NLS-1$
 
 		store.setDefault(PreferenceConstants.CODEASSIST_PROPOSALS_TIMEOUT, 5000);
-
-		setDefaultAndFireEvent(
-				store,
-				PreferenceConstants.CODEASSIST_PROPOSALS_BACKGROUND,
-				findRGB(registry, ICThemeConstants.CODEASSIST_PROPOSALS_BACKGROUND, new RGB(255, 255, 255)));
-		setDefaultAndFireEvent(
-				store,
-				PreferenceConstants.CODEASSIST_PROPOSALS_FOREGROUND,
-				findRGB(registry, ICThemeConstants.CODEASSIST_PROPOSALS_FOREGROUND, new RGB(0, 0, 0)));
-		setDefaultAndFireEvent(
-				store,
-				PreferenceConstants.CODEASSIST_PARAMETERS_BACKGROUND,
-				findRGB(registry, ICThemeConstants.CODEASSIST_PARAMETERS_BACKGROUND, new RGB(255, 255, 255)));
-		setDefaultAndFireEvent(
-				store,
-				PreferenceConstants.CODEASSIST_PARAMETERS_FOREGROUND,
-				findRGB(registry, ICThemeConstants.CODEASSIST_PARAMETERS_FOREGROUND, new RGB(0, 0, 0)));
 
 		// Refactoring.
 		store.setDefault(PreferenceConstants.REFACTOR_SAVE_ALL_EDITORS, false);
@@ -2060,6 +2135,10 @@ public class PreferenceConstants {
 		store.setDefault(NAME_STYLE_FIELD_PREFIX, ""); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_FIELD_SUFFIX, ""); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_FIELD_WORD_DELIMITER, ""); //$NON-NLS-1$
+		store.setDefault(NAME_STYLE_METHOD_CAPITALIZATION, NAME_STYLE_CAPITALIZATION_LOWER_CAMEL_CASE);
+		store.setDefault(NAME_STYLE_METHOD_PREFIX, ""); //$NON-NLS-1$
+		store.setDefault(NAME_STYLE_METHOD_SUFFIX, ""); //$NON-NLS-1$
+		store.setDefault(NAME_STYLE_METHOD_WORD_DELIMITER, ""); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_GETTER_CAPITALIZATION, NAME_STYLE_CAPITALIZATION_CAMEL_CASE);
 		store.setDefault(NAME_STYLE_GETTER_PREFIX, "get"); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_GETTER_PREFIX_FOR_BOOLEAN, "is"); //$NON-NLS-1$
@@ -2081,14 +2160,22 @@ public class PreferenceConstants {
 		store.setDefault(NAME_STYLE_CPP_TEST_PREFIX, ""); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_CPP_TEST_SUFFIX, "_test.cpp"); //$NON-NLS-1$
 		store.setDefault(NAME_STYLE_CPP_TEST_WORD_DELIMITER, ""); //$NON-NLS-1$
+
+		// Code style
+		store.setDefault(CLASS_MEMBER_ASCENDING_VISIBILITY_ORDER, false);
+		store.setDefault(FUNCTION_OUTPUT_PARAMETERS_BEFORE_INPUT, false);
+		store.setDefault(FUNCTION_PASS_OUTPUT_PARAMETERS_BY_POINTER, false);
+
+		// Colors that are set by the current theme
+		CUIPreferenceInitializer.setThemeBasedPreferences(store, false);
     }
 
     /**
      * Returns the node in the preference in the given context.
      * @param key The preference key.
-     * @param project The current context or <code>null</code> if no context is available and the
-	 * workspace setting should be taken. Note that passing <code>null</code> should
-	 * be avoided.
+     * @param project The current context or <code>null</code> if no context is available and
+     *     the workspace setting should be taken. Note that passing <code>null</code> should
+     *     be avoided.
      * @return Returns the node matching the given context.
      */
 	private static IEclipsePreferences getPreferenceNode(String key, ICProject project) {
@@ -2105,15 +2192,20 @@ public class PreferenceConstants {
 			return node;
 		}
 		
+		node = ConfigurationScope.INSTANCE.getNode(CUIPlugin.PLUGIN_ID);
+		if (node.get(key, null) != null) {
+			return node;
+		}
+
 		return DefaultScope.INSTANCE.getNode(CUIPlugin.PLUGIN_ID);
 	}
 
 	/**
 	 * Returns the string value for the given key in the given context.
 	 * @param key The preference key
-	 * @param project The current context or <code>null</code> if no context is available and the
-	 * workspace setting should be taken. Note that passing <code>null</code> should
-	 * be avoided.
+	 * @param project The current context or <code>null</code> if no context is available and
+	 *     the workspace setting should be taken. Note that passing <code>null</code> should
+	 *     be avoided.
 	 * @return Returns the current value for the string.
 	 * @since 5.0
 	 */
@@ -2124,9 +2216,9 @@ public class PreferenceConstants {
 	/**
 	 * Returns the integer value for the given key in the given context.
 	 * @param key The preference key
-	 * @param project The current context or <code>null</code> if no context is available and the
-	 * workspace setting should be taken. Note that passing <code>null</code> should
-	 * be avoided.
+	 * @param project The current context or <code>null</code> if no context is available and
+	 *     the workspace setting should be taken. Note that passing <code>null</code> should
+	 *     be avoided.
 	 * @param defaultValue The default value if not specified in the preferences.
 	 * @return Returns the current value for the string.
 	 * @since 5.1
@@ -2138,9 +2230,9 @@ public class PreferenceConstants {
 	/**
 	 * Returns the boolean value for the given key in the given context.
 	 * @param key The preference key
-	 * @param project The current context or <code>null</code> if no context is available and the
-	 * workspace setting should be taken. Note that passing <code>null</code> should
-	 * be avoided.
+	 * @param project The current context or <code>null</code> if no context is available and
+	 *     the workspace setting should be taken. Note that passing <code>null</code> should
+	 *     be avoided.
 	 * @param defaultValue The default value if not specified in the preferences.
 	 * @return Returns the current value for the string.
 	 * @since 5.1
@@ -2150,38 +2242,15 @@ public class PreferenceConstants {
 	}
 
 	/**
-	 * Sets the default value and fires a property
-	 * change event if necessary.
-	 *
-	 * @param store	the preference store
-	 * @param key the preference key
-	 * @param newValue the new value
-	 * @since 5.0
+	 * Returns the scopes for preference lookup.
+	 * 
+	 * @param project a project or <code>null</code>
+	 * @return the scopes for preference lookup.
+	 * @since 5.4
 	 */
-	private static void setDefaultAndFireEvent(IPreferenceStore store, String key, RGB newValue) {
-		RGB oldValue= null;
-		if (store.isDefault(key))
-			oldValue= PreferenceConverter.getDefaultColor(store, key);
-
-		PreferenceConverter.setDefault(store, key, newValue);
-
-		if (oldValue != null && !oldValue.equals(newValue))
-			store.firePropertyChangeEvent(key, oldValue, newValue);
-	}
-
-	/**
-	 * Returns the RGB for the given key in the given color registry.
-	 *
-	 * @param registry the color registry
-	 * @param key the key for the constant in the registry
-	 * @param defaultRGB the default RGB if no entry is found
-	 * @return RGB the RGB
-	 * @since 5.0
-	 */
-	private static RGB findRGB(ColorRegistry registry, String key, RGB defaultRGB) {
-		RGB rgb= registry.getRGB(key);
-		if (rgb != null)
-			return rgb;
-		return defaultRGB;
+	public static IScopeContext[] getPreferenceScopes(IProject project) {
+		return project != null ?
+				new IScopeContext[] { new ProjectScope(project), InstanceScope.INSTANCE, ConfigurationScope.INSTANCE, DefaultScope.INSTANCE } :
+				new IScopeContext[] { InstanceScope.INSTANCE, ConfigurationScope.INSTANCE, DefaultScope.INSTANCE };
 	}
 }

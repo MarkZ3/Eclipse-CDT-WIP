@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2011 Alena Laskavaia 
+ * Copyright (c) 2009, 2012 Alena Laskavaia 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,8 +9,11 @@
  *     Alena Laskavaia  - initial API and implementation
  *     Patrick Hofer [bug 315528]
  *     Sergey Prigogin (Google)
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers;
+
+import java.util.HashSet;
 
 import org.eclipse.cdt.codan.core.cxx.model.AbstractIndexAstChecker;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
@@ -24,6 +27,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTVisibilityLabel;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPBase;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPInternalBinding;
 
 /**
@@ -33,14 +37,18 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPInternalBinding;
  */
 public class NonVirtualDestructor extends AbstractIndexAstChecker {
 	public static final String PROBLEM_ID = "org.eclipse.cdt.codan.internal.checkers.NonVirtualDestructorProblem"; //$NON-NLS-1$
+	
+	// Prevent stack overflow in case: class A: public A {};
+	private static HashSet<ICPPClassType> checkedClassTypes = new HashSet<ICPPClassType>();
 
+	@Override
 	public void processAst(IASTTranslationUnit ast) {
 		// Traverse the AST using the visitor pattern.
 		ast.accept(new OnEachClass());
 	}
 
-	private static ICPPMethod getDestructor(ICPPClassType classType) {
-		for (ICPPMethod method : classType.getDeclaredMethods()) {
+	private static ICPPMethod getDestructor(ICPPClassType classType, IASTNode point) {
+		for (ICPPMethod method : ClassTypeHelper.getDeclaredMethods(classType, point)) {
 			if (method.isDestructor()) {
 				return method;
 			}
@@ -48,16 +56,18 @@ public class NonVirtualDestructor extends AbstractIndexAstChecker {
 		return null;
 	}
 
-	private static boolean hasVirtualDestructor(ICPPClassType classType) {
-		ICPPMethod destructor = getDestructor(classType);
+	private static boolean hasVirtualDestructor(ICPPClassType classType, IASTNode point) {
+		checkedClassTypes.add(classType);
+		ICPPMethod destructor = getDestructor(classType, point);
 		if (destructor != null && destructor.isVirtual()) {
 			return true;
 		}
-		ICPPBase[] bases = classType.getBases();   
+		ICPPBase[] bases = ClassTypeHelper.getBases(classType, point);   
 		for (ICPPBase base : bases) {
 			IBinding baseClass = base.getBaseClass();
 			if (baseClass instanceof ICPPClassType) {
-				if (hasVirtualDestructor((ICPPClassType) baseClass)) {
+				ICPPClassType cppClassType = (ICPPClassType) baseClass;
+				if (!checkedClassTypes.contains(cppClassType) && hasVirtualDestructor(cppClassType, point)) {
 					return true;
 				}
 			}
@@ -70,6 +80,7 @@ public class NonVirtualDestructor extends AbstractIndexAstChecker {
 			shouldVisitDeclSpecifiers = true;
 		}
 
+		@Override
 		public int visit(IASTDeclSpecifier decl) {
 			if (decl instanceof ICPPASTCompositeTypeSpecifier) {
 				ICPPASTCompositeTypeSpecifier spec = (ICPPASTCompositeTypeSpecifier) decl;
@@ -79,11 +90,13 @@ public class NonVirtualDestructor extends AbstractIndexAstChecker {
 					return PROCESS_SKIP;
 				}
 				ICPPClassType classType = (ICPPClassType) binding;
-				if (hasVirtualDestructor(classType)) {
+				boolean hasVirtualDestructor = hasVirtualDestructor(classType, className);
+				checkedClassTypes.clear();
+				if (hasVirtualDestructor) {
 					return PROCESS_SKIP;
 				}
 				ICPPMethod virtualMethod = null;
-				for (ICPPMethod method : classType.getAllDeclaredMethods()) {
+				for (ICPPMethod method : ClassTypeHelper.getAllDeclaredMethods(classType, className)) {
 					if (!method.isDestructor() && method.isVirtual()) {
 						virtualMethod = method;
 					}
@@ -91,7 +104,7 @@ public class NonVirtualDestructor extends AbstractIndexAstChecker {
 				if (virtualMethod == null) {
 					return PROCESS_SKIP;
 				}
-				ICPPMethod destructor = getDestructor(classType);
+				ICPPMethod destructor = getDestructor(classType, className);
 				if (destructor != null &&
 						destructor.getVisibility() != ICPPASTVisibilityLabel.v_public &&
 						classType.getFriends().length == 0) {
@@ -106,7 +119,7 @@ public class NonVirtualDestructor extends AbstractIndexAstChecker {
 						node = decls[0];
 					}
 				}
-				reportProblem(PROBLEM_ID, node, className.getSimpleID().toString(),
+				reportProblem(PROBLEM_ID, node, new String(className.getSimpleID()),
 						virtualMethod.getName());
 				return PROCESS_SKIP;
 			}

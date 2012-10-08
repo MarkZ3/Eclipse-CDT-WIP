@@ -12,6 +12,8 @@
  *******************************************************************************/
 package org.eclipse.cdt.debug.ui.breakpoints;
 
+import java.util.Arrays;
+
 import org.eclipse.cdt.debug.core.DebugCoreMessages;
 import org.eclipse.cdt.debug.core.model.ICBreakpoint;
 import org.eclipse.cdt.debug.core.model.ICEventBreakpoint;
@@ -47,8 +49,10 @@ public class CEventBreakpointsLabelProviderFactory implements IAdapterFactory {
 
 					for (ICBreakpointsUIContribution con : bscs) {
 						Object attValue = breakpoint.getMarker().getAttribute(con.getId());
-
+						
 						if (con.getId().equals(ICEventBreakpoint.EVENT_TYPE_ID)) {
+							if (!Arrays.asList(con.getPossibleValues()).contains(attValue))
+								continue;
 							buffer.append(con.getLabelForValue((String) attValue));
 							continue;
 						}
@@ -96,7 +100,7 @@ public class CEventBreakpointsLabelProviderFactory implements IAdapterFactory {
 		if (ignoreCount > 0) {
 			label.append(' ');
 			label.append(MessageFormat.format(
-					DebugCoreMessages.getString("CDebugUtils.3"), new String[] { Integer.toString(ignoreCount) })); //$NON-NLS-1$
+					DebugCoreMessages.getString("CDebugUtils.3"), new Object[] { Integer.toString(ignoreCount) })); //$NON-NLS-1$
 		}
 		return label;
 	}
@@ -106,7 +110,7 @@ public class CEventBreakpointsLabelProviderFactory implements IAdapterFactory {
 		if (condition != null && condition.length() > 0) {
 			buffer.append(' ');
 			buffer.append(MessageFormat
-					.format(DebugCoreMessages.getString("CDebugUtils.4"), new String[] { condition })); //$NON-NLS-1$
+					.format(DebugCoreMessages.getString("CDebugUtils.4"), new Object[] { condition })); //$NON-NLS-1$
 		}
 	}
 
@@ -115,6 +119,7 @@ public class CEventBreakpointsLabelProviderFactory implements IAdapterFactory {
 	/* (non-Javadoc)
 	 * @see org.eclipse.core.runtime.IAdapterFactory#getAdapter(java.lang.Object, java.lang.Class)
 	 */
+	@Override
 	@SuppressWarnings("rawtypes")
 	public Object getAdapter(Object adaptableObject, Class adapterType) {
 		if (adapterType.equals(IElementLabelProvider.class)) {
@@ -133,6 +138,7 @@ public class CEventBreakpointsLabelProviderFactory implements IAdapterFactory {
 	/* (non-Javadoc)
 	 * @see org.eclipse.core.runtime.IAdapterFactory#getAdapterList()
 	 */
+	@Override
 	@SuppressWarnings("rawtypes")
 	public Class[] getAdapterList() {
 		return new Class[] { IElementLabelProvider.class, ILabelProvider.class };

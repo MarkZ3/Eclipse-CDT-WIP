@@ -18,13 +18,13 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplate;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplatePartialSpecialization;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPSpecialization;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameterMap;
 import org.eclipse.cdt.core.parser.util.ObjectMap;
 import org.eclipse.cdt.internal.core.Util;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPClassTemplatePartialSpecialization;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPTemplates;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
 import org.eclipse.cdt.internal.core.index.IndexCPPSignatureUtil;
@@ -73,6 +73,7 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		super(linkage, bindingRecord);
 	}
 	
+	@Override
 	public int getSignatureHash() throws CoreException {
 		return getDB().getInt(record + SIGNATURE_HASH);
 	}
@@ -97,6 +98,7 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		getDB().putRecPtr(record + NEXT_PARTIAL, value);
 	}
 	
+	@Override
 	public ICPPClassTemplate getPrimaryClassTemplate() {
 		try {
 			return new PDOMCPPClassTemplate(getLinkage(), getDB().getRecPtr(record + PRIMARY));
@@ -106,10 +108,12 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		}
 	}
 	
+	@Override
 	public IBinding getSpecializedBinding() {
 		return getPrimaryClassTemplate();
 	}
 	
+	@Override
 	public void setArguments(ICPPTemplateArgument[] templateArguments) throws CoreException {
 		final Database db = getPDOM().getDB();
 		long oldRec = db.getRecPtr(record+ARGUMENTS);
@@ -120,6 +124,7 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		}
 	}
 
+	@Override
 	public ICPPTemplateArgument[] getTemplateArguments() {
 		try {
 			final long rec= getPDOM().getDB().getRecPtr(record+ARGUMENTS);
@@ -130,6 +135,7 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		}
 	}
 	
+	@Override
 	@Deprecated
 	public IType[] getArguments() {
 		return CPPTemplates.getArguments(getTemplateArguments());
@@ -155,6 +161,7 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		return cmp;
 	}
 	
+	@Override
 	public ICPPTemplateParameterMap getTemplateParameterMap() {
 		return CPPTemplates.createParameterMap(getPrimaryClassTemplate(), getTemplateArguments());
 	}
@@ -177,27 +184,10 @@ class PDOMCPPClassTemplatePartialSpecialization extends	PDOMCPPClassTemplate
 		}
 
 		final ICPPClassTemplatePartialSpecialization rhs = (ICPPClassTemplatePartialSpecialization)type;
-		try {
-			ICPPClassType ct1= getPrimaryClassTemplate();
-			ICPPClassType ct2= rhs.getPrimaryClassTemplate();
-			if(!ct1.isSameType(ct2))
-				return false;
-
-			ICPPTemplateArgument[] args1= getTemplateArguments();
-			ICPPTemplateArgument[] args2= rhs.getTemplateArguments();
-			if (args1.length != args2.length)
-				return false;
-
-			for (int i = 0; i < args2.length; i++) {
-				if (args1[i].isSameValue(args2[i])) 
-					return false;
-			}
-		} catch (DOMException e) {
-			return false;
-		}
-		return true;
+		return CPPClassTemplatePartialSpecialization.isSamePartialClassSpecialization(this, rhs);
 	}
 	
+	@Override
 	@Deprecated
 	public ObjectMap getArgumentMap() {
 		ICPPTemplateParameter[] params = getPrimaryClassTemplate().getTemplateParameters();

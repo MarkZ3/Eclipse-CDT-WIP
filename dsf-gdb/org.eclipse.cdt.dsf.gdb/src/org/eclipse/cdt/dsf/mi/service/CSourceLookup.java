@@ -21,7 +21,7 @@ import org.eclipse.cdt.debug.core.sourcelookup.CProjectSourceContainer;
 import org.eclipse.cdt.debug.internal.core.sourcelookup.CSourceLookupDirector;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.debug.service.ISourceLookup;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandControl;
@@ -126,7 +126,7 @@ public class CSourceLookup extends AbstractDsfService implements ISourceLookup {
     @Override
     public void initialize(final RequestMonitor requestMonitor) {
         super.initialize(
-        		new RequestMonitor(ImmediateExecutor.getInstance(), requestMonitor) { 
+        		new ImmediateRequestMonitor(requestMonitor) { 
         			@Override
         			protected void handleSuccess() {
         				doInitialize(requestMonitor);
@@ -148,6 +148,7 @@ public class CSourceLookup extends AbstractDsfService implements ISourceLookup {
         super.shutdown(requestMonitor);
     }
 
+	@Override
     public void getDebuggerPath(ISourceLookupDMContext sourceLookupCtx, Object source, final DataRequestMonitor<String> rm) {
         if (!(source instanceof String)) {
             // In future if needed other elements such as URIs could be supported.
@@ -179,6 +180,7 @@ public class CSourceLookup extends AbstractDsfService implements ISourceLookup {
         }.schedule();       
     }
 
+	@Override
     public void getSource(ISourceLookupDMContext sourceLookupCtx, final String debuggerPath, final DataRequestMonitor<Object> rm) {
         if (!fDirectors.containsKey(sourceLookupCtx)) {
             rm.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID,

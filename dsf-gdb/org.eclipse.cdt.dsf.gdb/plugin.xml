@@ -67,4 +67,22 @@
             class="org.eclipse.cdt.dsf.gdb.internal.GdbPreferenceInitializer">
       </initializer>
    </extension>
+   <extension
+         point="org.eclipse.debug.core.processFactories">
+      <processFactory
+            class="org.eclipse.cdt.dsf.gdb.launching.GdbProcessFactory"
+            id="org.eclipse.cdt.dsf.gdb.GdbProcessFactory">
+      </processFactory>
+   </extension>
+   <extension
+		point = "org.eclipse.ui.trace.traceComponents">
+	<component
+		id="org.eclipse.cdt.dsf.gdb.component"
+		label="%cdt.dsf.gdb.component.label">
+		<bundle
+			consumed="true"
+			name="org.eclipse.cdt.dsf.gdb">
+		</bundle>
+	</component>
+   </extension>
 </plugin>

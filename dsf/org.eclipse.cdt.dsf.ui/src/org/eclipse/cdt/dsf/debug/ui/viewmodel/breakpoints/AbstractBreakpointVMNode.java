@@ -50,12 +50,13 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
 
     /**
      * Class that creates the element object for the corresponding breakpoints.  
-     * This element object will be populated in the breakpoitns view to represent
+     * This element object will be populated in the breakpoints view to represent
      * the given breakpoint.
      */
     abstract protected Object createBreakpiontElement(IBreakpoint bp);
     
-    public void update(final IHasChildrenUpdate[] updates) {
+    @Override
+	public void update(final IHasChildrenUpdate[] updates) {
         for (final IHasChildrenUpdate update : updates) {
             if (!checkUpdate(update)) continue;
             ((BreakpointVMProvider)getVMProvider()).getNestingCategoryBreakpoints(
@@ -74,7 +75,8 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
         }
     }
 
-    public void update(final IChildrenCountUpdate[] updates) {
+    @Override
+	public void update(final IChildrenCountUpdate[] updates) {
         for (final IChildrenCountUpdate update : updates) {
             if (!checkUpdate(update)) continue;
             ((BreakpointVMProvider)getVMProvider()).getNestingCategoryBreakpoints(
@@ -93,7 +95,8 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
         }
     }
     
-    public void update(IChildrenUpdate[] updates) {
+    @Override
+	public void update(IChildrenUpdate[] updates) {
         for (final IChildrenUpdate update : updates) {
             if (!checkUpdate(update)) continue;
             ((BreakpointVMProvider)getVMProvider()).getNestingCategoryBreakpoints(
@@ -126,7 +129,8 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
         }
     }
     
-    public int getDeltaFlags(Object event) {
+    @Override
+	public int getDeltaFlags(Object event) {
         if (event instanceof BreakpointsChangedEvent) {
             BreakpointsChangedEvent bpChangedEvent = ((BreakpointsChangedEvent)event);
             if (BreakpointsChangedEvent.Type.ADDED.equals(bpChangedEvent.getType())) {
@@ -148,7 +152,7 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
                 return IModelDelta.EXPAND | IModelDelta.SELECT;
             } 
         } 
-        else if (event instanceof DebugContextEvent && (((DebugContextEvent)event).getFlags() | DebugContextEvent.ACTIVATED) != 0) {
+        else if (event instanceof DebugContextEvent && (((DebugContextEvent)event).getFlags() & DebugContextEvent.ACTIVATED) != 0) {
             int flags = IModelDelta.NO_CHANGE;
             if ( Boolean.TRUE.equals(getVMProvider().getPresentationContext().getProperty(IBreakpointUIConstants.PROP_BREAKPOINTS_FILTER_SELECTION)) ) {
                 flags |= IModelDelta.CONTENT;
@@ -167,7 +171,8 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
         return 0;
     }
 
-    public void buildDelta(Object event, VMDelta parent, int nodeOffset, RequestMonitor rm) {
+    @Override
+	public void buildDelta(Object event, VMDelta parent, int nodeOffset, RequestMonitor rm) {
         if (event instanceof BreakpointsChangedEvent) {
             BreakpointsChangedEvent bpChangedEvent = ((BreakpointsChangedEvent)event);
             if (BreakpointsChangedEvent.Type.ADDED.equals(bpChangedEvent.getType())) {
@@ -198,7 +203,7 @@ public abstract class AbstractBreakpointVMNode extends AbstractVMNode {
                 }
             } 
         } 
-        else if (event instanceof DebugContextEvent && (((DebugContextEvent)event).getFlags() | DebugContextEvent.ACTIVATED) != 0) {
+        else if (event instanceof DebugContextEvent && (((DebugContextEvent)event).getFlags() & DebugContextEvent.ACTIVATED) != 0) {
             if ( Boolean.TRUE.equals(getVMProvider().getPresentationContext().getProperty(IBreakpointUIConstants.PROP_BREAKPOINTS_FILTER_SELECTION)) ) {
                 parent.setFlags(parent.getFlags() | IModelDelta.CONTENT);
             } 

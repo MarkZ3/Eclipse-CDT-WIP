@@ -51,7 +51,7 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
  */
 public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 	public static final String ER_ID = "org.eclipse.cdt.codan.internal.checkers.AbstractClassCreation"; //$NON-NLS-1$
-	private HashMap<ICPPClassType, ICPPMethod[]> pureVirtualMethodsCache = new HashMap<ICPPClassType, ICPPMethod[]>(); 
+	private final HashMap<ICPPClassType, ICPPMethod[]> pureVirtualMethodsCache = new HashMap<ICPPClassType, ICPPMethod[]>(); 
 
 	@Override
 	public void initPreferences(IProblemWorkingCopy problem) {
@@ -61,6 +61,7 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 				CheckerLaunchMode.RUN_ON_DEMAND);
 	}
 
+	@Override
 	public void processAst(IASTTranslationUnit ast) {
 		try {
 			ast.accept(new OnEachClass());
@@ -77,6 +78,7 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 			shouldVisitParameterDeclarations = true;
 		}
 
+		@Override
 		public int visit(IASTDeclaration declaration) {
 			// Looking for the variables declarations.
 			if (declaration instanceof IASTSimpleDeclaration) {
@@ -96,6 +98,7 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 			return PROCESS_CONTINUE;
 		}
 
+		@Override
 		public int visit(IASTParameterDeclaration parameterDecl) {
 			// Looking for parameters declaration. Skip references & pointers.
 			if (!hasPointerOrReference(parameterDecl.getDeclarator())) {
@@ -122,6 +125,7 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 			}
 		}
 		
+		@Override
 		public int visit(IASTExpression expression) {
 			if (expression instanceof ICPPASTNewExpression) {
 				// New expression.
@@ -184,15 +188,15 @@ public class AbstractClassInstantiationChecker extends AbstractIndexAstChecker {
 		 *  Checks whether specified type (class or typedef to the class) is an abstract class.
 		 *  If it is, reports violations on each pure virtual method 
 		 */
-		private void reportProblemsIfAbstract(IType typeToCheck, IASTNode problemNode ) {
-			IType unwindedType = CxxAstUtils.getInstance().unwindTypedef(typeToCheck);
+		private void reportProblemsIfAbstract(IType typeToCheck, IASTNode problemNode) {
+			IType unwindedType = CxxAstUtils.unwindTypedef(typeToCheck);
 			if (!(unwindedType instanceof ICPPClassType) || unwindedType instanceof IProblemBinding) {
 				return;
 			}
 			ICPPClassType classType = (ICPPClassType) unwindedType;
 			ICPPMethod[] pureVirtualMethods = pureVirtualMethodsCache.get(classType);
 			if (pureVirtualMethods == null) {
-				pureVirtualMethods = ClassTypeHelper.getPureVirtualMethods(classType);
+				pureVirtualMethods = ClassTypeHelper.getPureVirtualMethods(classType, problemNode);
 				pureVirtualMethodsCache.put(classType, pureVirtualMethods);
 			}
 			

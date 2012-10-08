@@ -21,7 +21,6 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.preference.IPreferenceStore;
-import org.eclipse.ui.texteditor.ITextEditor;
 
 /**
  * @author Alena
@@ -29,43 +28,20 @@ import org.eclipse.ui.texteditor.ITextEditor;
 public class CodanCReconciler implements ICReconcilingListener {
 	private CxxCodanReconciler reconsiler = new CxxCodanReconciler();
 
-	void install(ITextEditor editor) {
-		if (editor instanceof CEditor) {
-			initialize();
-			((CEditor) editor).addReconcileListener(this);
-		}
+	void install(CEditor editor) {
+		editor.addReconcileListener(this);
 	}
 
-	void uninstall(ITextEditor editor) {
-		if (editor instanceof CEditor) {
-			initialize();
-			((CEditor) editor).removeReconcileListener(this);
-		}
+	void uninstall(CEditor editor) {
+		editor.removeReconcileListener(this);
 	}
 
-	/**
-	 * 
-	 */
-	private void initialize() {
-		// nothing?
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.internal.ui.text.ICReconcilingListener#aboutToBeReconciled()
-	 */
+	@Override
 	public void aboutToBeReconciled() {
 		// nothing
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.internal.ui.text.ICReconcilingListener#reconciled(
-	 * 		org.eclipse.cdt.core.dom.ast.IASTTranslationUnit, boolean,
-	 * 		org.eclipse.core.runtime.IProgressMonitor)
-	 */
+	@Override
 	public void reconciled(IASTTranslationUnit ast, boolean force, IProgressMonitor progressMonitor) {
 		if (ast == null)
 			return;

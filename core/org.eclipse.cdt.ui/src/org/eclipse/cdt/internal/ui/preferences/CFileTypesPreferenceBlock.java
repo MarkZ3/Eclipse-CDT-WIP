@@ -62,7 +62,6 @@ import org.eclipse.cdt.internal.ui.util.SWTUtil;
  * for displaying/editing CDT file type associations
  */
 public class CFileTypesPreferenceBlock {
-
 	private static final int 	COL_PATTERN		= 0;
 	private static final int 	COL_DESCRIPTION	= 1;
 	private static final int 	COL_STATUS	= 2;
@@ -94,14 +93,17 @@ public class CFileTypesPreferenceBlock {
 	private class AssocContentProvider implements IStructuredContentProvider {
 		CFileTypeAssociation[] assocs;
 		
+		@Override
 		public Object[] getElements(Object inputElement) {
 			return assocs;
 		}
 
+		@Override
 		public void dispose() {
 			assocs = null;
 		}
 
+		@Override
 		public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
 			if (newInput instanceof CFileTypeAssociation[]) {	
 				assocs = (CFileTypeAssociation[]) newInput;
@@ -112,6 +114,7 @@ public class CFileTypesPreferenceBlock {
 	private class AssocLabelProvider implements ILabelProvider, ITableLabelProvider {
 		private ListenerList listeners = new ListenerList();
 		
+		@Override
 		public Image getColumnImage(Object element, int columnIndex) {
 			if (element instanceof CFileTypeAssociation) {
 				if (COL_PATTERN == columnIndex) {
@@ -121,6 +124,7 @@ public class CFileTypesPreferenceBlock {
 			return null;
 		}
 
+		@Override
 		public String getColumnText(Object element, int columnIndex) {
 			if (element instanceof CFileTypeAssociation) {
 				CFileTypeAssociation assoc = (CFileTypeAssociation) element;
@@ -143,31 +147,36 @@ public class CFileTypesPreferenceBlock {
 			return element.toString();
 		}
 
+		@Override
 		public void addListener(ILabelProviderListener listener) {
 			listeners.add(listener);
 		}
 
+		@Override
 		public void dispose() {
 			listeners.clear();
 			listeners = null;
 		}
 
+		@Override
 		public boolean isLabelProperty(Object element, String property) {
 			return false;
 		}
 
+		@Override
 		public void removeListener(ILabelProviderListener listener) {
 			listeners.remove(listener);
 		}
 
+		@Override
 		public Image getImage(Object element) {
 			return getColumnImage(element, 0);
 		}
 
+		@Override
 		public String getText(Object element) {
 			return getColumnText(element, 0);
 		}
-
 	}
 
 	public CFileTypesPreferenceBlock() {
@@ -253,6 +262,7 @@ public class CFileTypesPreferenceBlock {
 		fBtnNew.setLayoutData(gridData);
 		
 		fBtnNew.addListener(SWT.Selection, new Listener() {
+			@Override
 			public void handleEvent(Event e) {
 				handleAdd();
 			}
@@ -268,6 +278,7 @@ public class CFileTypesPreferenceBlock {
 		fBtnRemove.setLayoutData(gridData);
 		
 		fBtnRemove.addListener(SWT.Selection, new Listener() {
+			@Override
 			public void handleEvent(Event e) {
 				handleRemove();
 			}
@@ -283,6 +294,7 @@ public class CFileTypesPreferenceBlock {
 		fAssocViewer.setInput(getCFileTypeAssociations());
 
 		fAssocViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
 				handleSelectionChanged();
 			}
@@ -400,9 +412,9 @@ public class CFileTypesPreferenceBlock {
 
 	public IContentType[] getRegistedContentTypes() {
 		if (fContentTypes == null) {
-			String [] ids = CoreModel.getRegistedContentTypeIds();
+			String[] ids = CoreModel.getRegistedContentTypeIds();
 			IContentTypeManager manager = Platform.getContentTypeManager();
-			IContentType [] ctypes = new IContentType[ids.length];
+			IContentType[] ctypes = new IContentType[ids.length];
 			for (int i = 0; i < ids.length; i++) {
 				ctypes[i] = manager.getContentType(ids[i]);
 			}
@@ -502,8 +514,7 @@ public class CFileTypesPreferenceBlock {
 		IContentTypeSettings settings;
 		if (fInput == null) {
 			settings= assoc.getContentType();
-		}
-		else {
+		} else {
 			try {
 				settings= assoc.getContentType().getSettings(new ProjectScope(fInput));
 			} catch (CoreException e) {

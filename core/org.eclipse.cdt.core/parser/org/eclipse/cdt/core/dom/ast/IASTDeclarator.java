@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
+ *     Doug Schaefer (IBM) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -16,12 +16,11 @@ package org.eclipse.cdt.core.dom.ast;
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  */
-public interface IASTDeclarator extends IASTNode, IASTNameOwner {
-
+public interface IASTDeclarator extends IASTNameOwner, IASTAttributeOwner {
 	/**
 	 * Constant - empty declarator array
 	 */
-	public static final IASTDeclarator[] EMPTY_DECLARATOR_ARRAY = new IASTDeclarator[0];
+	public static final IASTDeclarator[] EMPTY_DECLARATOR_ARRAY = {};
 
 	/**
 	 * <code>POINTER_OPERATOR</code> represents the relationship between an
@@ -52,8 +51,7 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 			"IASTDeclarator.DECLARATOR_NAME - IASTName for IASTDeclarator"); //$NON-NLS-1$
 
 	/**
-	 * This is the list of pointer operators applied to the type for the
-	 * declarator.
+	 * This is the list of pointer operators applied to the type for the declarator.
 	 * 
 	 * @return array of IASTPointerOperator
 	 */
@@ -62,13 +60,12 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 	/**
 	 * Adds a pointer operator to the declarator.
 	 * 
-	 * @param operator
-	 *            <code>IASTPointerOperator</code> to be added.
+	 * @param operator a <code>IASTPointerOperator</code> to be added.
 	 */
 	public void addPointerOperator(IASTPointerOperator operator);
 
 	/**
-	 * If the declarator is nested in parentheses, this returns the declarator
+	 * If the declarator is nested in parentheses, returns the declarator
 	 * as found in those parentheses.
 	 * 
 	 * @return the nested declarator or null
@@ -78,7 +75,7 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 	public void setNestedDeclarator(IASTDeclarator nested);
 
 	/**
-	 * This returns the name of the declarator. If this is an abstract
+	 * Returns the name of the declarator. If this is an abstract
 	 * declarator, this will return an empty name.
 	 * 
 	 * @return the name of the declarator
@@ -86,7 +83,7 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 	public IASTName getName();
 
 	/**
-	 * Set the name of he declarator.
+	 * Sets the name of he declarator.
 	 * 
 	 * @param name
 	 *            <code>IASTName</code>
@@ -94,7 +91,7 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 	public void setName(IASTName name);
 
 	/**
-	 * This is the optional initializer for this declarator.
+	 * Returns the optional initializer for this declarator.
 	 * 
 	 * @return the initializer expression or null
 	 */
@@ -107,14 +104,16 @@ public interface IASTDeclarator extends IASTNode, IASTNameOwner {
 	 *            <code>IASTInitializer</code>
 	 */
 	public void setInitializer(IASTInitializer initializer);
-	
+
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTDeclarator copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTDeclarator copy(CopyStyle style);
 }

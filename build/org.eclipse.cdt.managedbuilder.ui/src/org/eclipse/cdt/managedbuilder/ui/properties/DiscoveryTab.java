@@ -24,10 +24,13 @@ import org.eclipse.cdt.build.core.scannerconfig.ICfgScannerConfigBuilderInfo2Set
 import org.eclipse.cdt.build.internal.core.scannerconfig.CfgDiscoveredPathManager;
 import org.eclipse.cdt.build.internal.core.scannerconfig.CfgScannerConfigUtil;
 import org.eclipse.cdt.build.internal.core.scannerconfig2.CfgScannerConfigProfileManager;
+import org.eclipse.cdt.core.language.settings.providers.ScannerDiscoveryLegacySupport;
 import org.eclipse.cdt.core.model.util.CDTListComparator;
 import org.eclipse.cdt.core.settings.model.ICConfigurationDescription;
 import org.eclipse.cdt.core.settings.model.ICResourceDescription;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
+import org.eclipse.cdt.internal.ui.language.settings.providers.LanguageSettingsProvidersPage;
+import org.eclipse.cdt.internal.ui.newui.StatusMessageLine;
 import org.eclipse.cdt.make.core.MakeCorePlugin;
 import org.eclipse.cdt.make.core.scannerconfig.IScannerConfigBuilderInfo2;
 import org.eclipse.cdt.make.core.scannerconfig.IScannerConfigBuilderInfo2Set;
@@ -46,7 +49,9 @@ import org.eclipse.cdt.managedbuilder.core.IInputType;
 import org.eclipse.cdt.managedbuilder.core.IResourceInfo;
 import org.eclipse.cdt.managedbuilder.core.ITool;
 import org.eclipse.cdt.managedbuilder.core.IToolChain;
+import org.eclipse.cdt.managedbuilder.core.ManagedBuildManager;
 import org.eclipse.cdt.managedbuilder.internal.ui.Messages;
+import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.newui.CDTPrefUtil;
 import org.eclipse.cdt.utils.ui.controls.ControlFactory;
 import org.eclipse.cdt.utils.ui.controls.TabFolderLayout;
@@ -103,6 +108,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 	private Button reportProblemsCheckBox;
 	private Combo profileComboBox;
 	private Composite profileOptionsComposite;
+	private Button clearButton;
 
 	private ICfgScannerConfigBuilderInfo2Set cbi;
 	private Map<InfoContext, IScannerConfigBuilderInfo2> baseInfoMap;
@@ -116,9 +122,11 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 
 	private DiscoveryPageWrapper wrapper = null;
 
+	private StatusMessageLine fStatusLine;
+
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.eclipse.jface.dialogs.IDialogPage#createControl(org.eclipse.swt.widgets
 	 * .Composite)
@@ -130,13 +138,13 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 		usercomp.setLayout(new GridLayout(1, false));
 
 		if (page.isForProject() || page.isForPrefs()) {
-			Group scopeGroup = setupGroup(usercomp, Messages.DiscoveryTab_0, 
+			Group scopeGroup = setupGroup(usercomp, Messages.DiscoveryTab_0,
 					1, GridData.FILL_HORIZONTAL);
 			scopeGroup.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 			scopeComboBox = new Combo(scopeGroup, SWT.DROP_DOWN | SWT.READ_ONLY | SWT.BORDER);
 			scopeComboBox.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-			scopeComboBox.add(Messages.DiscoveryTab_1); 
-			scopeComboBox.add(Messages.DiscoveryTab_2); 
+			scopeComboBox.add(Messages.DiscoveryTab_1);
+			scopeComboBox.add(Messages.DiscoveryTab_2);
 			scopeComboBox.addSelectionListener(new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent e) {
@@ -184,14 +192,17 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 		profileOptionsComposite.setLayoutData(gd);
 		profileOptionsComposite.setLayout(new TabFolderLayout());
 
+		fStatusLine = new StatusMessageLine(usercomp, SWT.LEFT, 2);
+		setEnablement();
+
 		sashForm.setWeights(DEFAULT_SASH_WEIGHTS);
 	}
 
 	private void createScannerConfigControls(Composite parent) {
-		autoDiscoveryGroup = setupGroup(parent, Messages.ScannerConfigOptionsDialog_scGroup_label, 
+		autoDiscoveryGroup = setupGroup(parent, Messages.ScannerConfigOptionsDialog_scGroup_label,
 				2, GridData.FILL_HORIZONTAL);
 
-		autoDiscoveryCheckBox = setupCheck(autoDiscoveryGroup, Messages.ScannerConfigOptionsDialog_scGroup_enabled_button, 
+		autoDiscoveryCheckBox = setupCheck(autoDiscoveryGroup, Messages.ScannerConfigOptionsDialog_scGroup_enabled_button,
 				2, GridData.FILL_HORIZONTAL);
 		autoDiscoveryCheckBox.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -204,10 +215,11 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 					buildInfo.setSelectedProfileId(id);
 					handleDiscoveryProfileChanged();
 				}
+				showStatusLine();
 			}
 		});
 		reportProblemsCheckBox = setupCheck(autoDiscoveryGroup,
-				Messages.ScannerConfigOptionsDialog_scGroup_problemReporting_enabled_button, 
+				Messages.ScannerConfigOptionsDialog_scGroup_problemReporting_enabled_button,
 				2, GridData.FILL_HORIZONTAL);
 		reportProblemsCheckBox.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -217,7 +229,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 		});
 
 		// Add profile combo box
-		setupLabel(autoDiscoveryGroup, Messages.ScannerConfigOptionsDialog_scGroup_selectedProfile_combo, 
+		setupLabel(autoDiscoveryGroup, Messages.ScannerConfigOptionsDialog_scGroup_selectedProfile_combo,
 				1, GridData.BEGINNING);
 		profileComboBox = new Combo(autoDiscoveryGroup, SWT.DROP_DOWN | SWT.READ_ONLY | SWT.BORDER);
 		profileComboBox.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
@@ -230,29 +242,29 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 				handleDiscoveryProfileChanged();
 			}
 		});
-		
+
 		// "Clear" label
 		@SuppressWarnings("unused")
-		Label clearLabel = ControlFactory.createLabel(autoDiscoveryGroup, Messages.DiscoveryTab_ClearDisoveredEntries); 
+		Label clearLabel = ControlFactory.createLabel(autoDiscoveryGroup, Messages.DiscoveryTab_ClearDisoveredEntries);
 
 		// "Clear" button
-		Button clearButton = ControlFactory.createPushButton(autoDiscoveryGroup, Messages.DiscoveryTab_Clear); 
+		clearButton = ControlFactory.createPushButton(autoDiscoveryGroup, Messages.DiscoveryTab_Clear);
 		GridData gd = (GridData) clearButton.getLayoutData();
 		gd.grabExcessHorizontalSpace = true;
 		//Bug 331783 - NLS: "Clear" button label in Makefile Project preferences truncated
 		//gd.widthHint = 80;
 		gd.horizontalAlignment = SWT.RIGHT;
-		
+
 		final Shell shell = parent.getShell();
 		clearButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				String title = Messages.DiscoveryTab_ClearEntries; 
+				String title = Messages.DiscoveryTab_ClearEntries;
 				try {
 					clearDiscoveredEntries();
-					MessageDialog.openInformation(shell, title, Messages.DiscoveryTab_DiscoveredEntriesCleared); 
+					MessageDialog.openInformation(shell, title, Messages.DiscoveryTab_DiscoveredEntriesCleared);
 				} catch (CoreException e) {
-					MessageDialog.openError(shell, title, Messages.DiscoveryTab_ErrorClearingEntries + e.getLocalizedMessage()); 
+					MessageDialog.openError(shell, title, Messages.DiscoveryTab_ErrorClearingEntries + e.getLocalizedMessage());
 				}
 			}
 		});
@@ -289,10 +301,10 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 
 	private void updateData() {
 		int selScope = 0;
-		String lblText = Messages.DiscoveryTab_5; 
+		String lblText = Messages.DiscoveryTab_5;
 		if (!cbi.isPerRcTypeDiscovery()) {
 			selScope = 1;
-			lblText = Messages.DiscoveryTab_8; 
+			lblText = Messages.DiscoveryTab_8;
 		}
 		if (scopeComboBox != null)
 			scopeComboBox.select(selScope);
@@ -318,7 +330,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 						s = tool.getName();
 				}
 				if (s == null)
-					s = Messages.DiscoveryTab_3; 
+					s = Messages.DiscoveryTab_3;
 			}
 			IScannerConfigBuilderInfo2 bi2 = infoMap.get(cfgInfoContext);
 			TableItem ti = new TableItem(resTable, SWT.NONE);
@@ -332,8 +344,39 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 			resTable.select((pos < len && pos > -1) ? pos : 0);
 			handleToolSelected();
 		} else {
-			setVisibility(Messages.DiscoveryTab_6); 
+			setVisibility(Messages.DiscoveryTab_6);
 		}
+
+		setEnablement();
+	}
+
+	private void setEnablement() {
+		ICConfigurationDescription cfgDescription = page.getResDesc().getConfiguration();
+		boolean isEnabled = !LanguageSettingsProvidersPage.isLanguageSettingsProvidersEnabled(getProject()) || ScannerDiscoveryLegacySupport.isMbsLanguageSettingsProviderOn(cfgDescription);
+
+		scopeComboBox.setEnabled(isEnabled);
+		resTable.setEnabled(isEnabled);
+		boolean isSCDEnabled = autoDiscoveryCheckBox.getSelection();
+		reportProblemsCheckBox.setEnabled(isEnabled && isSCDEnabled);
+		autoDiscoveryCheckBox.setEnabled(isEnabled);
+		autoDiscoveryGroup.setEnabled(isEnabled);
+		clearButton.setEnabled(isEnabled);
+
+		showStatusLine();
+	}
+
+	private void showStatusLine() {
+		ICConfigurationDescription cfgDescription = page.getResDesc().getConfiguration();
+		boolean isEnabled = !LanguageSettingsProvidersPage.isLanguageSettingsProvidersEnabled(getProject()) || ScannerDiscoveryLegacySupport.isMbsLanguageSettingsProviderOn(cfgDescription);
+		IStatus status = null;
+		if (isEnabled) {
+			if (autoDiscoveryCheckBox.getSelection()) {
+				status = new Status(IStatus.WARNING, CUIPlugin.PLUGIN_ID, "This discovery method is deprecated, use 'Preprocessor Include Paths' instead.");
+			}
+		} else {
+			status = new Status(IStatus.INFO, CUIPlugin.PLUGIN_ID, org.eclipse.cdt.internal.ui.newui.Messages.AbstractLangsListTab_MbsProviderNotEnabled);
+		}
+		fStatusLine.setErrorStatus(status);
 	}
 
 	private void setVisibility(String errMsg) {
@@ -361,7 +404,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 		return toolchain!=null
 			&& (toolchain.getId().equals(MAKEFILE_PROJECT_TOOLCHAIN_ID) || isMakefileProjectToolChain(toolchain.getSuperClass()));
 	}
-	
+
 	private void handleToolSelected() {
 		if (resTable.getSelectionCount() == 0)
 			return;
@@ -372,7 +415,13 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 		buildInfo = (IScannerConfigBuilderInfo2) ti.getData("info"); //$NON-NLS-1$
 		String selectedProfileId = buildInfo.getSelectedProfileId();
 		iContext = (CfgInfoContext) ti.getData("cont"); //$NON-NLS-1$
-		autoDiscoveryCheckBox.setSelection(buildInfo.isAutoDiscoveryEnabled()
+		boolean autodiscoveryEnabled2 = buildInfo.isAutoDiscoveryEnabled();
+		if (autodiscoveryEnabled2) {
+			IConfiguration cfg = iContext.getConfiguration();
+			ICConfigurationDescription cfgDescription = ManagedBuildManager.getDescriptionForConfiguration(cfg);
+			autodiscoveryEnabled2 = ScannerDiscoveryLegacySupport.isLegacyScannerDiscoveryOn(cfgDescription);
+		}
+		autoDiscoveryCheckBox.setSelection(autodiscoveryEnabled2
 				&& !selectedProfileId.equals(ScannerConfigProfileManager.NULL_PROFILE_ID));
 		reportProblemsCheckBox.setSelection(buildInfo.isProblemReportingEnabled());
 
@@ -400,13 +449,13 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 				// configuration-wide (all in tool-chain)
 				IConfiguration cfg = iContext.getConfiguration();
 				IToolChain toolchain = cfg!=null ? cfg.getToolChain() : null;
-				
+
 				if (toolchain==null) {
 					ManagedBuilderUIPlugin.log(new Status(IStatus.ERROR, ManagedBuilderUIPlugin.getUniqueIdentifier(),
 							"Toolchain=null while trying to get discovery profile per project")); //$NON-NLS-1$
 					return;
 				}
-				
+
 				if (isMakefileProjectToolChain(toolchain)) {
 					// for generic Makefile project let user choose any profile
 					contextProfiles = new TreeSet<String>(profilesList);
@@ -417,19 +466,19 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 					// GCC profile is a sensible default for user to start with
 					contextProfiles.add(GCC_PER_PROJECT_PROFILE);
 				}
-				
+
 			} else {
 				// per language (i.e. input type)
 				ITool tool = iContext.getTool();
-				if (tool==null) 
+				if (tool==null)
 					return;
-				
+
 				contextProfiles = CfgScannerConfigUtil.getAllScannerDiscoveryProfileIds(tool);
 			}
 		}
-		
+
 		visibleProfilesList = new ArrayList<String>(contextProfiles);
-		
+
 		realPages = new AbstractDiscoveryPage[visibleProfilesList.size()];
 		String[] labels = new String[visibleProfilesList.size()];
 		String[] profiles = new String[visibleProfilesList.size()];
@@ -537,11 +586,11 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 	}
 
 	/**
-	 * 
+	 *
 	 */
 	private void initializeProfilePageMap() {
 		GCCPerProjectSCDProfilePage.isSIConsoleEnabled = DefaultRunSIProvider.isConsoleEnabled();
-		
+
 		pagesList = new ArrayList<DiscoveryProfilePageConfiguration>(5);
 		IExtensionPoint point = Platform.getExtensionRegistry().getExtensionPoint(NAMESPACE, POINT);
 		if (point == null)
@@ -556,7 +605,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 
 	/**
 	 * Create a profile page only on request
-	 * 
+	 *
 	 * @author vhirsl
 	 */
 	protected static class DiscoveryProfilePageConfiguration {
@@ -602,13 +651,13 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 					ManagedBuilderUIPlugin.log(e);
 				}
 			} else {
-				IStatus status = new Status(IStatus.ERROR, ManagedBuilderUIPlugin.getUniqueIdentifier(), Messages.DiscoveryTab_7);	
+				IStatus status = new Status(IStatus.ERROR, ManagedBuilderUIPlugin.getUniqueIdentifier(), Messages.DiscoveryTab_7);
 				ManagedBuilderUIPlugin.log(status);
 			}
 		}
 
 		clearChangedDiscoveredInfos();
-		
+
 		DefaultRunSIProvider.setConsoleEnabled(GCCPerProjectSCDProfilePage.isSIConsoleEnabled);
 	}
 
@@ -632,7 +681,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 					realPages[i].performApply();
 					realPages[i].setVisible(false);
 				}
-			} 
+			}
 		}
 		buildInfo.setSelectedProfileId(savedId);
 		handleDiscoveryProfileChanged();
@@ -743,18 +792,22 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 	/**
 	 * IBuildInfoContainer methods - called from dynamic pages
 	 */
+	@Override
 	public IScannerConfigBuilderInfo2 getBuildInfo() {
 		return buildInfo;
 	}
 
+	@Override
 	public CfgInfoContext getContext() {
 		return iContext;
 	}
 
+	@Override
 	public IProject getProject() {
 		return page.getProject();
 	}
 
+	@Override
 	public ICConfigurationDescription getConfiguration() {
 		return getResDesc().getConfiguration();
 	}
@@ -771,7 +824,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 			}
 		}
 		updateData();
-		
+
 		DefaultRunSIProvider.setConsoleEnabled(false);
 	}
 
@@ -782,7 +835,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 
 	private void clearDiscoveredEntries() throws CoreException {
 		CfgInfoContext cfgInfoContext = getContext();
-		
+
 		IConfiguration cfg = cfgInfoContext.getConfiguration();
 		if (cfg==null) {
 			cfg = cfgInfoContext.getResourceInfo().getParent();
@@ -792,16 +845,16 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 					"Unexpected cfg=null while trying to clear discovery entries"); //$NON-NLS-1$
 			throw new CoreException(status);
 		}
-		
+
 		IProject project = (IProject) cfg.getOwner();
-		
+
 		DiscoveredPathInfo pathInfo = new DiscoveredPathInfo(project);
 		InfoContext infoContext = cfgInfoContext.toInfoContext();
-		
+
 		// 1. Remove scanner info from .metadata/.plugins/org.eclipse.cdt.make.core/Project.sc
 		DiscoveredScannerInfoStore dsiStore = DiscoveredScannerInfoStore.getInstance();
 		dsiStore.saveDiscoveredScannerInfoToState(project, infoContext, pathInfo);
-		
+
 		// 2. Remove scanner info from CfgDiscoveredPathManager cache and from the Tool
 		CfgDiscoveredPathManager cdpManager = CfgDiscoveredPathManager.getInstance();
 		cdpManager.removeDiscoveredInfo(project, cfgInfoContext);
@@ -814,7 +867,7 @@ public class DiscoveryTab extends AbstractCBuildPropertyTab implements IBuildInf
 			ScannerConfigProfileManager scpManager = ScannerConfigProfileManager.getInstance();
 			String selectedProfileId = buildInfo2.getSelectedProfileId();
 			SCProfileInstance profileInstance = scpManager.getSCProfileInstance(project, infoContext, selectedProfileId);
-			
+
 			IScannerInfoCollector collector = profileInstance.getScannerInfoCollector();
 			if (collector instanceof IScannerInfoCollectorCleaner) {
 				((IScannerInfoCollectorCleaner) collector).deleteAll(project);

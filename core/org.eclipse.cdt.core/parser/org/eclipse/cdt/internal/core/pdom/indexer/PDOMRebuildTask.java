@@ -54,10 +54,12 @@ public class PDOMRebuildTask implements IPDOMIndexerTask {
 		return progress;
 	}
 
+	@Override
 	public IPDOMIndexer getIndexer() {
 		return fIndexer;
 	}
 
+	@Override
 	public void run(IProgressMonitor monitor) throws InterruptedException {
 		monitor.subTask(NLS.bind(Messages.PDOMIndexerTask_collectingFilesTask, 
 				fIndexer.getProject().getElementName()));
@@ -88,7 +90,7 @@ public class PDOMRebuildTask implements IPDOMIndexerTask {
 	
 	private void clearIndex(ICProject project, IWritableIndex index) throws CoreException, InterruptedException {
 		// First clear the pdom
-		index.acquireWriteLock(0);
+		index.acquireWriteLock();
 		try {
 			index.clear();
 			IWritableIndexFragment wf= index.getWritableFragment();
@@ -96,7 +98,7 @@ public class PDOMRebuildTask implements IPDOMIndexerTask {
 				PDOMManager.writeProjectPDOMProperties((WritablePDOM) wf, project.getProject());
 			}
 		} finally {
-			index.releaseWriteLock(0);
+			index.releaseWriteLock();
 		}
 	}
 
@@ -113,7 +115,6 @@ public class PDOMRebuildTask implements IPDOMIndexerTask {
 		if (delegate instanceof PDOMIndexerTask) {
 			final PDOMIndexerTask pdomIndexerTask = (PDOMIndexerTask) delegate;
 			pdomIndexerTask.setUpdateFlags(IIndexManager.UPDATE_ALL);
-			pdomIndexerTask.setParseUpFront();
 			pdomIndexerTask.setWriteInfoToLog();
 		}
 		synchronized (this) {
@@ -121,10 +122,12 @@ public class PDOMRebuildTask implements IPDOMIndexerTask {
 		}
 	}
 
+	@Override
 	public synchronized IndexerProgress getProgressInformation() {
 		return fDelegate != null ? fDelegate.getProgressInformation() : fProgress;
 	}
 
+	@Override
 	public synchronized boolean acceptUrgentTask(IPDOMIndexerTask task) {
 		return fDelegate != null && fDelegate.acceptUrgentTask(task);
 	}

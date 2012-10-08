@@ -26,9 +26,8 @@ import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
-import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.ThreadSafe;
 import org.eclipse.cdt.dsf.concurrent.ThreadSafeAndProhibitedFromDsfExecutor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
@@ -316,6 +315,7 @@ public class MIInferiorProcess extends Process
     public void destroy() {
         try {
             fSession.getExecutor().execute(new DsfRunnable() {
+            	@Override
                 public void run() {
                     doDestroy();
                 }
@@ -353,7 +353,7 @@ public class MIInferiorProcess extends Process
         tracker.dispose();
         if (procService != null) {
         	IProcessDMContext procDmc = DMContexts.getAncestorOfType(fContainerDMContext, IProcessDMContext.class);
-        	procService.terminate(procDmc, new RequestMonitor(ImmediateExecutor.getInstance(), null));
+        	procService.terminate(procDmc, new ImmediateRequestMonitor());
         } else {
         	setTerminated();
         }
@@ -375,6 +375,7 @@ public class MIInferiorProcess extends Process
         return fErrorStreamPiped;
     }
     
+	@Override
     public void eventReceived(Object output) {
         for (MIOOBRecord oobr : ((MIOutput)output).getMIOOBRecords()) {
         	if (oobr instanceof MITargetStreamOutput) {
@@ -391,20 +392,24 @@ public class MIInferiorProcess extends Process
         }
     }
     
+	@Override
     public void commandQueued(ICommandToken token) {
         // No action 
     }
     
+	@Override
     public void commandSent(ICommandToken token) {
         if (token.getCommand() instanceof CLICommand<?>) {
             fSuppressTargetOutputCounter++;
         }
     }
     
+	@Override
     public void commandRemoved(ICommandToken token) {
         // No action 
     }
     
+	@Override
     public void commandDone(ICommandToken token, ICommandResult result) {
     	if (token.getCommand() instanceof CLICommand<?>) {
             fSuppressTargetOutputCounter--;

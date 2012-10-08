@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Broadcom Corporation and others.
+ * Copyright (c) 2011, 2012 Broadcom Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -71,11 +71,13 @@ public abstract class AbstractBuilderTest extends TestCase {
 		Job.getJobManager().cancel(CCorePlugin.getPDOMManager());
 		Job.getJobManager().join(CCorePlugin.getPDOMManager(), null);
 
-		// Clean-up any projects we were using
-		for (IProject project : projects) {
-			project.delete(true, null);
+		if (projects != null) {
+			// Clean-up any projects we were using
+			for (IProject project : projects) {
+				project.delete(true, null);
+			}
+			projects.clear();
 		}
-		projects.clear();
 	}
 
 	/**
@@ -95,6 +97,7 @@ public abstract class AbstractBuilderTest extends TestCase {
 		try {
 			// batch changes
 			IWorkspaceRunnable body = new IWorkspaceRunnable() {
+				@Override
 				public void run(IProgressMonitor monitor) throws CoreException {
 					getWorkspace().build(configs, kind, true, monitor);
 				}

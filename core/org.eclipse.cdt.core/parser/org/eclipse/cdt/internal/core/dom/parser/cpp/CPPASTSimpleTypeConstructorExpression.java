@@ -11,26 +11,28 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
-import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.PRVALUE;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.prvalueType;
-
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTInitializer;
+import org.eclipse.cdt.core.dom.ast.IASTInitializerClause;
 import org.eclipse.cdt.core.dom.ast.IBasicType.Kind;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConstructorInitializer;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTDeclSpecifier;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTInitializerClause;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTInitializerList;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTSimpleTypeConstructorExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPBasicType;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalTypeId;
 
 public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
         ICPPASTSimpleTypeConstructorExpression {
 	private ICPPASTDeclSpecifier fDeclSpec;
 	private IASTInitializer fInitializer;
-	private IType fType;
+	private ICPPEvaluation fEvaluation;
 
     public CPPASTSimpleTypeConstructorExpression() {
 	}
@@ -40,10 +42,12 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
 		setInitializer(init);
 	}
 
+	@Override
 	public CPPASTSimpleTypeConstructorExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTSimpleTypeConstructorExpression copy(CopyStyle style) {
 		CPPASTSimpleTypeConstructorExpression copy = new CPPASTSimpleTypeConstructorExpression();
 		copy.setDeclSpecifier(fDeclSpec == null ? null : fDeclSpec.copy(style));
@@ -55,14 +59,17 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
 		return copy;
 	}
 
+	@Override
 	public ICPPASTDeclSpecifier getDeclSpecifier() {
 		return fDeclSpec;
 	}
 
+	@Override
 	public IASTInitializer getInitializer() {
 		return fInitializer;
 	}
 
+	@Override
 	public void setDeclSpecifier(ICPPASTDeclSpecifier declSpec) {
     	assertNotFrozen();
     	fDeclSpec = declSpec;
@@ -72,6 +79,7 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
     	}
     }
 
+	@Override
 	public void setInitializer(IASTInitializer initializer) {
     	assertNotFrozen();
     	fInitializer = initializer;
@@ -80,22 +88,43 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
     		initializer.setPropertyInParent(INITIALIZER);
     	}
     }
-
-    public IType getExpressionType() {
-		if (fType == null) {
-			fType= prvalueType(CPPVisitor.createType(fDeclSpec));
+	
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEvaluation == null) {
+			final IType type = CPPVisitor.createType(fDeclSpec);
+			ICPPEvaluation[] args= null;
+			if (fInitializer instanceof ICPPASTConstructorInitializer) {
+				IASTInitializerClause[] a = ((ICPPASTConstructorInitializer) fInitializer).getArguments();
+				args= new ICPPEvaluation[a.length];
+				for (int i = 0; i < a.length; i++) {
+					args[i]= ((ICPPASTInitializerClause) a[i]).getEvaluation();
+				}
+				fEvaluation= new EvalTypeId(type, args);
+			} else if (fInitializer instanceof ICPPASTInitializerList) {
+				fEvaluation= new EvalTypeId(type, ((ICPPASTInitializerList) fInitializer).getEvaluation());
+			} else {
+				fEvaluation= EvalFixed.INCOMPLETE;
+			}
 		}
-		return fType;
+		return fEvaluation;
 	}
 
+    @Override
+	public IType getExpressionType() {
+    	return getEvaluation().getTypeOrFunctionSet(this);
+    }
+    
+	@Override
+	public ValueCategory getValueCategory() {
+    	return getEvaluation().getValueCategory(this);
+	}
+
+	@Override
 	public boolean isLValue() {
 		return false;
 	}
 	
-	public ValueCategory getValueCategory() {
-		return PRVALUE;
-	}
-
 	@Override
 	public boolean accept(ASTVisitor action) {
         if (action.shouldVisitExpressions) {
@@ -122,7 +151,8 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
         return true;
     }
 
-    @Deprecated
+    @Override
+	@Deprecated
     public int getSimpleType() {
     	IType type= getExpressionType();
     	if (type instanceof ICPPBasicType) {
@@ -158,7 +188,8 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
 		return t_unspecified;
     }
     
-    @Deprecated
+    @Override
+	@Deprecated
     public void setSimpleType(int value) {
 		CPPASTSimpleDeclSpecifier declspec = new CPPASTSimpleDeclSpecifier();
     	switch(value) {
@@ -206,7 +237,8 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
     	setDeclSpecifier(declspec);
     }
     
-    @Deprecated
+    @Override
+	@Deprecated
     public IASTExpression getInitialValue() {
     	if (fInitializer instanceof ICPPASTConstructorInitializer) {
     		return ((ICPPASTConstructorInitializer) fInitializer).getExpression();
@@ -214,7 +246,8 @@ public class CPPASTSimpleTypeConstructorExpression extends ASTNode implements
     	return null;
     }
     
-    @Deprecated
+    @Override
+	@Deprecated
     public void setInitialValue(IASTExpression expression) {
     	ICPPASTConstructorInitializer init= new CPPASTConstructorInitializer();
     	init.setExpression(expression);

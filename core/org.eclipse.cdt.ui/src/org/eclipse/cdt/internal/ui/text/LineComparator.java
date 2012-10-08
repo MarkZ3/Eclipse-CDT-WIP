@@ -18,7 +18,6 @@ import org.eclipse.jface.text.IRegion;
 
 import org.eclipse.cdt.ui.CUIPlugin;
 
-
 /**
  * This implementation of <code>IRangeComparator</code> compares lines of a document.
  * The lines are compared using a DJB hash function.
@@ -47,14 +46,16 @@ public class LineComparator implements IRangeComparator {
 	/*
      * @see org.eclipse.compare.rangedifferencer.IRangeComparator#getRangeCount()
      */
-    public int getRangeCount() {
+    @Override
+	public int getRangeCount() {
         return fDocument.getNumberOfLines();
     }
 
     /*
      * @see org.eclipse.compare.rangedifferencer.IRangeComparator#rangesEqual(int, org.eclipse.compare.rangedifferencer.IRangeComparator, int)
      */
-    public boolean rangesEqual(int thisIndex, IRangeComparator other, int otherIndex) {
+    @Override
+	public boolean rangesEqual(int thisIndex, IRangeComparator other, int otherIndex) {
 		try {
 			return getHash(thisIndex) == ((LineComparator) other).getHash(otherIndex);
 		} catch (BadLocationException e) {
@@ -66,6 +67,7 @@ public class LineComparator implements IRangeComparator {
 	/*
 	 * @see org.eclipse.compare.rangedifferencer.IRangeComparator#skipRangeComparison(int, int, org.eclipse.compare.rangedifferencer.IRangeComparator)
 	 */
+	@Override
 	public boolean skipRangeComparison(int length, int maxLength, IRangeComparator other) {
 		return false;
 	}

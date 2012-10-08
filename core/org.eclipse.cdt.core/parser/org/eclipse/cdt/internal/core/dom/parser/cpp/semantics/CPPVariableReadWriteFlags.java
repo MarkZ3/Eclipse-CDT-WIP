@@ -6,12 +6,14 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Patrick Hofer - [Bug 328528]
+ *     Markus Schorn - initial API and implementation
+ *     Patrick Hofer - [Bug 328528]
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.dom.parser.cpp.semantics;
 
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
+import org.eclipse.cdt.core.dom.ast.IASTExpression;
+import org.eclipse.cdt.core.dom.ast.IASTIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTImplicitName;
 import org.eclipse.cdt.core.dom.ast.IASTImplicitNameOwner;
 import org.eclipse.cdt.core.dom.ast.IASTName;
@@ -24,10 +26,13 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConstructorInitializer;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTUnaryExpression;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPReferenceType;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeContainer;
 import org.eclipse.cdt.internal.core.dom.parser.VariableReadWriteFlags;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownType;
 
 /**
  * Helper class to determine whether a variable is accessed for reading and/or writing.
@@ -35,7 +40,6 @@ import org.eclipse.cdt.internal.core.dom.parser.VariableReadWriteFlags;
  * with the variable.
  */
 public final class CPPVariableReadWriteFlags extends VariableReadWriteFlags {
-	
 	private static CPPVariableReadWriteFlags INSTANCE= new CPPVariableReadWriteFlags();
 
 	public static int getReadWriteFlags(IASTName variable) {
@@ -51,6 +55,17 @@ public final class CPPVariableReadWriteFlags extends VariableReadWriteFlags {
 		return super.rwAnyNode(node, indirection);
 	}
 	
+	@Override
+	protected int rwInDeclarator(IASTDeclarator parent, int indirection) {
+		IType type = CPPVisitor.createType(parent);
+		if (type instanceof ICPPUnknownType ||
+				type instanceof ICPPClassType &&
+				!TypeTraits.hasTrivialDefaultConstructor((ICPPClassType) type, parent)) {
+			return WRITE;
+		}
+		return super.rwInDeclarator(parent, indirection);
+	}
+
 	private int rwInCtorInitializer(IASTNode node, int indirection, ICPPASTConstructorInitializer parent) {
 		IASTNode grand= parent.getParent();
 		if (grand instanceof IASTDeclarator) {
@@ -93,6 +108,16 @@ public final class CPPVariableReadWriteFlags extends VariableReadWriteFlags {
 	}
 
 	@Override
+	protected int rwInFunctionName(IASTExpression node) {
+		if (!(node instanceof IASTIdExpression)) {
+			IType type= node.getExpressionType();
+			if (type instanceof ICPPFunctionType && !((ICPPFunctionType) type).isConst())
+				return READ | WRITE;
+		}
+		return READ;
+	}
+
+	@Override
 	protected int rwAssignmentToType(IType type, int indirection) {
 		if (indirection == 0) {
 			if (!(type instanceof ICPPReferenceType) || ((ICPPReferenceType) type).isRValueReference()) {
@@ -100,7 +125,7 @@ public final class CPPVariableReadWriteFlags extends VariableReadWriteFlags {
 			}
 			type= ((ICPPReferenceType) type).getType();
 		}
-		while(indirection > 0 && (type instanceof ITypeContainer)) {
+		while (indirection > 0 && (type instanceof ITypeContainer)) {
 			if (type instanceof IPointerType) {
 				indirection--;
 			}
@@ -109,8 +134,7 @@ public final class CPPVariableReadWriteFlags extends VariableReadWriteFlags {
 		if (indirection == 0) {
 			if (type instanceof IQualifierType) {
 				return ((IQualifierType) type).isConst() ? READ : READ | WRITE;
-			}
-			else if (type instanceof IPointerType) {
+			} else if (type instanceof IPointerType) {
 				return ((IPointerType) type).isConst() ? READ : READ | WRITE;
 			}
 		}

@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.pdom.indexer;
 
@@ -30,6 +30,7 @@ import org.eclipse.cdt.core.parser.IScannerInfo;
 import org.eclipse.cdt.core.parser.ScannerInfo;
 import org.eclipse.cdt.internal.core.CCoreInternals;
 import org.eclipse.cdt.internal.core.parser.InternalParserUtil;
+import org.eclipse.cdt.internal.core.pdom.AbstractIndexerTask.UnusedHeaderStrategy;
 import org.eclipse.cdt.internal.core.pdom.IndexerInputAdapter;
 import org.eclipse.cdt.internal.core.resources.PathCanonicalizationStrategy;
 import org.eclipse.cdt.utils.UNCPathConverter;
@@ -146,7 +147,7 @@ public class ProjectIndexerInputAdapter extends IndexerInputAdapter {
 	public String getASTPath(IIndexFileLocation ifl) {
 		IPath path= IndexLocationFactory.getAbsolutePath(ifl);
 		if (path != null) {
-			return path.toString();
+			return path.toOSString();
 		}
 		return ifl.getURI().getPath();
 	}
@@ -178,6 +179,24 @@ public class ProjectIndexerInputAdapter extends IndexerInputAdapter {
 	}
 
 	@Override
+	public long getFileSize(IIndexFileLocation ifl) {
+		String fullPath= ifl.getFullPath();
+		IPath location= null;
+		if (fullPath != null) {
+			IResource res= ResourcesPlugin.getWorkspace().getRoot().findMember(new Path(fullPath));
+			if (res != null) {
+				location = res.getLocation();
+			}
+		} else {
+			location= IndexLocationFactory.getAbsolutePath(ifl);
+		}
+		if (location != null) {
+			return location.toFile().length();
+		}
+		return 0;
+	}
+
+	@Override
 	public String getEncoding(IIndexFileLocation ifl) {
 		String fullPath= ifl.getFullPath();
 		if (fullPath != null) {
@@ -193,7 +212,7 @@ public class ProjectIndexerInputAdapter extends IndexerInputAdapter {
 	}
 
 	@Override
-	public AbstractLanguage[] getLanguages(Object tuo, boolean bothForHeaders) {
+	public AbstractLanguage[] getLanguages(Object tuo, UnusedHeaderStrategy strategy) {
 		if (tuo instanceof PotentialTranslationUnit) {
 			if (fLangC != null) {
 				if (fLangCpp != null) {
@@ -211,14 +230,23 @@ public class ProjectIndexerInputAdapter extends IndexerInputAdapter {
 		try {
 			ILanguage lang= tu.getLanguage();
 			if (lang instanceof AbstractLanguage) {
-				if (bothForHeaders && tu.isHeaderUnit()) {
+				final boolean both = strategy == UnusedHeaderStrategy.useBoth;
+				final boolean useC = strategy == UnusedHeaderStrategy.useC;
+				final boolean useCpp = strategy == UnusedHeaderStrategy.useCPP;
+				if ((both || useC || useCpp) && tu.isHeaderUnit()) {
 					String filename= tu.getElementName();
 					if (filename.indexOf('.') >= 0) {
 						final String contentTypeId= tu.getContentTypeId();
 						if (contentTypeId.equals(CCorePlugin.CONTENT_TYPE_CXXHEADER) && fLangC != null) {
-							return new AbstractLanguage[] {(AbstractLanguage) lang, fLangC};
+							if (both) 
+								return new AbstractLanguage[] {(AbstractLanguage) lang, fLangC};
+							if (useC)
+								return new AbstractLanguage[] {fLangC};
 						} else if (contentTypeId.equals(CCorePlugin.CONTENT_TYPE_CHEADER) && fLangCpp != null) {
-							return new AbstractLanguage[] {(AbstractLanguage) lang, fLangCpp};
+							if (both) 
+								return new AbstractLanguage[] {(AbstractLanguage) lang, fLangCpp};
+							if (useCpp)
+								return new AbstractLanguage[] {fLangCpp};
 						}
 					}
 				}
@@ -292,7 +320,7 @@ public class ProjectIndexerInputAdapter extends IndexerInputAdapter {
 		ITranslationUnit tu= (ITranslationUnit) tuo;
 		if (tu.getLocation() == null)
 			return null;
-		
+
 		final FileContent reader= FileContent.create(tu);
 		if (reader != null) {
 			IIndexFileLocation ifl= IndexLocationFactory.getIFL(tu);

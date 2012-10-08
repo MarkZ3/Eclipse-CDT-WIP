@@ -24,6 +24,7 @@ import java.util.Map;
 import org.eclipse.cdt.debug.core.model.provisional.IMemoryRenderingViewportProvider;
 import org.eclipse.cdt.debug.core.model.provisional.IMemorySpaceAwareMemoryBlockRetrieval;
 import org.eclipse.cdt.debug.internal.core.CRequest;
+import org.eclipse.cdt.debug.ui.memory.memorybrowser.api.IMemoryBrowser;
 import org.eclipse.cdt.debug.ui.provisional.IRepositionableMemoryRendering2;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
@@ -81,14 +82,11 @@ import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.StackLayout;
 import org.eclipse.swt.dnd.DND;
-import org.eclipse.swt.dnd.DragSource;
 import org.eclipse.swt.dnd.DropTarget;
 import org.eclipse.swt.dnd.DropTargetAdapter;
 import org.eclipse.swt.dnd.DropTargetEvent;
-import org.eclipse.swt.dnd.FileTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
-import org.eclipse.swt.dnd.TransferData;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -125,8 +123,9 @@ import org.eclipse.ui.progress.WorkbenchJob;
  * 
  */
 
-@SuppressWarnings("restriction")
-public class MemoryBrowser extends ViewPart implements IDebugContextListener, IMemoryRenderingSite, IDebugEventSetListener
+@SuppressWarnings("restriction") /* Debug Platform's Flexibile hierarchy is still provisional */
+
+public class MemoryBrowser extends ViewPart implements IDebugContextListener, IMemoryRenderingSite, IDebugEventSetListener, IMemoryBrowser
 {
 	public static final String ID = "org.eclipse.cdt.debug.ui.memory.memorybrowser.MemoryBrowser";  //$NON-NLS-1$
 	
@@ -193,10 +192,15 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 	
 	/**
 	 * Property we attach to a CTabItem to track the expression we used to
-	 * create memory blocks on the tab's behalf. Value is an
-	 * {@link String}
+	 * create memory blocks on the tab's behalf. Value is a String.
 	 */
-	private final static String KEY_EXPRESSION    = "EXPRESSION"; //$NON-NLS-1$
+	private final static String KEY_EXPRESSION = "EXPRESSION"; //$NON-NLS-1$
+
+	/**
+	 * Property we attach to a CTabItem to track the address associated with 
+	 * KEY_EXPRESSION. Value is a BigInteger
+	 */
+	private final static String KEY_EXPRESSION_ADDRESS = "EXPRESSION_ADDRESS"; //$NON-NLS-1$
 
 	public static final String PREF_DEFAULT_RENDERING = "org.eclipse.cdt.debug.ui.memory.memorybrowser.defaultRendering";  //$NON-NLS-1$
 	
@@ -219,6 +223,7 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 		/*
 		 * @see org.eclipse.swt.dnd.DropTargetListener#drop(org.eclipse.swt.dnd.DropTargetEvent)
 		 */
+		@Override
 		public void drop(final DropTargetEvent event) {
 			if (TextTransfer.getInstance().isSupportedType( event.currentDataType )) {
 				if ( event.data instanceof String ) {
@@ -231,6 +236,7 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 		/*
 		 * @see org.eclipse.swt.dnd.DropTargetListener#dragEnter(org.eclipse.swt.dnd.DropTargetEvent)
 		 */
+		@Override
 		public void dragEnter(DropTargetEvent event) {
 			event.detail   = DND.DROP_COPY;
 			event.feedback = DND.FEEDBACK_NONE;
@@ -282,27 +288,32 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 		}
 		
 		fGotoAddressBar.getButton(IDialogConstants.OK_ID).addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				performGo(false);
 			}
 		});
 		
 		fGotoAddressBar.getButton(GoToAddressBarWidget.ID_GO_NEW_TAB).addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				performGo(true);
 			}
 		});
 		
 		fGotoAddressBar.getExpressionWidget().addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetDefaultSelected(SelectionEvent e) {
 				performGo(false);
 			}
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				performGo(false);
 			}
 		});
 		
 		fGotoMemorySpaceControl.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				if(fGotoMemorySpaceControl.getItemCount() >= 2) {
 					final CTabFolder activeFolder = (CTabFolder) fStackLayout.topControl;
@@ -475,6 +486,17 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 			performGo(inNewTab, expression, memorySpace);	
 		}
 	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.cdt.debug.ui.memory.memorybrowser.api.IMemoryBrowser#getActiveRetrieval()
+	 */
+	public IMemoryBlockRetrieval getActiveRetrieval() {
+		final CTabFolder activeFolder = (CTabFolder) fStackLayout.topControl;
+		if (activeFolder == null)
+			return null;
+		
+		return (IMemoryBlockRetrieval) activeFolder.getData(KEY_RETRIEVAL);		
+	}
 	
 	public void performGo(boolean inNewTab, final String expression, final String memorySpaceId) {
 		final CTabFolder activeFolder = (CTabFolder) fStackLayout.topControl;
@@ -534,7 +556,7 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 					@Override
 					public void run() {
 						try {
-							BigInteger newBase = getExpressionAddress(retrieval, expression, context, memorySpaceId);
+							final BigInteger newBase = getExpressionAddress(retrieval, expression, context, memorySpaceId);
 							IMemoryBlockExtension block = (IMemoryBlockExtension) renderingFinal.getMemoryBlock();
 							if (block.supportBaseAddressModification()) {
 								block.setBaseAddress(newBase);
@@ -550,6 +572,7 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 								public void run() {
 									CTabItem selection = activeFolder.getSelection();
 									selection.setData(KEY_EXPRESSION, expression);
+									selection.setData(KEY_EXPRESSION_ADDRESS, newBase);											
 									fGotoAddressBar.handleExpressionStatus(Status.OK_STATUS);
 									updateLabel(selection, renderingFinal);
 								}
@@ -596,12 +619,35 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 			if (memorySpaceID != null) {
 				IMemoryBlockRetrieval retrieval = (IMemoryBlockRetrieval) tab.getParent().getData(KEY_RETRIEVAL);
 				if (retrieval instanceof IMemorySpaceAwareMemoryBlockRetrieval) {
-					label = ((IMemorySpaceAwareMemoryBlockRetrieval)retrieval).encodeAddress("0x" + viewportAddress.toString(16), memorySpaceID) + ' ' + renderingType;
+					label = ((IMemorySpaceAwareMemoryBlockRetrieval)retrieval).encodeAddress("0x" + viewportAddress.toString(16), memorySpaceID);
 				}
 			}
 			if (label == null) {
-				label = "0x" + viewportAddress.toString(16) + ' ' + renderingType;
+				label = "0x" + viewportAddress.toString(16);
 			}
+			
+			// If the expression that was went to ("Go") is not a hex address,
+			// or it is but the user has scrolled/paged, then show the
+			// expression after the viewport hex address. Additionally, if some
+			// scrolling/paging has moved the viewport, also show the relative
+			// displacement. E.g.,
+			// 		"0x10020 - gSomeVar(+20) <Traditional>"
+			// (for a tab where the user did a "Go" to "gSomeVar" then paged
+			// down, and where gSomeVar is at 0x10000)
+			//
+			String expression = (String)tab.getData(KEY_EXPRESSION);
+			BigInteger evaluatedAddress = (BigInteger)tab.getData(KEY_EXPRESSION_ADDRESS);	
+			if(expression != null && !expression.equals("0x" + viewportAddress.toString(16))) {
+				label += " - " + expression;
+				BigInteger delta = evaluatedAddress.subtract(viewportAddress);
+				if (!delta.equals(BigInteger.ZERO)) {
+					label += "(";
+					label += delta.signum() < 0 ? '+' : '-';
+					label += "0x" + delta.abs().toString(16) +")";				
+				}
+			}
+			
+			label += ' ' + renderingType;;
 			
 			// Allow the memory block to customize the label. The platform's
 			// Memory view support this (it was done in the call to
@@ -956,7 +1002,6 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 						public void widgetDefaultSelected(SelectionEvent e) {}
 						public void widgetSelected(SelectionEvent e) {
 							CTabItem tabItem = (CTabItem)e.item;
-							updateExpression(tabItem);
 							updateMemorySpaceControlSelection(tabItem);
 					        fGotoAddressBar.loadSavedExpressions(context, fGotoMemorySpaceControl.isVisible() ? fGotoMemorySpaceControl.getText() : null);
 							getSite().getSelectionProvider().setSelection(new StructuredSelection(tabItem.getData(KEY_RENDERING)));
@@ -967,9 +1012,6 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 					tabFolder.setData(KEY_RETRIEVAL, retrieval);
 					fContextFolders.put(retrieval, tabFolder);
 					fStackLayout.topControl = tabFolder;
-					// set empty initial expression 
-					fGotoAddressBar.setExpressionText(""); //$NON-NLS-1$
-					fGotoAddressBar.loadSavedExpressions(context, fGotoMemorySpaceControl.isVisible() ? fGotoMemorySpaceControl.getText() : null);
 				}
 				// update debug context to the new selection
 				tabFolder.setData(KEY_CONTEXT, context);
@@ -1002,7 +1044,6 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 					setMemorySpaceControlVisible(false);					
 				}
 
-				updateExpression(activeFolder.getSelection());
 				updateMemorySpaceControlSelection(activeFolder.getSelection());
 		        fGotoAddressBar.loadSavedExpressions(context, fGotoMemorySpaceControl.isVisible() ? fGotoMemorySpaceControl.getText() : null);
 				
@@ -1159,8 +1200,9 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 		tab.setData(KEY_MEMORY_SPACE, memorySpaceId);
 		tab.setData(KEY_CONTAINER, container);
 		tab.setData(KEY_RENDERING_TYPE, type);
+		tab.setData(KEY_EXPRESSION, expression);
+		tab.setData(KEY_EXPRESSION_ADDRESS, ((IMemoryBlockExtension)rendering.getMemoryBlock()).getBigBaseAddress());
 		getSite().getSelectionProvider().setSelection(new StructuredSelection(tab.getData(KEY_RENDERING)));
-		updateLabel(tab, rendering);
 		
 		return rendering;
 	}
@@ -1292,5 +1334,57 @@ public class MemoryBrowser extends ViewPart implements IDebugContextListener, IM
 			job.setSystem(true);
 			job.schedule();
 		}
+	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.cdt.debug.ui.memory.memorybrowser.api.IMemoryBrowser#go(java.lang.String, java.lang.String, boolean)
+	 */
+	public void go(String expression, String memorySpaceId, boolean inNewTab)
+			throws CoreException {
+		if (expression == null) {
+			throw new IllegalArgumentException("expression cannot be null");
+		}
+		expression = expression.trim();
+		if (expression.length() == 0) {
+			throw new IllegalArgumentException("expression cannot be empty");
+		}
+		if (!fGotoMemorySpaceControl.isDisposed() && fGotoMemorySpaceControl.isVisible()) {
+			if (memorySpaceId == null) {
+				// if caller passed null, use whatever memory space is selected in the control
+				memorySpaceId = fGotoMemorySpaceControl.getText();
+				if (memorySpaceId.equals(NA_MEMORY_SPACE_ID)) {
+					memorySpaceId = null;
+				}
+			}
+			else {
+				// if caller passed empty string, it means n/a (same as "----" in the selector)			
+				memorySpaceId = memorySpaceId.trim();
+				if (memorySpaceId.length() == 0) {
+					memorySpaceId = null;
+				}
+				else {
+					// Check that the ID requested by the user is a valid one
+					if (fGotoMemorySpaceControl.indexOf(memorySpaceId) == -1) {
+						throw new IllegalArgumentException("unrecognized memory space ID");
+					}
+				}
+				
+				fGotoMemorySpaceControl.setText(memorySpaceId == null ? NA_MEMORY_SPACE_ID : memorySpaceId);
+			}
+		}
+		
+		fGotoAddressBar.setExpressionText(expression);
+		performGo(inNewTab, expression, memorySpaceId);		
+	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.cdt.debug.ui.memory.memorybrowser.api.IMemoryBrowser#getSelectedMemorySpace()
+	 */
+	public String getSelectedMemorySpace() {
+		if (!fGotoMemorySpaceControl.isDisposed() && fGotoMemorySpaceControl.isVisible()) {
+			String id = fGotoMemorySpaceControl.getText();
+			return id.equals(NA_MEMORY_SPACE_ID) ? null : id; 
+		}
+		return null;
 	}
 }

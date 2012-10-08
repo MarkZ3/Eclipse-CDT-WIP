@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2010, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     Markus Schorn (Wind River Systems) - initial API and implementation
  *     Jens Elmenthaler - http://bugs.eclipse.org/173458 (camel case completion)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -152,7 +153,7 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 					IASTExpression expr= rtstmt.getReturnValue();
 					if (expr != null) {
 						IType type= expr.getExpressionType();
-						type= Conversions.lvalue_to_rvalue(type);
+						type= Conversions.lvalue_to_rvalue(type, false);
 						if (type != null) {
 							return type;
 						}
@@ -171,18 +172,22 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return IType.EMPTY_TYPE_ARRAY;
 	}
 	
+	@Override
 	public final String getName() {
 		return ""; //$NON-NLS-1$
 	}
 
+	@Override
 	public char[] getNameCharArray() {
 		return CharArrayUtils.EMPTY;
 	}
 
+	@Override
 	public IScope getScope() {
 		return CPPVisitor.getContainingScope(fLambdaExpression);
 	}
 
+	@Override
 	public ICPPClassScope getCompositeScope() {
 		if (fScope == null) {
 			fScope= new ClassScope();
@@ -190,26 +195,32 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return fScope;
 	}
 
+	@Override
 	public int getKey() {
 		return k_class;
 	}
 
+	@Override
 	public String[] getQualifiedName() {
 		return CPPVisitor.getQualifiedName(this);
 	}
 
+	@Override
 	public char[][] getQualifiedNameCharArray() {
 		return CPPVisitor.getQualifiedNameCharArray(this);
 	}
 
+	@Override
 	public boolean isGloballyQualified() {
 		return getOwner() == null;
 	}
 
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.CPP_LINKAGE;
 	}
 	
+	@Override
 	public boolean isSameType(IType type) {
 		if (type == this)
 			return true;
@@ -218,18 +229,22 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return false;
 	}
 	
+	@Override
 	public ICPPBase[] getBases() {
 		return ICPPBase.EMPTY_BASE_ARRAY;
 	}
 
+	@Override
 	public ICPPField[] getFields() {
 		return ICPPField.EMPTY_CPPFIELD_ARRAY;
 	}
 
+	@Override
 	public ICPPField[] getDeclaredFields() {
 		return ICPPField.EMPTY_CPPFIELD_ARRAY;
 	}
 
+	@Override
 	public ICPPMethod[] getMethods() {
 		if (fMethods == null) {
 			fMethods= createMethods();
@@ -237,14 +252,17 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return fMethods;
 	}
 
+	@Override
 	public ICPPMethod[] getAllDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
 
+	@Override
 	public ICPPMethod[] getDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
 
+	@Override
 	public ICPPConstructor[] getConstructors() {
 		ICPPMethod[] methods= getMethods();
 		int i= 0;
@@ -258,14 +276,17 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return result;
 	}
 
+	@Override
 	public IBinding[] getFriends() {
 		return IBinding.EMPTY_BINDING_ARRAY;
 	}
 	
+	@Override
 	public ICPPClassType[] getNestedClasses() {
 		return ICPPClassType.EMPTY_CLASS_ARRAY;
 	}
 
+	@Override
 	public IField findField(String name) {
 		return null;
 	}
@@ -290,38 +311,52 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 		return null;
 	}
 
+	@Override
 	public IBinding getOwner() {
 		return CPPVisitor.findDeclarationOwner(fLambdaExpression, true);
 	}
 	
+	@Override
 	public boolean isAnonymous() {
 		return false;
 	}
 	
+	@Override
 	public IASTNode getDefinition() {
 		return fLambdaExpression;
 	}
 
+	@Override
 	public IASTNode[] getDeclarations() {
 		return IASTNode.EMPTY_NODE_ARRAY;
 	}
 
+	@Override
 	public void addDefinition(IASTNode node) {
 	}
 
+	@Override
 	public void addDeclaration(IASTNode node) {
+	}
+
+	@Override
+	public boolean isFinal() {
+		return false;
 	}
 
 
 	private final class ClassScope implements ICPPClassScope {
+		@Override
 		public EScopeKind getKind() {
 			return EScopeKind.eClassType;
 		}
 
+		@Override
 		public IName getScopeName() {
 			return null;
 		}
 
+		@Override
 		public IScope getParent() {
 			return getScope();
 		}
@@ -356,42 +391,59 @@ public class CPPClosureType extends PlatformObject implements ICPPClassType, ICP
 			return result.toArray(new IBinding[result.size()]);
 		}
 
+		@Override
 		public IBinding[] find(String name) {
 			return getBindings(name.toCharArray());
 		}
 
+		@Override
 		public IBinding getBinding(IASTName name, boolean resolve) {
 			if (name instanceof ICPPASTTemplateId)
 				return null;
 			return getBinding(name.getSimpleID());
 		}
 
+		@Override
 		public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet acceptLocalBindings) {
 			return getBinding(name, resolve);
 		}
 
+		@Override
 		public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup) {
-			if (name instanceof ICPPASTTemplateId)
-				return IBinding.EMPTY_BINDING_ARRAY;
-			
-			if (prefixLookup)
-				return getPrefixBindings(name.getSimpleID());
-			return getBindings(name.getSimpleID());
+			return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
 		}
 
+		/**
+		 * @deprecated Use {@link #getBindings(ScopeLookupData)} instead
+		 */
+		@Deprecated
+		@Override
 		public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup,
 				IIndexFileSet acceptLocalBindings) {
-			return getBindings(name, resolve, prefixLookup);
+					return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+				}
+
+		@Override
+		public IBinding[] getBindings(ScopeLookupData lookup) {
+			if (lookup.getLookupName() instanceof ICPPASTTemplateId)
+				return IBinding.EMPTY_BINDING_ARRAY;
+			
+			if (lookup.isPrefixLookup())
+				return getPrefixBindings(lookup.getLookupKey());
+			return getBindings(lookup.getLookupKey());
 		}
 
+		@Override
 		public ICPPClassType getClassType() {
 			return CPPClosureType.this;
 		}
 
+		@Override
 		public ICPPMethod[] getImplicitMethods() {
 			return getMethods();
 		}
 
+		@Override
 		public ICPPConstructor[] getConstructors() {
 			return CPPClosureType.this.getConstructors();
 		}

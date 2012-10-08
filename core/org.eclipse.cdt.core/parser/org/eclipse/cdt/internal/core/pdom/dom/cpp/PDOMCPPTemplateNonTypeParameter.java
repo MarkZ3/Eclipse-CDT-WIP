@@ -6,10 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Bryan Wilkinson (QNX) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
- *    Sergey Prigogin (Google)
- *    Andrew Ferguson (Symbian)
+ *     Bryan Wilkinson (QNX) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
+ *     Andrew Ferguson (Symbian)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
@@ -24,7 +24,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateNonTypeParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.internal.core.Util;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateArgument;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateNonTypeArgument;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
 import org.eclipse.cdt.internal.core.pdom.db.Database;
 import org.eclipse.cdt.internal.core.pdom.dom.IPDOMMemberOwner;
@@ -35,14 +35,13 @@ import org.eclipse.core.runtime.CoreException;
 /**
  * Binding for template non-type parameter in the index.
  */
-class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMemberOwner,
-		ICPPTemplateNonTypeParameter, IPDOMCPPTemplateParameter {
-
+class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding
+		implements IPDOMMemberOwner, ICPPTemplateNonTypeParameter, IPDOMCPPTemplateParameter {
 	private static final int TYPE_OFFSET= PDOMCPPBinding.RECORD_SIZE;
 	private static final int PARAMETERID= TYPE_OFFSET + Database.TYPE_SIZE;
-	private static final int DEFAULTVAL= PARAMETERID + Database.VALUE_SIZE;
+	private static final int DEFAULTVAL= PARAMETERID + 4;
 	@SuppressWarnings("hiding")
-	protected static final int RECORD_SIZE = DEFAULTVAL + Database.PTR_SIZE;
+	protected static final int RECORD_SIZE = DEFAULTVAL + Database.VALUE_SIZE;
 
 	private int fCachedParamID= -1;
 	private volatile IType fType;
@@ -68,12 +67,13 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 		return IIndexCPPBindingConstants.CPP_TEMPLATE_NON_TYPE_PARAMETER;
 	}
 	
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		try {
 			IValue val= getLinkage().loadValue(record + DEFAULTVAL);
 			if (val == null) 
 				return null;
-			return new CPPTemplateArgument(val, getType());
+			return new CPPTemplateNonTypeArgument(val, getType());
 		} catch (CoreException e) {
 			CCorePlugin.log(e);
 			return null;
@@ -96,25 +96,30 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 		}
 	}
 
+	@Override
 	public void forceDelete(PDOMLinkage linkage) throws CoreException {
 		getDBName().delete();
-		linkage.storeType(record+TYPE_OFFSET, null);
-		linkage.storeValue(record+DEFAULTVAL, null);
+		linkage.storeType(record + TYPE_OFFSET, null);
+		linkage.storeValue(record + DEFAULTVAL, null);
 	}
 
+	@Override
 	public short getParameterPosition() {
 		return (short) getParameterID();
 	}
 	
+	@Override
 	public short getTemplateNestingLevel() {
 		readParamID();
-		return (short)(getParameterID() >> 16);
+		return (short) (getParameterID() >> 16);
 	}
 	
+	@Override
 	public boolean isParameterPack() {
 		return getType() instanceof ICPPParameterPackType;
 	}
 
+	@Override
 	public int getParameterID() {
 		readParamID();
 		return fCachedParamID;
@@ -136,6 +141,7 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 		linkage.storeType(record + TYPE_OFFSET, newType);
 	}
 
+	@Override
 	public void configure(ICPPTemplateParameter param) {
 		try {
 			if (param instanceof ICPPTemplateNonTypeParameter) {
@@ -161,6 +167,7 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 		}
 	}
 
+	@Override
 	public IType getType() {
 		if (fType == null) {
 			try {
@@ -172,24 +179,36 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 		return fType;
 	}
 
+	@Override
 	public IValue getInitialValue() {
 		return null;
 	}
+
+	@Override
 	public boolean isAuto() {
 		return false;
 	}
+
+	@Override
 	public boolean isExtern() {
 		return false;
 	}
+
+	@Override
 	public boolean isRegister() {
 		return false;
 	}
+
+	@Override
 	public boolean isStatic() {
 		return false;
 	}
+	@Override
 	public boolean isExternC() {
 		return false;
 	}
+
+	@Override
 	public boolean isMutable() {
 		return false;
 	}
@@ -198,12 +217,13 @@ class PDOMCPPTemplateNonTypeParameter extends PDOMCPPBinding implements IPDOMMem
 	public Object clone() {
 		throw new UnsupportedOperationException(); 
 	}
+
 	/**
 	 * @deprecated
 	 */
+	@Override
 	@Deprecated
 	public IASTExpression getDefault() {
 		return null;
 	}
-
 }

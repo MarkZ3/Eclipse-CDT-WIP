@@ -20,74 +20,110 @@ import java.util.Set;
 
 import org.eclipse.cdt.debug.ui.CDebugUIPlugin;
 import org.eclipse.cdt.debug.ui.preferences.ReadOnlyFieldEditor;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.jface.preference.FieldEditor;
 import org.eclipse.swt.widgets.Composite;
 
 class DefaultCBreakpointUIContribution implements ICBreakpointsUIContribution {
+    
+    private final IConfigurationElement fConfig;
+    private String mainElement;
 	private String attLabel;
 	private String attId;
 	private String fieldEditorClassName;
+	private String fieldEditorFactoryClass;
+	private IFieldEditorFactory fieldEditorFactory;
 	private String markerType;
 	private String modelId;
 	private String attType;
 	private Map<String, String> valueLabels = new LinkedHashMap<String, String>();
 	private Map<String, String> conditions = new HashMap<String, String>();
 
+	DefaultCBreakpointUIContribution(IConfigurationElement config) {
+	    fConfig = config;
+	}
+	
+	
+	@Override
 	public String getId() {
 		return attId;
 	}
 
+	@Override
 	public String getLabel() {
 		return attLabel;
 	}
 
+	@Override
 	public String getDebugModelId() {
 		return modelId;
 	}
 
-	static private Class[] fieldSignature = new Class[] { String.class, String.class,
+	@Override
+	public String getMainElement() {
+	    return mainElement;
+	}
+	
+	static private Class<?>[] fieldSignature = new Class[] { String.class, String.class,
 			Composite.class };
 
+	@Override
 	public FieldEditor getFieldEditor(String name, String labelText, Composite parent) {
-		String className = fieldEditorClassName;
-		if (fieldEditorClassName == null) {
-			className = ReadOnlyFieldEditor.class.getName();
-		}
-		try {
-			Class cclass = Class.forName(className);
-			Constructor constructor = cclass.getConstructor(fieldSignature);
-			FieldEditor editor = (FieldEditor) constructor.newInstance(name, labelText, parent);
-			if (editor instanceof ICBreakpointsUIContributionUser) {
-				((ICBreakpointsUIContributionUser)editor).setContribution(this);
-			}
-			return editor;
-		} catch (Exception e) {
-			// cannot happened, would have happened when loading extension
-			CDebugUIPlugin.log(e);
-			return null;
-		}
+        if (fieldEditorFactory != null) {
+            return fieldEditorFactory.createFieldEditor(name, labelText, parent);
+        } else if (fieldEditorFactoryClass != null) {
+            try {
+                fieldEditorFactory = (IFieldEditorFactory) fConfig.createExecutableExtension("fieldEditorFactory"); //$NON-NLS-1$
+            } catch (CoreException e) {
+                CDebugUIPlugin.log(e);
+                return null;
+            } 
+            return fieldEditorFactory.createFieldEditor(name, labelText, parent);
+        } else if (fieldEditorClassName != null) {
+            try {
+                @SuppressWarnings("unchecked")
+                Class<FieldEditor> cclass = (Class<FieldEditor>)Class.forName(fieldEditorClassName);
+                Constructor<FieldEditor> constructor = cclass.getConstructor(fieldSignature);
+                FieldEditor editor = constructor.newInstance(name, labelText, parent);
+                if (editor instanceof ICBreakpointsUIContributionUser) {
+                    ((ICBreakpointsUIContributionUser)editor).setContribution(this);
+                }
+                return editor;
+            } catch (Exception e) {
+                CDebugUIPlugin.log(e);
+                return null;
+            }
+        } else {
+            return new ReadOnlyFieldEditor(name, labelText, parent);
+        }
 	}
 
+	@Override
 	public String getLabelForValue(String value) {
 		if (valueLabels.containsKey(value))
 			return valueLabels.get(value);
 		return value;
 	}
 
+	@Override
 	public String getMarkerType() {
 		return markerType;
 	}
 
+	@Override
 	public String[] getPossibleValues() {
 		Set<String> set = valueLabels.keySet();
 		return set.toArray(new String[set.size()]);
 	}
 
+	@Override
 	public String getType() {
 		return attType;
 	}
 
-	public boolean isApplicable(Map properties) {
+	@Override
+	public boolean isApplicable(Map<String, Object> properties) {
 		for (Object key : properties.keySet()) {
 			String value = conditions.get(key);
 			if (value != null) {
@@ -100,6 +136,10 @@ class DefaultCBreakpointUIContribution implements ICBreakpointsUIContribution {
 		return true;
 	}
 
+	public void setMainElement(String mainElement) {
+	    this.mainElement = mainElement;
+	}
+	
 	public void setLabel(String attLabel) {
 		this.attLabel = attLabel;
 	}
@@ -110,6 +150,10 @@ class DefaultCBreakpointUIContribution implements ICBreakpointsUIContribution {
 
 	public void setControlClass(String controlClass) {
 		this.fieldEditorClassName = controlClass;
+	}
+	
+	public void setFieldEditorFactory(String factoryClass) {
+	    fieldEditorFactoryClass = factoryClass;
 	}
 
 	public void setMarkerType(String markerId) {
@@ -150,6 +194,7 @@ class DefaultCBreakpointUIContribution implements ICBreakpointsUIContribution {
 		return attId + " " + attLabel; //$NON-NLS-1$
 	}
 
+	@Override
 	public String getFieldEditorClassName() {
 		return fieldEditorClassName;
 	}

@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2009 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * QNX Software Systems - Initial API and implementation
- * IBM Corporation
+ *     QNX Software Systems - Initial API and implementation
+ *     IBM Corporation
  *******************************************************************************/
 package org.eclipse.cdt.launch.ui;
 
@@ -20,15 +20,12 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.ILaunchConfigurationDialog;
-import org.eclipse.debug.ui.StringVariableSelectionDialog;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.accessibility.AccessibleAdapter;
 import org.eclipse.swt.accessibility.AccessibleEvent;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
@@ -70,6 +67,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#createControl(org.eclipse.swt.widgets.Composite)
 	 */
+	@Override
 	public void createControl(Composite parent) {
 		Font font = parent.getFont();
 		Composite comp = new Composite(parent, SWT.NONE);
@@ -102,6 +100,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 		fPrgmArgumentsText = new Text(group, SWT.MULTI | SWT.WRAP | SWT.BORDER | SWT.V_SCROLL);
 		fPrgmArgumentsText.getAccessible().addAccessibleListener(
 			new AccessibleAdapter() {
+				@Override
 				public void getName(AccessibleEvent e) {
 					e.result = LaunchMessages.CArgumentsTab_C_Program_Arguments;
 				}
@@ -113,44 +112,15 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 		fPrgmArgumentsText.setLayoutData(gd);
 		fPrgmArgumentsText.setFont(font);
 		fPrgmArgumentsText.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent evt) {
 				updateLaunchConfigurationDialog();
 			}
 		});
-		fArgumentVariablesButton= createPushButton(group, LaunchMessages.CArgumentsTab_Variables, null); 
+		fArgumentVariablesButton= createVariablesButton(group, LaunchMessages.CArgumentsTab_Variables, fPrgmArgumentsText); 
 		gd = new GridData(GridData.HORIZONTAL_ALIGN_END);
 		fArgumentVariablesButton.setLayoutData(gd);
-		fArgumentVariablesButton.addSelectionListener(new SelectionAdapter() {
-			/* (non-Javadoc)
-			 * @see org.eclipse.swt.events.SelectionAdapter#widgetSelected(org.eclipse.swt.events.SelectionEvent)
-			 */
-			public void widgetSelected(SelectionEvent arg0) {
-				handleVariablesButtonSelected(fPrgmArgumentsText);
-			}
-		});
 		addControlAccessibleListener(fArgumentVariablesButton, fArgumentVariablesButton.getText()); // need to strip the mnemonic from buttons
-	}
-
-	/**
-	 * A variable entry button has been pressed for the given text
-	 * field. Prompt the user for a variable and enter the result
-	 * in the given field.
-	 */
-	protected void handleVariablesButtonSelected(Text textField) {
-		String variable = getVariable();
-		if (variable != null) {
-			textField.append(variable);
-		}
-	}
-
-	/**
-	 * Prompts the user to choose and configure a variable and returns
-	 * the resulting string, suitable to be used as an attribute.
-	 */
-	private String getVariable() {
-		StringVariableSelectionDialog dialog = new StringVariableSelectionDialog(getShell());
-		dialog.open();
-		return dialog.getVariableExpression();
 	}
 
 	public void addControlAccessibleListener(Control control, String controlName) {
@@ -168,6 +138,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 		ControlAccessibleListener(String name) {
 			controlName = name;
 		}
+		@Override
 		public void getName(AccessibleEvent e) {
 			e.result = controlName;
 		}
@@ -176,6 +147,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#isValid(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public boolean isValid(ILaunchConfiguration config) {
 		return fWorkingDirectoryBlock.isValid(config);
 	}
@@ -183,6 +155,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#setDefaults(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		config.setAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_ARGUMENTS, (String) null);
 		config.setAttribute(ICDTLaunchConfigurationConstants.ATTR_WORKING_DIRECTORY, (String) null);
@@ -191,6 +164,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#initializeFrom(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public void initializeFrom(ILaunchConfiguration configuration) {
 		try {
 			fPrgmArgumentsText.setText(configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_ARGUMENTS, "")); //$NON-NLS-1$
@@ -205,6 +179,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#performApply(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+	@Override
 	public void performApply(ILaunchConfigurationWorkingCopy configuration) {
 		configuration.setAttribute(
 				ICDTLaunchConfigurationConstants.ATTR_PROGRAM_ARGUMENTS,
@@ -236,6 +211,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getName()
 	 */
+	@Override
 	public String getName() {
 		return LaunchMessages.CArgumentsTab_Arguments; 
 	}
@@ -243,6 +219,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#setLaunchConfigurationDialog(org.eclipse.debug.ui.ILaunchConfigurationDialog)
 	 */
+	@Override
 	public void setLaunchConfigurationDialog(ILaunchConfigurationDialog dialog) {
 		super.setLaunchConfigurationDialog(dialog);
 		fWorkingDirectoryBlock.setLaunchConfigurationDialog(dialog);
@@ -251,6 +228,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getErrorMessage()
 	 */
+	@Override
 	public String getErrorMessage() {
 		String m = super.getErrorMessage();
 		if (m == null) {
@@ -262,6 +240,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getMessage()
 	 */
+	@Override
 	public String getMessage() {
 		String m = super.getMessage();
 		if (m == null) {
@@ -273,6 +252,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getImage()
 	 */
+	@Override
 	public Image getImage() {
 		return LaunchImages.get(LaunchImages.IMG_VIEW_ARGUMENTS_TAB);
 	}
@@ -280,6 +260,7 @@ public class CArgumentsTab extends CLaunchConfigurationTab {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.ui.AbstractLaunchConfigurationTab#updateLaunchConfigurationDialog()
 	 */
+	@Override
 	protected void updateLaunchConfigurationDialog() {
 		super.updateLaunchConfigurationDialog();
 	}

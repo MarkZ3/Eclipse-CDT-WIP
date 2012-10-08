@@ -11,23 +11,21 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring;
 
-import org.eclipse.swt.widgets.Shell;
-
 import org.eclipse.jface.dialogs.IDialogConstants;
-
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizard;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
+import org.eclipse.swt.widgets.Shell;
 
 /**
- * A helper class to activate the UI of a refactoring
+ * A helper class to activate the UI of a refactoring.
  */
 public class RefactoringStarter {
 	private RefactoringStatus fStatus;
 
 	public boolean activate(RefactoringWizard wizard, Shell parent, String dialogTitle, int saveMode) {
 		RefactoringSaveHelper saveHelper= new RefactoringSaveHelper(saveMode);
-		if (!canActivate(saveHelper, parent))
+		if (!saveHelper.saveEditors(parent))
 			return false;
 
 		try {
@@ -47,9 +45,5 @@ public class RefactoringStarter {
 
 	public RefactoringStatus getInitialConditionCheckingStatus() {
 		return fStatus;
-	}
-
-	private boolean canActivate(RefactoringSaveHelper saveHelper, Shell shell) {
-		return saveHelper.saveEditors(shell);
 	}
 }

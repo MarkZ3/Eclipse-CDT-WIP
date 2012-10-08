@@ -19,7 +19,6 @@ import org.eclipse.cdt.utils.ui.controls.ControlFactory;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
-import org.eclipse.jface.layout.PixelConverter;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StackLayout;
 import org.eclipse.swt.layout.GridData;
@@ -68,15 +67,19 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		Composite comp = ControlFactory.createCompositeEx( comp1, 2, GridData.FILL_BOTH );
 		((GridLayout)comp.getLayout()).makeColumnsEqualWidth = false;
 		comp.setFont( comp1.getFont() );
+		
+		createConnectionWidgets(comp);		
+	}
+
+	protected void createConnectionWidgets(Composite comp) {
 		fConnectionField.doFillIntoGrid( comp, 2 );
 		((GridData)fConnectionField.getComboControl( null ).getLayoutData()).horizontalAlignment = GridData.BEGINNING;
-		PixelConverter converter = new PixelConverter( comp );
 		fConnectionStack = ControlFactory.createCompositeEx( comp, 1, GridData.FILL_BOTH );
 		StackLayout stackLayout = new StackLayout();
 		fConnectionStack.setLayout( stackLayout );
 		((GridData)fConnectionStack.getLayoutData()).horizontalSpan = 2;
 		fTCPBlock.createBlock( fConnectionStack );
-		fSerialBlock.createBlock( fConnectionStack );		
+		fSerialBlock.createBlock( fConnectionStack );
 	}
 
 	private ComboDialogField createConnectionField() {
@@ -85,6 +88,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		field.setItems( fConnections );
 		field.setDialogFieldListener( new IDialogFieldListener() {
 
+			@Override
 			public void dialogFieldChanged( DialogField f ) {
 				if ( !isInitializing() )
 					connectionTypeChanged();
@@ -111,6 +115,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		fConnectionStack.layout();
 	}
 
+	@Override
 	public boolean isValid( ILaunchConfiguration launchConfig ) {
 		if ( super.isValid( launchConfig ) ) {
 			setErrorMessage( null );
@@ -136,6 +141,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		return false;
 	}
 
+	@Override
 	public void initializeFrom( ILaunchConfiguration configuration ) {
 		setInitializing( true );
 		super.initializeFrom( configuration );
@@ -152,6 +158,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		setInitializing( false );
 	}
 
+	@Override
 	public void performApply( ILaunchConfigurationWorkingCopy configuration ) {
 		super.performApply( configuration );
 		if ( fConnectionField != null )
@@ -160,6 +167,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		fSerialBlock.performApply( configuration );
 	}
 
+	@Override
 	public void setDefaults( ILaunchConfigurationWorkingCopy configuration ) {
 		super.setDefaults( configuration );
 		configuration.setAttribute( IGDBServerMILaunchConfigurationConstants.ATTR_REMOTE_TCP, false );
@@ -167,6 +175,7 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 		fSerialBlock.setDefaults( configuration );
 	}
 
+	@Override
 	protected boolean isInitializing() {
 		return fIsInitializing;
 	}
@@ -178,8 +187,17 @@ public class GDBServerDebuggerPage extends StandardGDBDebuggerPage {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.mi.internal.ui.GDBDebuggerPage#createTabs(org.eclipse.swt.widgets.TabFolder)
 	 */
+	@Override
 	public void createTabs( TabFolder tabFolder ) {
 		super.createTabs( tabFolder );
 		createConnectionTab( tabFolder );
+	}
+
+	public void dispose() {
+		fTCPBlock.dispose();
+		fSerialBlock.dispose();
+		fConnectionStack.dispose();
+		fConnectionField.dispose();
+		super.dispose();
 	}
 }

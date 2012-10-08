@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Google, Inc and others.
+ * Copyright (c) 2011, 2012 Google, Inc and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -34,6 +34,8 @@ import org.eclipse.ui.preferences.IWorkbenchPreferenceContainer;
 import org.eclipse.cdt.ui.PreferenceConstants;
 import org.eclipse.cdt.utils.ui.controls.ControlFactory;
 
+import org.eclipse.cdt.internal.corext.codemanipulation.StubUtility;
+
 import org.eclipse.cdt.internal.ui.dialogs.IStatusChangeListener;
 import org.eclipse.cdt.internal.ui.dialogs.StatusInfo;
 import org.eclipse.cdt.internal.ui.util.NameComposer;
@@ -51,6 +53,7 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 	private static final String EXAMPLE_CONSTANT_NAME = "MY_CONSTANT"; //$NON-NLS-1$
 	private static final String EXAMPLE_VARIABLE_NAME = "myVariable"; //$NON-NLS-1$
 	private static final String EXAMPLE_FIELD_NAME = "myField"; //$NON-NLS-1$
+	private static final String EXAMPLE_METHOD_NAME = "myMethod"; //$NON-NLS-1$
 	private static final String EXAMPLE_CLASS_NAME = "MyClass"; //$NON-NLS-1$
 
 	private final String[] CAPITALIZATION_VALUES = {
@@ -81,6 +84,10 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 	private static final Key KEY_FIELD_WORD_DELIMITER = getCDTUIKey(PreferenceConstants.NAME_STYLE_FIELD_WORD_DELIMITER);
 	private static final Key KEY_FIELD_PREFIX = getCDTUIKey(PreferenceConstants.NAME_STYLE_FIELD_PREFIX);
 	private static final Key KEY_FIELD_SUFFIX = getCDTUIKey(PreferenceConstants.NAME_STYLE_FIELD_SUFFIX);
+	private static final Key KEY_METHOD_CAPITALIZATION = getCDTUIKey(PreferenceConstants.NAME_STYLE_METHOD_CAPITALIZATION);
+	private static final Key KEY_METHOD_WORD_DELIMITER = getCDTUIKey(PreferenceConstants.NAME_STYLE_METHOD_WORD_DELIMITER);
+	private static final Key KEY_METHOD_PREFIX = getCDTUIKey(PreferenceConstants.NAME_STYLE_METHOD_PREFIX);
+	private static final Key KEY_METHOD_SUFFIX = getCDTUIKey(PreferenceConstants.NAME_STYLE_METHOD_SUFFIX);
 	private static final Key KEY_GETTER_CAPITALIZATION = getCDTUIKey(PreferenceConstants.NAME_STYLE_GETTER_CAPITALIZATION);
 	private static final Key KEY_GETTER_WORD_DELIMITER = getCDTUIKey(PreferenceConstants.NAME_STYLE_GETTER_WORD_DELIMITER);
 	private static final Key KEY_GETTER_PREFIX = getCDTUIKey(PreferenceConstants.NAME_STYLE_GETTER_PREFIX);
@@ -120,6 +127,10 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 				KEY_FIELD_WORD_DELIMITER,
 				KEY_FIELD_PREFIX,
 				KEY_FIELD_SUFFIX,
+				KEY_METHOD_CAPITALIZATION,
+				KEY_METHOD_WORD_DELIMITER,
+				KEY_METHOD_PREFIX,
+				KEY_METHOD_SUFFIX,
 				KEY_GETTER_CAPITALIZATION,
 				KEY_GETTER_WORD_DELIMITER,
 				KEY_GETTER_PREFIX,
@@ -181,6 +192,14 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 				.setWordDelimiterKey(KEY_FIELD_WORD_DELIMITER)
 				.setPrefixKey(KEY_FIELD_PREFIX)
 				.setSuffixKey(KEY_FIELD_SUFFIX)
+				.setNameValidator(IDENTIFIER_VALIDATOR);
+		new Category(PreferencesMessages.NameStyleBlock_method_node,
+				PreferencesMessages.NameStyleBlock_method_node_description, EXAMPLE_METHOD_NAME,
+				codeCategory)
+				.setCapitalizationKey(KEY_METHOD_CAPITALIZATION)
+				.setWordDelimiterKey(KEY_METHOD_WORD_DELIMITER)
+				.setPrefixKey(KEY_METHOD_PREFIX)
+				.setSuffixKey(KEY_METHOD_SUFFIX)
 				.setNameValidator(IDENTIFIER_VALIDATOR);
 		new Category(PreferencesMessages.NameStyleBlock_getter_node,
 				PreferencesMessages.NameStyleBlock_getter_node_description, EXAMPLE_FIELD_NAME,
@@ -405,7 +424,7 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 	@Override
 	protected void validateSettings(Key changedKey, String oldValue, String newValue) {
 		StatusInfo status = new StatusInfo();
-		if (selectedCategory != null) {
+		if (selectedCategory != null && changedKey != null) {
 			NameValidator validator = selectedCategory.getNameValidator();
 			if (changedKey.equals(selectedCategory.getPrefixKey()) ||
 					changedKey.equals(selectedCategory.getAlternativePrefixKey())) {
@@ -440,7 +459,7 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 		private Key prefixKey;
 		private Key alternativePrefixKey;
 		private Key suffixKey;
-		private String seedName;
+		private final String seedName;
 		private Category seedNameGenerator;
 		private NameValidator nameValidator;
 
@@ -572,7 +591,7 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 			String name = seedNameGenerator != null ?
 					seedNameGenerator.composeExampleName(settings) : seedName;
 			if (trimFieldName) {
-				name = NameComposer.trimFieldName(name);
+				name = StubUtility.trimFieldName(name);
 			}
 			return composer.compose(name);
 		}
@@ -630,31 +649,39 @@ public class NameStyleBlock extends OptionsConfigurationBlock {
 	private class NameStyleAdapter extends ViewerComparator
 			implements ITreeListAdapter<Category>, IDialogFieldListener {
 
+		@Override
 		public void selectionChanged(TreeListDialogField<Category> field) {
 			updateConfigurationBlock(field.getSelectedElements());
 		}
 
+		@Override
 		public void customButtonPressed(TreeListDialogField<Category> field, int index) {
 		}
 
+		@Override
 		public void doubleClicked(TreeListDialogField<Category> field) {
 		}
 
+		@Override
 		public Category[] getChildren(TreeListDialogField<Category> field, Object element) {
 			return ((Category) element).getChildren();
 		}
 
+		@Override
 		public Category getParent(TreeListDialogField<Category> field, Object element) {
 			return ((Category) element).parent;
 		}
 
+		@Override
 		public boolean hasChildren(TreeListDialogField<Category> field, Object element) {
 			return ((Category) element).hasChildren();
 		}
 
+		@Override
 		public void dialogFieldChanged(DialogField field) {
 		}
 
+		@Override
 		public void keyPressed(TreeListDialogField<Category> field, KeyEvent event) {
 		}
 

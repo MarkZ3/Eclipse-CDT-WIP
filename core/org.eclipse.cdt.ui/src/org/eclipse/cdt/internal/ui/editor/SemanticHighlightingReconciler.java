@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2009 IBM Corporation and others.
+ * Copyright (c) 2000, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -51,7 +51,6 @@ import org.eclipse.cdt.internal.ui.editor.SemanticHighlightingManager.Highlighte
 import org.eclipse.cdt.internal.ui.editor.SemanticHighlightingManager.HighlightingStyle;
 import org.eclipse.cdt.internal.ui.text.ICReconcilingListener;
 
-
 /**
  * Semantic highlighting reconciler - Background thread implementation.
  * Cloned from JDT.
@@ -59,12 +58,10 @@ import org.eclipse.cdt.internal.ui.text.ICReconcilingListener;
  * @since 4.0
  */
 public class SemanticHighlightingReconciler implements ICReconcilingListener {
-
 	/**
 	 * Collects positions from the AST.
 	 */
 	private class PositionCollector extends ASTVisitor {
-
 		/** The semantic token */
 		private SemanticToken fToken= new SemanticToken();
 		private int fMinLocation;
@@ -82,12 +79,8 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			shouldVisitImplicitNameAlternates = visitImplicitNames;
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#visit(org.eclipse.cdt.core.dom.ast.IASTTranslationUnit)
-		 */
 		@Override
 		public int visit(IASTTranslationUnit tu) {
-			
 			// visit macro definitions
 			IASTPreprocessorMacroDefinition[] macroDefs= tu.getMacroDefinitions();
 			for (IASTPreprocessorMacroDefinition macroDef : macroDefs) {
@@ -115,9 +108,6 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			return super.visit(tu);
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#visit(org.eclipse.cdt.core.dom.ast.IASTDeclaration)
-		 */
 		@Override
 		public int visit(IASTDeclaration declaration) {
 			if (!declaration.isPartOfTranslationUnitFile()) {
@@ -126,9 +116,6 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			return PROCESS_CONTINUE;
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#leave(org.eclipse.cdt.core.dom.ast.IASTDeclaration)
-		 */
 		@Override
 		public int leave(IASTDeclaration declaration) {
 //			if (!shouldVisitCatchHandlers && declaration instanceof IASTFunctionDefinition) {
@@ -154,9 +141,6 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			return PROCESS_CONTINUE;
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#visit(org.eclipse.cdt.core.dom.ast.IASTDeclarator)
-		 */
 		@Override
 		public int visit(IASTDeclarator declarator) {
 //			if (declarator instanceof ICPPASTFunctionTryBlockDeclarator) {
@@ -165,9 +149,6 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			return PROCESS_CONTINUE;
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#visit(org.eclipse.cdt.core.dom.ast.IASTStatement)
-		 */
 		@Override
 		public int visit(IASTStatement statement) {
 //			if (!shouldVisitCatchHandlers && statement instanceof ICPPASTCatchHandler) {
@@ -176,9 +157,6 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 			return PROCESS_CONTINUE;
 		}
 
-		/*
-		 * @see org.eclipse.cdt.core.dom.ast.ASTVisitor#visit(org.eclipse.cdt.core.dom.ast.IASTName)
-		 */
 		@Override
 		public int visit(IASTName name) {
 			if (visitNode(name)) {
@@ -226,7 +204,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 					}
 				}
 			} else {
-				// fallback in case no image location available
+				// Fallback in case no image location available
 				IASTNodeLocation[] nodeLocations= name.getNodeLocations();
 				if (nodeLocations.length == 1 && !(nodeLocations[0] instanceof IASTMacroExpansionLocation)) {
 					addNodeLocation(nodeLocations[0], highlightingStyle);
@@ -287,18 +265,18 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	/** The C editor this semantic highlighting reconciler is installed on */
 	private CEditor fEditor;
 	/** The semantic highlighting presenter */
-	private SemanticHighlightingPresenter fPresenter;
+	protected SemanticHighlightingPresenter fPresenter;
 	/** Semantic highlightings */
-	private SemanticHighlighting[] fSemanticHighlightings;
+	protected SemanticHighlighting[] fSemanticHighlightings;
 	/** Highlightings */
 	private HighlightingStyle[] fHighlightings;
 
 	/** Background job's added highlighted positions */
-	private List<HighlightedPosition> fAddedPositions= new ArrayList<HighlightedPosition>();
+	protected List<HighlightedPosition> fAddedPositions= new ArrayList<HighlightedPosition>();
 	/** Background job's removed highlighted positions */
-	private List<HighlightedPosition> fRemovedPositions= new ArrayList<HighlightedPosition>();
+	protected List<HighlightedPosition> fRemovedPositions= new ArrayList<HighlightedPosition>();
 	/** Number of removed positions */
-	private int fNOfRemovedPositions;
+	protected int fNOfRemovedPositions;
 
 	/** Background job */
 	private Job fJob;
@@ -313,24 +291,20 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	private boolean fIsReconciling= false;
 
 	/** The semantic highlighting presenter - cache for background thread, only valid during {@link #reconciled(IASTTranslationUnit, boolean, IProgressMonitor)} */
-	private SemanticHighlightingPresenter fJobPresenter;
+	protected SemanticHighlightingPresenter fJobPresenter;
 	/** Semantic highlightings - cache for background thread, only valid during {@link #reconciled(IASTTranslationUnit, boolean, IProgressMonitor)} */
-	private SemanticHighlighting[] fJobSemanticHighlightings;
+	protected SemanticHighlighting[] fJobSemanticHighlightings;
 	/** Highlightings - cache for background thread, only valid during {@link #reconciled(IASTTranslationUnit, boolean, IProgressMonitor)} */
 	private HighlightingStyle[] fJobHighlightings;
 
-	/*
-	 * @see org.eclipse.cdt.internal.ui.text.java.ICReconcilingListener#aboutToBeReconciled()
-	 */
+	@Override
 	public void aboutToBeReconciled() {
 		// Do nothing
 	}
 
-	/*
-	 * @see org.eclipse.cdt.internal.ui.text.ICReconcilingListener#reconciled(IASTTranslationUnit, boolean, IProgressMonitor)
-	 */
+	@Override
 	public void reconciled(IASTTranslationUnit ast, boolean force, IProgressMonitor progressMonitor) {
-		// ensure at most one thread can be reconciling at any time
+		// Ensure at most one thread can be reconciling at any time
 		synchronized (fReconcileLock) {
 			if (fIsReconciling)
 				return;
@@ -387,7 +361,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	/**
 	 * Start reconciling positions.
 	 */
-	private void startReconcilingPositions() {
+	protected void startReconcilingPositions() {
 		fJobPresenter.addAllPositions(fRemovedPositions);
 		fNOfRemovedPositions= fRemovedPositions.size();
 	}
@@ -395,8 +369,8 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	/**
 	 * Reconcile positions based on the AST.
 	 *
-	 * @param ast  the AST
-	 * @param visitor  the AST visitor
+	 * @param ast the AST
+	 * @param visitor the AST visitor
 	 */
 	private void reconcilePositions(IASTTranslationUnit ast, PositionCollector visitor) {
 		ast.accept(visitor);
@@ -408,11 +382,13 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 				newPositions.add(current);
 		}
 		fRemovedPositions= newPositions;
-		// positions need to be sorted by ascending offset
+		// Positions need to be sorted by ascending offset
 		Collections.sort(fAddedPositions, new Comparator<Position>() {
+			@Override
 			public int compare(final Position p1, final Position p2) {
 				return p1.getOffset() - p2.getOffset();
-			}});
+			}
+		});
 	}
 
 	/**
@@ -422,7 +398,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	 * @param addedPositions the added positions
 	 * @param removedPositions the removed positions
 	 */
-	private void updatePresentation(TextPresentation textPresentation, List<HighlightedPosition> addedPositions, List<HighlightedPosition> removedPositions) {
+	protected void updatePresentation(TextPresentation textPresentation, List<HighlightedPosition> addedPositions, List<HighlightedPosition> removedPositions) {
 		Runnable runnable= fJobPresenter.createUpdateRunnable(textPresentation, addedPositions, removedPositions);
 		if (runnable == null)
 			return;
@@ -447,16 +423,16 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	}
 
 	/**
-	 * Stop reconciling positions.
+	 * Stops reconciling positions.
 	 */
-	private void stopReconcilingPositions() {
+	protected void stopReconcilingPositions() {
 		fRemovedPositions.clear();
 		fNOfRemovedPositions= 0;
 		fAddedPositions.clear();
 	}
 
 	/**
-	 * Install this reconciler on the given editor, presenter and highlightings.
+	 * Installs this reconciler on the given editor, presenter and highlightings.
 	 * @param editor the editor
 	 * @param sourceViewer the source viewer
 	 * @param presenter the semantic highlighting presenter
@@ -476,7 +452,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	}
 
 	/**
-	 * Uninstall this reconciler from the editor
+	 * Uninstalsl this reconciler from the editor
 	 */
 	public void uninstall() {
 		if (fPresenter != null)
@@ -493,7 +469,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 	}
 
 	/**
-	 * Schedule a background job for retrieving the AST and reconciling the Semantic Highlighting model.
+	 * Schedules a background job for retrieving the AST and reconciling the Semantic Highlighting model.
 	 */
 	private void scheduleJob() {
 		final ICElement element= fEditor.getInputCElement();
@@ -523,6 +499,7 @@ public class SemanticHighlightingReconciler implements ICReconcilingListener {
 						final Job me= this;
 						ASTProvider astProvider= CUIPlugin.getDefault().getASTProvider();
 						IStatus status= astProvider.runOnAST(element, ASTProvider.WAIT_IF_OPEN, monitor, new ASTCache.ASTRunnable() {
+							@Override
 							public IStatus runOnAST(ILanguage lang, IASTTranslationUnit ast) {
 								reconciled(ast, true, monitor);
 								synchronized (fJobLock) {

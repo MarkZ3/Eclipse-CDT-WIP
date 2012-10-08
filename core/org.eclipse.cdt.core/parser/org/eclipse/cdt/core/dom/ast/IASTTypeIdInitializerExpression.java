@@ -6,11 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM Rational Software) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM Rational Software) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
-
 
 /**
  * Compound literal: type-id { initializer }
@@ -20,7 +19,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @since 5.1
  */
 public interface IASTTypeIdInitializerExpression extends IASTExpression {
-
 	/**
 	 * <code>TYPE_ID</code> represents the relationship between an
 	 * <code>IASTTypeIdInitializerExpression</code> and
@@ -56,5 +54,12 @@ public interface IASTTypeIdInitializerExpression extends IASTExpression {
 	 */
 	public void setInitializer(IASTInitializer initializer);
 	
+	@Override
 	public IASTTypeIdInitializerExpression copy();
+
+	/**
+	 * @since 5.4
+	 */
+	@Override
+	public IASTTypeIdInitializerExpression copy(CopyStyle style);
 }

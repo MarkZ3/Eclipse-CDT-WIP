@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik  
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0 
@@ -34,7 +34,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateDeclaration;
 import org.eclipse.cdt.core.model.ITranslationUnit;
 
 import org.eclipse.cdt.internal.ui.editor.SourceHeaderPartnerFinder;
-import org.eclipse.cdt.internal.ui.refactoring.RefactoringASTCache;
+import org.eclipse.cdt.internal.ui.refactoring.CRefactoringContext;
 import org.eclipse.cdt.internal.ui.refactoring.utils.DefinitionFinder;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 
@@ -53,7 +53,7 @@ public class MethodDefinitionInsertLocationFinder {
 			new HashMap<IASTSimpleDeclaration, IASTName>();
 
 	public InsertLocation find(ITranslationUnit declarationTu, IASTFileLocation methodDeclarationLocation,
-			IASTNode parent, RefactoringASTCache astCache, IProgressMonitor pm) throws CoreException {
+			IASTNode parent, CRefactoringContext refactoringContext, IProgressMonitor pm) throws CoreException {
 		IASTDeclaration[] declarations = NodeHelper.getDeclarations(parent);
 		InsertLocation insertLocation = new InsertLocation();
 
@@ -71,7 +71,8 @@ public class MethodDefinitionInsertLocationFinder {
 			if (cachedDeclarationToDefinition.containsKey(simpleDeclaration)) {
 				definition = cachedDeclarationToDefinition.get(simpleDeclaration);
 			} else {
-				definition = DefinitionFinder.getDefinition(simpleDeclaration, astCache, pm);
+				IASTName name = simpleDeclaration.getDeclarators()[0].getName();
+				definition = DefinitionFinder.getDefinition(name, refactoringContext, pm);
 				if (definition != null) {
 					cachedDeclarationToDefinition.put(simpleDeclaration, definition);	
 				}
@@ -92,7 +93,8 @@ public class MethodDefinitionInsertLocationFinder {
 			if (cachedDeclarationToDefinition.containsKey(simpleDeclaration)) {
 				definition = cachedDeclarationToDefinition.get(simpleDeclaration);
 			} else {
-				definition = DefinitionFinder.getDefinition(simpleDeclaration, astCache, pm);
+				IASTName name = simpleDeclaration.getDeclarators()[0].getName();
+				definition = DefinitionFinder.getDefinition(name, refactoringContext, pm);
 				if (definition != null) {
 					cachedDeclarationToDefinition.put(simpleDeclaration, definition);
 				}
@@ -105,11 +107,15 @@ public class MethodDefinitionInsertLocationFinder {
 		}
 
 		if (insertLocation.getTranslationUnit() == null) {
-			ITranslationUnit partner = SourceHeaderPartnerFinder.getPartnerTranslationUnit(
-					declarationTu, astCache);
-			if (partner != null) {
-				insertLocation.setParentNode(astCache.getAST(partner, null), partner);
-			}	
+			if (declarationTu.isHeaderUnit()) {
+				ITranslationUnit partner = SourceHeaderPartnerFinder.getPartnerTranslationUnit(
+						declarationTu, refactoringContext);
+				if (partner != null) {
+					insertLocation.setParentNode(refactoringContext.getAST(partner, null), partner);
+				}
+			} else {
+				insertLocation.setParentNode(parent.getTranslationUnit(), declarationTu);
+			}
 		}
 
 		return insertLocation;

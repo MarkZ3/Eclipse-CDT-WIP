@@ -1,17 +1,19 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2010, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.dom.parser.cpp.semantics;
 
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.typeOrFunctionSet;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.*;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.ALLCVQ;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.CVTYPE;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.REF;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.TDEF;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -21,9 +23,7 @@ import java.util.Set;
 import org.eclipse.cdt.core.dom.ast.ASTTypeUtil;
 import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
-import org.eclipse.cdt.core.dom.ast.IASTExpression;
-import org.eclipse.cdt.core.dom.ast.IASTInitializerClause;
-import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
 import org.eclipse.cdt.core.dom.ast.IBasicType.Kind;
 import org.eclipse.cdt.core.dom.ast.IEnumeration;
@@ -48,6 +48,7 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPBuiltinParameter;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPFunctionType;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPImplicitFunction;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPReferenceType;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPEvaluation;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.OverloadableOperator;
 
 /**
@@ -59,45 +60,48 @@ class BuiltinOperators {
 	private static final int SECOND = 1;
 	private static final IType PTR_DIFF = new CPPBasicType(Kind.eInt, 0);
 
-	public static ICPPFunction[] create(OverloadableOperator operator, IASTInitializerClause[] args, IASTTranslationUnit tu, Object[] globCandidates) {
+	public static ICPPFunction[] create(OverloadableOperator operator, ICPPEvaluation[] args,
+			IASTNode point, Object[] globCandidates) {
 		if (operator == null || args == null || args.length == 0)
 			return EMPTY;
 		
-		return new BuiltinOperators(operator, args, tu.getScope(), globCandidates).create();
+		return new BuiltinOperators(operator, args, point, globCandidates).create();
 	}
 
 	private final OverloadableOperator fOperator;
 	private final boolean fUnary;
+	private final IASTNode fPoint;
 	private IType fType1;
 	private IType fType2;
-	private IType[][] fClassConversionTypes= {null, null};
-	private boolean[] fIsClass= {false,false};
+	private IType[][] fClassConversionTypes= { null, null };
+	private boolean[] fIsClass= { false, false };
 	private IScope fFileScope;
 	private List<ICPPFunction> fResult;
 	private Set<String> fSignatures;
 	private Object[] fGlobalCandidates;
 
-	BuiltinOperators(OverloadableOperator operator, IASTInitializerClause[] args, IScope fileScope, Object[] globCandidates) {
-		fFileScope= fileScope;
+	BuiltinOperators(OverloadableOperator operator, ICPPEvaluation[] args, IASTNode point,
+			Object[] globCandidates) {
+		fFileScope= point.getTranslationUnit().getScope();
 		fOperator= operator;
-		fUnary= args.length<2;
+		fPoint = point;
+		fUnary= args.length < 2;
 		fGlobalCandidates= globCandidates;
-		if (args.length > 0 && args[0] instanceof IASTExpression) {
-			IType type= typeOrFunctionSet((IASTExpression) args[0]);
+		if (args.length > 0) {
+			IType type= args[0].getTypeOrFunctionSet(point);
 			if (!(type instanceof ISemanticProblem)) 
 				fType1= type;
 			
 		}
-		if (args.length > 1 && args[1] instanceof IASTExpression) {
-			IType type= typeOrFunctionSet((IASTExpression) args[1]);
+		if (args.length > 1) {
+			IType type= args[1].getTypeOrFunctionSet(point);
 			if (!(type instanceof ISemanticProblem))
 				fType2= type;
 		}
 	}
 
-
 	private ICPPFunction[] create() {
-		switch(fOperator) {
+		switch (fOperator) {
 		case ARROW:
 		case COMMA:
 		case DELETE:
@@ -231,8 +235,6 @@ class BuiltinOperators {
 		return fResult.toArray(new ICPPFunction[fResult.size()]);
 	}
 
-
-
 	// 13.6-3, 13.6-4, 13.6-5
 	private void opIncOrDec() {
 		IType[] types= getClassConversionTypes(FIRST);
@@ -355,7 +357,7 @@ class BuiltinOperators {
 				IType t2= SemanticUtil.getNestedType(memPtr.getMemberOfClass(), TDEF);
 				if (t2 instanceof ICPPClassType) {
 					ICPPClassType c2= (ICPPClassType) t2;
-					if (SemanticUtil.calculateInheritanceDepth(c1, c2) >= 0) {
+					if (SemanticUtil.calculateInheritanceDepth(c1, c2, fPoint) >= 0) {
 						IType cvt= SemanticUtil.getNestedType(memPtr.getType(), TDEF);
 						IType rt= new CPPReferenceType(
 								SemanticUtil.addQualifiers(cvt, cv1.isConst(), cv1.isVolatile(), cv1.isRestrict()), false);
@@ -390,7 +392,7 @@ class BuiltinOperators {
 		for (IType t1 : p1) {
 			for (IType t2 : p2) {
 				IType rt= null;
-				switch(rstrat) {
+				switch (rstrat) {
 				case USE_BOOL:
 					rt= CPPBasicType.BOOLEAN;
 					break;
@@ -423,7 +425,6 @@ class BuiltinOperators {
 		}
 		return p1;
 	}
-
 
 	// 13.6-13, 13.6.14
 	private void pointerArithmetic(boolean useRef, boolean isDiff) {
@@ -491,7 +492,7 @@ class BuiltinOperators {
 		if (refType instanceof ICPPReferenceType) {
 			IType t= SemanticUtil.getNestedType(((ICPPReferenceType) refType).getType(), TDEF);
 			if (!SemanticUtil.getCVQualifier(t).isConst()) {
-				switch(assign) {
+				switch (assign) {
 				case WITHOUT_OPERATION:
 					if (isEnumeration(t) || isPointerToMember(t) || isPointer(t)) {
 						addFunction(refType, refType, SemanticUtil.getNestedType(t, TDEF|ALLCVQ));
@@ -592,7 +593,7 @@ class BuiltinOperators {
 	private boolean isFloatingPoint(IType type) {
 		if (type instanceof IBasicType) {
 			IBasicType.Kind kind= ((IBasicType) type).getKind();
-			switch(kind) {
+			switch (kind) {
 			case eDouble:
 			case eFloat:
 				return true;
@@ -604,6 +605,7 @@ class BuiltinOperators {
 			case eWChar:
 			case eUnspecified:
 			case eVoid:
+			case eNullPtr:
 				return false;
 			}
 		}
@@ -613,7 +615,7 @@ class BuiltinOperators {
 	private boolean isArithmetic(IType type) {
 		if (type instanceof IBasicType) {
 			IBasicType.Kind kind= ((IBasicType) type).getKind();
-			switch(kind) {
+			switch (kind) {
 			case eBoolean:
 			case eChar:
 			case eChar16:
@@ -624,6 +626,7 @@ class BuiltinOperators {
 			case eWChar:
 				return true;
 			case eUnspecified:
+			case eNullPtr:
 			case eVoid:
 				return false;
 			}
@@ -634,7 +637,7 @@ class BuiltinOperators {
 	private boolean isIntegral(IType type) {
 		if (type instanceof IBasicType) {
 			IBasicType.Kind kind= ((IBasicType) type).getKind();
-			switch(kind) {
+			switch (kind) {
 			case eBoolean:
 			case eChar:
 			case eChar16:
@@ -646,6 +649,7 @@ class BuiltinOperators {
 			case eFloat:
 			case eUnspecified:
 			case eVoid:
+			case eNullPtr:
 				return false;
 			}
 		}
@@ -662,7 +666,7 @@ class BuiltinOperators {
 				if (type instanceof ICPPClassType) {
 					fIsClass[idx]= true;
 					try {
-						ICPPMethod[] ops = SemanticUtil.getConversionOperators((ICPPClassType) type);
+						ICPPMethod[] ops = SemanticUtil.getConversionOperators((ICPPClassType) type, fPoint);
 						result= new IType[ops.length];
 						int j= -1;
 						for (ICPPMethod op : ops) {

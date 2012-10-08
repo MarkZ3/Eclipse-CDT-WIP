@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- *    Markus Schorn - initial API and implementation 
+ *     Markus Schorn - initial API and implementation 
  ******************************************************************************/ 
 package org.eclipse.cdt.ui.tests.refactoring.rename;
 
@@ -18,9 +18,6 @@ import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.core.refactoring.RefactoringStatusEntry;
 
-import org.eclipse.cdt.core.CCorePlugin;
-import org.eclipse.cdt.core.index.IIndexManager;
-
 import org.eclipse.cdt.internal.ui.refactoring.rename.CRefactoringArgument;
 import org.eclipse.cdt.internal.ui.refactoring.rename.CRefactory;
 import org.eclipse.cdt.internal.ui.refactoring.rename.CRenameProcessor;
@@ -31,7 +28,6 @@ import org.eclipse.cdt.internal.ui.refactoring.rename.TextSearchWrapper;
  * @author markus.schorn@windriver.com
  */
 public class RenameTests extends RefactoringTests {
-
     private static final IProgressMonitor NPM = new NullProgressMonitor();
 
 	public RenameTests(String name) {
@@ -58,7 +54,7 @@ public class RenameTests extends RefactoringTests {
         		return change;
         	} 
 
-        	fail ("Input check on "+ newName + " failed. "+rs.getEntryMatchingSeverity(RefactoringStatus.ERROR) ); //$NON-NLS-1$ //$NON-NLS-2$
+        	fail ("Input check on " + newName + " failed. "+rs.getEntryMatchingSeverity(RefactoringStatus.ERROR) ); //$NON-NLS-1$ //$NON-NLS-2$
         	//rs.getFirstMessage(RefactoringStatus.ERROR) is not the message displayed in 
         	//the UI for renaming a method to a constructor, the first message which is only
         	//a warning is shown in the UI. If you click preview, then the error and the warning
@@ -74,7 +70,7 @@ public class RenameTests extends RefactoringTests {
         CRenameProcessor proc= new CRenameProcessor(CRefactory.getInstance(), arg);
         proc.setReplacementText( newName );
         proc.setSelectedOptions(-1);
-        proc.setScope(TextSearchWrapper.SCOPE_WORKSPACE);
+        proc.setExhaustiveSearchScope(TextSearchWrapper.SCOPE_WORKSPACE);
         return new CRenameRefactoring(proc);
     }
 
@@ -124,8 +120,7 @@ public class RenameTests extends RefactoringTests {
         ((CRenameProcessor) proc.getProcessor()).lockIndex();
         try {
         	RefactoringStatus rs = checkConditions(proc);
-
-        	return (rs.getSeverity());
+        	return rs.getSeverity();
         } finally {
             ((CRenameProcessor) proc.getProcessor()).unlockIndex();
         }
@@ -134,7 +129,7 @@ public class RenameTests extends RefactoringTests {
     protected int countOccurrences(String contents, String lookup) {
         int idx= contents.indexOf(lookup);
         int count= 0;
-        while (idx >=0) {
+        while (idx >= 0) {
             count++;
             idx= contents.indexOf(lookup, idx+lookup.length());
         }
@@ -142,20 +137,11 @@ public class RenameTests extends RefactoringTests {
     }
     
 	protected void waitForIndexer() throws InterruptedException {
-		final IIndexManager im = CCorePlugin.getIndexManager();
-		assertTrue(im.joinIndexer(10000, NPM));
-		int sleep= 1;
-		while (im.isIndexerSetupPostponed(cproject)) {
-			Thread.sleep(sleep);
-			sleep *= 2;
-			assertTrue(sleep < 2000);
-		}
-		assertTrue(im.joinIndexer(10000, NPM));
+		waitForIndexer(cproject);
 	}
 
 	@Override
-	protected IFile importFile(String fileName, String contents)
-			throws Exception {
+	protected IFile importFile(String fileName, String contents) throws Exception {
 		IFile result= super.importFile(fileName, contents);
 		waitForIndexer();
 		return result;

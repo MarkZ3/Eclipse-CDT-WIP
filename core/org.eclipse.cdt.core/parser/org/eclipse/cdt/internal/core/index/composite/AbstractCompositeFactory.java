@@ -31,7 +31,7 @@ import org.eclipse.core.runtime.CoreException;
  */
 public abstract class AbstractCompositeFactory implements ICompositesFactory {	
 	protected IIndex index;
-	private Comparator<IIndexFragmentBinding> fragmentComparator;
+	private final Comparator<IIndexFragmentBinding> fragmentComparator;
 	
 	public AbstractCompositeFactory(IIndex index) {
 		this.index= index;
@@ -64,6 +64,7 @@ public abstract class AbstractCompositeFactory implements ICompositesFactory {
 	/**
 	 * @see ICompositesFactory#getCompositeBindings(IIndexFragmentBinding[][])
 	 */
+	@Override
 	public final IIndexBinding[] getCompositeBindings(IIndexFragmentBinding[][] fragmentBindings) {
 		return getCompositeBindings(mergeBindingArrays(fragmentBindings));
 	}
@@ -75,6 +76,7 @@ public abstract class AbstractCompositeFactory implements ICompositesFactory {
 		return result;
 	}
 
+	@Override
 	public final IIndexFragmentBinding[] findEquivalentBindings(IBinding binding) {
 		CIndex cindex= (CIndex) index;
 		try {
@@ -133,12 +135,13 @@ public abstract class AbstractCompositeFactory implements ICompositesFactory {
 	}
 	
 	private static class FragmentBindingComparator implements Comparator<IIndexFragmentBinding> {
-		private IIndexFragmentBindingComparator[] comparators;
+		private final IIndexFragmentBindingComparator[] comparators;
 		
 		FragmentBindingComparator(IIndexFragmentBindingComparator[] comparators) {
 			this.comparators= comparators;
 		}
 		
+		@Override
 		public int compare(IIndexFragmentBinding f1, IIndexFragmentBinding f2) {
 			for (IIndexFragmentBindingComparator comparator : comparators) {
 				int cmp= comparator.compare(f1, f2);

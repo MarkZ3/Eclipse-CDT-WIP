@@ -168,6 +168,13 @@
 	               id="org.eclipse.cdt.dsf.debug.ui.registersNumberFormats"
 	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.ElementNumberFormatsContribution">
 	           </dynamic>
+               <separator
+                     name="numberFormatSep" visible="true">
+               </separator>
+               <dynamic
+	               id="org.eclipse.cdt.dsf.debug.ui.restoreNumberFormatPreference"
+	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.RestoreNumberFormatPreferenceContribution">
+	           </dynamic>
             </menu>         
        </menuContribution>
 
@@ -231,6 +238,13 @@
 	               id="org.eclipse.cdt.dsf.debug.ui.variablesNumberFormats"
 	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.ElementNumberFormatsContribution">
 	           </dynamic>
+               <separator
+                     name="numberFormatSep" visible="true">
+               </separator>
+               <dynamic
+	               id="org.eclipse.cdt.dsf.debug.ui.restoreNumberFormatPreference"
+	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.RestoreNumberFormatPreferenceContribution">
+	           </dynamic>
             </menu>         
        </menuContribution>
 
@@ -293,6 +307,13 @@
                <dynamic
 	               id="org.eclipse.cdt.dsf.debug.ui.expressionNumberFormats"
 	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.ElementNumberFormatsContribution">
+	           </dynamic>
+               <separator
+                     name="numberFormatSep" visible="true">
+               </separator>
+               <dynamic
+	               id="org.eclipse.cdt.dsf.debug.ui.restoreNumberFormatPreference"
+	               class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.RestoreNumberFormatPreferenceContribution">
 	           </dynamic>
             </menu>         
        </menuContribution>
@@ -422,21 +443,6 @@
       </propertyTester>
 
       <propertyTester
-            class="org.eclipse.cdt.dsf.debug.internal.ui.viewmodel.actions.UpdateScopesPropertyTester"
-            id="org.eclipse.cdt.dsf.debug.ui.selectionUpdateScopesTester"
-            namespace="org.eclipse.cdt.dsf.debug.ui"
-            properties="areUpdateScopesSupported,isUpdateScopeAvailable,isUpdateScopeActive"
-            type="org.eclipse.cdt.dsf.ui.viewmodel.IVMContext">
-      </propertyTester>
-      <propertyTester
-            class="org.eclipse.cdt.dsf.debug.internal.ui.viewmodel.actions.UpdateScopesPropertyTester"
-            id="org.eclipse.cdt.dsf.debug.ui.partUpdateScopesTester"
-            namespace="org.eclipse.cdt.dsf.debug.ui"
-            properties="areUpdateScopesSupported,isUpdateScopeAvailable,isUpdateScopeActive"
-            type="org.eclipse.debug.ui.IDebugView">
-      </propertyTester>
-
-      <propertyTester
             class="org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.NumberFormatsPropertyTester"
             id="org.eclipse.cdt.dsf.debug.ui.selectionNumberFormatsTester"
             namespace="org.eclipse.cdt.dsf.debug.ui"
@@ -462,7 +468,7 @@
             id="org.eclipse.cdt.dsf.debug.ui.disassemblyViewToggleBreakpointTester"
             namespace="org.eclipse.cdt.dsf.debug.ui"
             properties="isDisassemblyViewSupportsCBreakpoint"
-            type="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.DisassemblyView">
+            type="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.DisassemblyPart">
       </propertyTester>
    </extension>
 	<extension 
@@ -575,6 +581,12 @@
                menubarPath="debug">
          </action>
          <action
+               class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.actions.AddBreakpointRulerActionDelegate"
+               id="org.eclipse.debug.ui.actions.RulerAddBreakpointAction"
+               label="%action.addBreakpoint.label"
+               menubarPath="debug">
+         </action>
+         <action
                class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.actions.RulerToggleBreakpointActionDelegate"
                definitionId="org.eclipse.cdt.dsf.debug.ui.disassembly.commands.rulerToggleBreakpoint"
                id="org.eclipse.debug.ui.actions.RulerToggleBreakpointAction"
@@ -660,6 +672,14 @@
       </actionSet>
    </extension>
 
+   <extension point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.debug.ui.category.run"
+            description="%command.refreshAll.description"
+            id="org.eclipse.cdt.dsf.debug.ui.refreshAll"
+            name="%command.refreshAll.name"/>
+   </extension>      
+      
    <!-- Debug perspective extension -->
    <extension
          point="org.eclipse.ui.perspectiveExtensions">
@@ -804,6 +824,59 @@
             name="%disassemblyView.name">
       </editor>
    </extension>
-
+   <extension
+         point="org.eclipse.cdt.debug.ui.disassemblyRulerColumns">
+      <column
+            class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.AddressRulerColumn"
+            enabled="true"
+            global="false"
+            id="org.eclipse.cdt.dsf.ui.disassemblyColumn.address"
+            includeInMenu="true"
+            name="%disassemblyRulerColumn.addresses">
+         <placement
+               gravity="0.9">
+         </placement>
+         <targetClass
+               class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.DisassemblyPart">
+         </targetClass>
+      </column>
+      <column
+            class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.FunctionOffsetRulerColumn"
+            enabled="false"
+            global="true"
+            id="org.eclipse.cdt.dsf.ui.disassemblyColumn.functionOffsets"
+            includeInMenu="true"
+            name="%disassemblyRulerColumn.functionOffsets">
+         <placement
+               gravity="0.9">
+            <after
+                  id="org.eclipse.cdt.dsf.ui.disassemblyColumn.address">
+            </after>
+            <after
+                  id="org.eclipse.cdt.dsf.ui.disassemblyColumn.opcodes">
+            </after>
+         </placement>
+         <targetClass
+               class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.DisassemblyPart">
+         </targetClass>
+      </column>
+      <column
+            class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.OpcodeRulerColumn"
+            enabled="false"
+            global="true"
+            id="org.eclipse.cdt.dsf.ui.disassemblyColumn.opcodes"
+            includeInMenu="true"
+            name="%disassemblyRulerColumn.opcodes">
+         <placement
+               gravity="0.9">
+            <after
+                  id="org.eclipse.cdt.dsf.ui.disassemblyColumn.address">
+            </after>
+         </placement>
+         <targetClass
+               class="org.eclipse.cdt.dsf.debug.internal.ui.disassembly.DisassemblyPart">
+         </targetClass>
+      </column>
+   </extension>
 
 </plugin>

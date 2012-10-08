@@ -6,19 +6,21 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
+
+import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.LVALUE;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTProblem;
 import org.eclipse.cdt.core.dom.ast.IASTProblemExpression;
-import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
-import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 
-public class CPPASTProblemExpression extends CPPASTProblemOwner implements IASTProblemExpression {
+public class CPPASTProblemExpression extends CPPASTProblemOwner implements IASTProblemExpression, ICPPASTExpression {
 
     public CPPASTProblemExpression() {
 		super();
@@ -28,48 +30,53 @@ public class CPPASTProblemExpression extends CPPASTProblemOwner implements IASTP
 		super(problem);
 	}
 
+	@Override
 	public CPPASTProblemExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
-	
+	@Override
 	public CPPASTProblemExpression copy(CopyStyle style) {
 		CPPASTProblemExpression copy = new CPPASTProblemExpression();
-		copyBaseProblem(copy, style);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
 	@Override
-	public boolean accept( ASTVisitor action ){
-        if( action.shouldVisitExpressions ){
-		    switch( action.visit( this ) ){
-	            case ASTVisitor.PROCESS_ABORT : return false;
-	            case ASTVisitor.PROCESS_SKIP  : return true;
-	            default : break;
+	public boolean accept(ASTVisitor action) {
+        if (action.shouldVisitExpressions) {
+		    switch (action.visit(this)) {
+	            case ASTVisitor.PROCESS_ABORT: return false;
+	            case ASTVisitor.PROCESS_SKIP: return true;
+	            default: break;
 	        }
 		}
         super.accept(action);	// visits the problem
-        if( action.shouldVisitExpressions ){
-		    switch( action.leave( this ) ){
-	            case ASTVisitor.PROCESS_ABORT : return false;
-	            case ASTVisitor.PROCESS_SKIP  : return true;
-	            default : break;
+        if (action.shouldVisitExpressions) {
+		    switch (action.leave(this)) {
+	            case ASTVisitor.PROCESS_ABORT: return false;
+	            case ASTVisitor.PROCESS_SKIP: return true;
+	            default: break;
 	        }
 		}
         return true;
     }
-    
-    public IType getExpressionType() {
-		return new ProblemType(ISemanticProblem.TYPE_UNKNOWN_FOR_EXPRESSION);
-    }
 
-	public boolean isLValue() {
-		return false;
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		return EvalFixed.INCOMPLETE;
 	}
 
+    @Override
+	public IType getExpressionType() {
+    	return getEvaluation().getTypeOrFunctionSet(this);
+    }
+
+	@Override
+	public boolean isLValue() {
+		return getValueCategory() == LVALUE;
+	}
+
+	@Override
 	public ValueCategory getValueCategory() {
-		return ValueCategory.PRVALUE;
+    	return getEvaluation().getValueCategory(this);
 	}
 }

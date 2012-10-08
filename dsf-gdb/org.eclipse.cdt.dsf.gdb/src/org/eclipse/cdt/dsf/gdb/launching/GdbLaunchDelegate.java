@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 QNX Software Systems and others.
+ * Copyright (c) 2008, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,8 @@
  * Ericsson               - Added support for Mac OS
  * Ericsson               - Added support for post-mortem trace files
  * Abeer Bagul (Tensilica) - Allow to better override GdbLaunch (bug 339550)
+ * Anton Gorenkov         - Need to use a process factory (Bug 210366)
+ * Marc Khouzam (Ericsson) - Cleanup the launch if it is cancelled (Bug 374374)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.launching; 
 
@@ -44,6 +46,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.debug.core.DebugException;
+import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
@@ -66,6 +69,8 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 	
     private final static String TRACING_FIRST_VERSION = "7.1.50"; //$NON-NLS-1$
 	
+    private GdbLaunch fGdbLaunch;
+    
 	public GdbLaunchDelegate() {
 		// We now fully support project-less debugging
 		// See bug 343861
@@ -93,6 +98,7 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 	private void launchDebugger( ILaunchConfiguration config, ILaunch launch, IProgressMonitor monitor ) throws CoreException {
 		monitor.beginTask(LaunchMessages.getString("GdbLaunchDelegate.0"), 10);  //$NON-NLS-1$
 		if ( monitor.isCanceled() ) {
+			cleanupLaunch();
 			return;
 		}
 
@@ -104,8 +110,10 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 		}		
 	}
 
-	private void launchDebugSession( final ILaunchConfiguration config, ILaunch l, IProgressMonitor monitor ) throws CoreException {
+	/** @since 4.1 */
+	protected void launchDebugSession( final ILaunchConfiguration config, ILaunch l, IProgressMonitor monitor ) throws CoreException {
 		if ( monitor.isCanceled() ) {
+			cleanupLaunch();
 			return;
 		}
 		
@@ -144,10 +152,12 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
         
         // First make sure non-stop is supported, if the user want to use this mode
         if (LaunchUtils.getIsNonStopMode(config) && !isNonStopSupportedInGdbVersion(gdbVersion)) {
+			cleanupLaunch();
             throw new DebugException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.REQUEST_FAILED, "Non-stop mode is only supported starting with GDB " + NON_STOP_FIRST_VERSION, null)); //$NON-NLS-1$        	
         }
 
         if (LaunchUtils.getIsPostMortemTracing(config) && !isPostMortemTracingSupportedInGdbVersion(gdbVersion)) {
+			cleanupLaunch();
             throw new DebugException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.REQUEST_FAILED, "Post-mortem tracing is only supported starting with GDB " + TRACING_FIRST_VERSION, null)); //$NON-NLS-1$        	
         }
 
@@ -159,8 +169,10 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
             new ServicesLaunchSequence(launch.getSession(), launch, subMon1);
         
         launch.getSession().getExecutor().execute(servicesLaunchSequence);
+        boolean succeed = false;
         try {
             servicesLaunchSequence.get();
+            succeed = true;
         } catch (InterruptedException e1) {
             throw new DebugException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.INTERNAL_ERROR, "Interrupted Exception in dispatch thread", e1)); //$NON-NLS-1$
         } catch (ExecutionException e1) {
@@ -168,10 +180,16 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
         } catch (CancellationException e1) {
         	// Launch aborted, so exit cleanly
         	return;
+        } finally {
+        	if (!succeed) {
+        		cleanupLaunch();
+        	}
         }
         
-        if (monitor.isCanceled())
-        	return;
+        if (monitor.isCanceled()) {
+			cleanupLaunch();
+			return;
+        }
         
         // The initializeControl method should be called after the ICommandControlService
         // is initialized in the ServicesLaunchSequence above.  This is because it is that
@@ -208,7 +226,7 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
         };
 
         launch.getSession().getExecutor().execute(completeLaunchQuery);
-        boolean succeed = false;
+        succeed = false;
         try {
         	completeLaunchQuery.get();
         	succeed = true;
@@ -223,30 +241,39 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
             if (!succeed) {
                 // finalLaunchSequence failed. Shutdown the session so that all started
                 // services including any GDB process are shutdown. (bug 251486)
-                //
-                Query<Object> launchShutdownQuery = new Query<Object>() {
-                    @Override
-                    protected void execute(DataRequestMonitor<Object> rm) {
-                        launch.shutdownSession(rm);
-                    }
-                };
-                    
-                launch.getSession().getExecutor().execute(launchShutdownQuery);
-                
-                // wait for the shutdown to finish.
-                // The Query.get() method is a synchronous call which blocks until the 
-                // query completes.  
-                try {
-                    launchShutdownQuery.get();
-                } catch (InterruptedException e) { 
-                    throw new DebugException( new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.INTERNAL_ERROR, "InterruptedException while shutting down debugger launch " + launch, e)); //$NON-NLS-1$ 
-                } catch (ExecutionException e) {
-                    throw new DebugException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.REQUEST_FAILED, "Error in shutting down debugger launch " + launch, e)); //$NON-NLS-1$
-                }
+                cleanupLaunch();
             }        
         }
 	}
 
+	/** 
+	 * This method takes care of cleaning up any resources allocated by the launch, as early as
+	 * the call to getLaunch(), whenever the launch is cancelled or does not complete properly.
+	 * @since 4.1 */
+	protected void cleanupLaunch() throws DebugException {
+		if (fGdbLaunch != null) {
+            Query<Object> launchShutdownQuery = new Query<Object>() {
+                @Override
+                protected void execute(DataRequestMonitor<Object> rm) {
+                	fGdbLaunch.shutdownSession(rm);
+                }
+            };
+                
+            fGdbLaunch.getSession().getExecutor().execute(launchShutdownQuery);
+            
+            // wait for the shutdown to finish.
+            // The Query.get() method is a synchronous call which blocks until the 
+            // query completes.  
+            try {
+                launchShutdownQuery.get();
+            } catch (InterruptedException e) { 
+                throw new DebugException( new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.INTERNAL_ERROR, "InterruptedException while shutting down debugger launch " + fGdbLaunch, e)); //$NON-NLS-1$ 
+            } catch (ExecutionException e) {
+                throw new DebugException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, DebugException.REQUEST_FAILED, "Error in shutting down debugger launch " + fGdbLaunch, e)); //$NON-NLS-1$
+            }
+		}
+	}
+	
 	/**
 	 * Method used to check that the project, program and binary are correct.
 	 * Can be overridden to avoid checking certain things.
@@ -274,6 +301,10 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 
 	@Override
     public boolean preLaunchCheck(ILaunchConfiguration config, String mode, IProgressMonitor monitor) throws CoreException {
+    	// Setup default GDB Process Factory
+    	// Bug 210366
+		setDefaultProcessFactory(config);
+
 		// Forcibly turn off non-stop for post-mortem sessions.
 		// Non-stop does not apply to post-mortem sessions.
 		// Now that we can have non-stop defaulting to enabled, it will prevent
@@ -290,9 +321,47 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 			return true;
 		}
 		
-		return super.preLaunchCheck(config, mode, monitor);
+		boolean result = super.preLaunchCheck(config, mode, monitor);
+		if (!result) {
+			// The launch will not proceed!  We must cleanup.
+			cleanupLaunch();
+		}
+		
+		return result;
 	}
 
+	@Override
+	public boolean finalLaunchCheck(ILaunchConfiguration configuration, String mode, IProgressMonitor monitor) throws CoreException {
+		boolean result = super.finalLaunchCheck(configuration, mode, monitor);
+		if (!result) {
+			// The launch will not proceed!  We must cleanup.
+			cleanupLaunch();
+		}
+		
+		return result;
+	}
+	
+    /**
+     * Modify the ILaunchConfiguration to set the DebugPlugin.ATTR_PROCESS_FACTORY_ID attribute,
+     * so as to specify the process factory to use.
+     * 
+     * This attribute should only be set if it is not part of the configuration already, to allow
+     * other code to set it to something else.
+	 * @since 4.1
+	 */
+    protected void setDefaultProcessFactory(ILaunchConfiguration config) throws CoreException {
+    	// Bug 210366
+        if (!config.hasAttribute(DebugPlugin.ATTR_PROCESS_FACTORY_ID)) {
+            ILaunchConfigurationWorkingCopy wc = config.getWorkingCopy();
+            wc.setAttribute(DebugPlugin.ATTR_PROCESS_FACTORY_ID, 
+            		        IGDBLaunchConfigurationConstants.DEBUGGER_ATTR_PROCESS_FACTORY_ID_DEFAULT);
+            wc.doSave();
+        }
+    }
+
+    // This is the first method to be called in the launch sequence, even before preLaunchCheck()
+    // If we cancel the launch, we need to cleanup what is allocated in this method.  The cleanup
+    // can be performed by GdbLaunch.shutdownSession()
     @Override
     public ILaunch getLaunch(ILaunchConfiguration configuration, String mode) throws CoreException {
         // Need to configure the source locator before creating the launch
@@ -300,10 +369,10 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
         // the adapters will be created for the whole session, including 
         // the source lookup adapter.
         
-        GdbLaunch launch = createGdbLaunch(configuration, mode, null);
-        launch.initialize();
-        launch.setSourceLocator(getSourceLocator(configuration, launch.getSession()));
-        return launch;
+    	fGdbLaunch = createGdbLaunch(configuration, mode, null);
+    	fGdbLaunch.initialize();
+    	fGdbLaunch.setSourceLocator(getSourceLocator(configuration, fGdbLaunch.getSession()));
+        return fGdbLaunch;
     }
     
     /**

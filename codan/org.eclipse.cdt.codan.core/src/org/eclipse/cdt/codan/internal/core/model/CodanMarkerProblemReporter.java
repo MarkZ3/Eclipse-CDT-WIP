@@ -6,14 +6,13 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Alena Laskavaia  - initial API and implementation
+ *     Alena Laskavaia  - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.core.model;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 
 import org.eclipse.cdt.codan.core.CodanCorePlugin;
 import org.eclipse.cdt.codan.core.CodanRuntime;
@@ -36,16 +35,15 @@ import org.eclipse.core.runtime.IProgressMonitor;
 /**
  * Problem reported that created eclipse markers
  */
-public class CodanMarkerProblemReporter extends AbstractProblemReporter implements
-		IProblemReporterPersistent, IProblemReporterSessionPersistent {
+public class CodanMarkerProblemReporter extends AbstractProblemReporter
+		implements IProblemReporterPersistent, IProblemReporterSessionPersistent {
 	private IResource resource;
 	private IChecker checker;
 	private ArrayList<ICodanProblemMarker> toAdd = new ArrayList<ICodanProblemMarker>();
 
 	/**
 	 * Create instance, which can be use as factory for
-	 * IProblemReporterSessionPersistent or
-	 * as IProblemReporterPersistent.
+	 * IProblemReporterSessionPersistent or as IProblemReporterPersistent.
 	 */
 	public CodanMarkerProblemReporter() {
 		super();
@@ -60,10 +58,12 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		this.checker = checker;
 	}
 
+	@Override
 	public IResource getResource() {
 		return resource;
 	}
 
+	@Override
 	public IChecker getChecker() {
 		return checker;
 	}
@@ -89,6 +89,7 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		}
 	}
 
+	@Override
 	public void deleteProblems(IResource file) {
 		try {
 			file.deleteMarkers(GENERIC_CODE_ANALYSIS_MARKER_TYPE, true, IResource.DEPTH_ZERO);
@@ -97,6 +98,7 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		}
 	}
 
+	@Override
 	public void deleteAllProblems() {
 		try {
 			ResourcesPlugin.getWorkspace().getRoot().deleteMarkers(GENERIC_CODE_ANALYSIS_MARKER_TYPE,
@@ -106,14 +108,15 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		}
 	}
 
+	@Override
 	public void deleteProblems(final IResource file, final IChecker checker) {
 		try {
 			ResourcesPlugin.getWorkspace().run(new IWorkspaceRunnable() {
+				@Override
 				public void run(IProgressMonitor monitor) throws CoreException {
 					Collection<IMarker> markers = findResourceMarkers(file, checker);
-					for (Iterator<IMarker> iterator = markers.iterator(); iterator.hasNext();) {
-						IMarker iMarker = iterator.next();
-						iMarker.delete();
+					for (IMarker marker : markers) {
+						marker.delete();
 					}
 				}
 			}, null, IWorkspace.AVOID_UPDATE, null);
@@ -137,12 +140,10 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		}
 		ICheckersRegistry reg = CodanRuntime.getInstance().getCheckersRegistry();
 		Collection<IProblem> problems = reg.getRefProblems(checker);
-		for (int i = 0; i < markers.length; i++) {
-			IMarker m = markers[i];
+		for (IMarker m : markers) {
 			String id = m.getAttribute(ICodanProblemMarker.ID, ""); //$NON-NLS-1$
-			for (Iterator<IProblem> iterator = problems.iterator(); iterator.hasNext();) {
-				IProblem iProblem = iterator.next();
-				if (iProblem.getId().equals(id)) {
+			for (IProblem problem : problems) {
+				if (problem.getId().equals(id)) {
 					res.add(m);
 				}
 			}
@@ -156,21 +157,25 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 	 * @return session aware problem reporter
 	 * @since 1.1
 	 */
+	@Override
 	public IProblemReporterSessionPersistent createReporter(IResource resource, IChecker checker) {
 		return new CodanMarkerProblemReporter(resource, checker);
 	}
 
+	@Override
 	public void start() {
 		if (checker == null)
 			deleteProblems(false);
 	}
 
+	@Override
 	public void done() {
 		if (checker != null) {
-			if (toAdd.size() == 0)
+			if (toAdd.isEmpty()) {
 				deleteProblems(false);
-			else
+			} else {
 				reconcileMarkers();
+			}
 			toAdd.clear();
 		}
 	}
@@ -178,10 +183,10 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 	protected void reconcileMarkers() {
 		try {
 			ResourcesPlugin.getWorkspace().run(new IWorkspaceRunnable() {
+				@Override
 				public void run(IProgressMonitor monitor) throws CoreException {
 					Collection<IMarker> markers = findResourceMarkers(resource, checker);
-					for (Iterator<IMarker> iterator = markers.iterator(); iterator.hasNext();) {
-						IMarker m = iterator.next();
+					for (IMarker m : markers) {
 						ICodanProblemMarker cm = similarMarker(m);
 						if (cm == null) {
 							m.delete();
@@ -190,8 +195,7 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 							toAdd.remove(cm);
 						}
 					}
-					for (Iterator<ICodanProblemMarker> iterator = toAdd.iterator(); iterator.hasNext();) {
-						ICodanProblemMarker cm = iterator.next();
+					for (ICodanProblemMarker cm : toAdd) {
 						cm.createMarker();
 					}
 				}
@@ -234,8 +238,7 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 	protected ICodanProblemMarker similarMarker(IMarker m) {
 		ICodanProblemMarker mcm = CodanProblemMarker.createCodanProblemMarkerFromResourceMarker(m);
 		ArrayList<ICodanProblemMarker> cand = new ArrayList<ICodanProblemMarker>();
-		for (Iterator<ICodanProblemMarker> iterator = toAdd.iterator(); iterator.hasNext();) {
-			ICodanProblemMarker cm = iterator.next();
+		for (ICodanProblemMarker cm : toAdd) {
 			if (mcm.equals(cm))
 				return cm;
 			if (markersAreSimilar(mcm, cm)) {
@@ -266,11 +269,7 @@ public class CodanMarkerProblemReporter extends AbstractProblemReporter implemen
 		return true;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 *
-	 * @see IProblemReporterSessionPersistent#deleteProblems(boolean)
-	 */
+	@Override
 	public void deleteProblems(boolean all) {
 		if (all)
 			throw new UnsupportedOperationException();

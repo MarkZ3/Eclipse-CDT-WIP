@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008 Symbian Software Systems and others.
+ * Copyright (c) 2008, 2012 Symbian Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -86,21 +86,19 @@ public class SemanticsTests extends AST2BaseTest {
 	//      operator A(); // conversion
 	//      operator B(); // conversion
 	//	};
-	public void testGetDeclaredConversionOperators() throws Exception {
+	public void testConversionOperators() throws Exception {
+		// Test getDeclaredConversionOperators()
 		BindingAssertionHelper ba= new BindingAssertionHelper(getAboveComment(), true);
 		ICPPClassType c= ba.assertNonProblem("X {", 1, ICPPClassType.class);
-		ICPPMethod[] cops= SemanticUtil.getDeclaredConversionOperators(c);
+		ICPPMethod[] cops= SemanticUtil.getDeclaredConversionOperators(c, null);
 		assertEquals(2, cops.length);
 		Set actual= new HashSet();
 		actual.add(cops[0].getName()); actual.add(cops[1].getName());
 		Set expected= new HashSet();
 		expected.add("operator A"); expected.add("operator B");
 		assertEquals(expected, actual);
-	}
-	
-	public void testIsConversionOperator() throws Exception {
-		BindingAssertionHelper ba= new BindingAssertionHelper(getAboveComment(), true);
-		ICPPClassType c= ba.assertNonProblem("X {", 1, ICPPClassType.class);
+
+		// Test isConversionOperator()
 		ICPPMethod[] dms= c.getDeclaredMethods();
 		assertEquals(48, dms.length);
 		

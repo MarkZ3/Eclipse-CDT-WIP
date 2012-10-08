@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * IBM - Initial API and implementation
+ *     IBM - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -27,7 +27,6 @@ import org.eclipse.cdt.internal.core.dom.parser.IASTInternalNameOwner;
  */
 public class CPPASTElaboratedTypeSpecifier extends CPPASTBaseDeclSpecifier
         implements ICPPASTElaboratedTypeSpecifier, IASTInternalNameOwner {
-
     private int kind;
     private IASTName name;
     
@@ -39,34 +38,36 @@ public class CPPASTElaboratedTypeSpecifier extends CPPASTBaseDeclSpecifier
 		setName(name);
 	}
 
+	@Override
 	public CPPASTElaboratedTypeSpecifier copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTElaboratedTypeSpecifier copy(CopyStyle style) {
-		CPPASTElaboratedTypeSpecifier copy = new CPPASTElaboratedTypeSpecifier(kind, name == null
-				? null : name.copy(style));
-		copyBaseDeclSpec(copy);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		CPPASTElaboratedTypeSpecifier copy =
+				new CPPASTElaboratedTypeSpecifier(kind, name == null ? null : name.copy(style));
+		return super.copy(copy, style);
 	}
 
+	@Override
 	public int getKind() {
         return kind;
     }
 
-    public void setKind(int value) {
+    @Override
+	public void setKind(int value) {
         assertNotFrozen();
         this.kind = value;
     }
 
-    public IASTName getName() {
+    @Override
+	public IASTName getName() {
         return name;
     }
 
-    public void setName(IASTName name) {
+    @Override
+	public void setName(IASTName name) {
         assertNotFrozen();
         this.name = name;
         if (name != null) {
@@ -95,10 +96,12 @@ public class CPPASTElaboratedTypeSpecifier extends CPPASTBaseDeclSpecifier
         return true;
     }
 
+	@Override
 	public int getRoleForName(IASTName n) {
 		return getRoleForName(n, true);
 	}
 	
+	@Override
 	public int getRoleForName(IASTName n, boolean allowResolution) {
 		if (n != name) return r_unclear;
 		

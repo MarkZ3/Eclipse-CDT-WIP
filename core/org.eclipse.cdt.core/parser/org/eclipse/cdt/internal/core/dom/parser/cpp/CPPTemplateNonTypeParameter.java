@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 IBM Corporation and others.
+ * Copyright (c) 2005, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,21 +25,22 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPParameterPackType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateNonTypeParameter;
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.Value;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 /**
  * Binding for a non-type template parameter.
  */
-public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
-		ICPPTemplateNonTypeParameter {
-
-	private IType type = null;
+public class CPPTemplateNonTypeParameter extends CPPTemplateParameter
+		implements ICPPTemplateNonTypeParameter {
+	private IType type;
 	
 	public CPPTemplateNonTypeParameter(IASTName name) {
 		super(name);
 	}
 
+	@Override
 	public IASTExpression getDefault() {
 		IASTInitializerClause def= getDefaultClause();
 		if (def instanceof IASTExpression) {
@@ -59,7 +60,7 @@ public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
 				IASTNode parent = name.getParent();
 				assert parent instanceof IASTDeclarator;
 				if (parent instanceof IASTDeclarator) {
-					IASTDeclarator dtor = (IASTDeclarator) parent;
+					IASTDeclarator dtor = ASTQueries.findOutermostDeclarator((IASTDeclarator) parent);
 					IASTInitializer initializer = dtor.getInitializer();
 					if (initializer instanceof IASTEqualsInitializer) {
 						return ((IASTEqualsInitializer) initializer).getInitializerClause();
@@ -70,6 +71,7 @@ public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
 		return null;
 	}
 	
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		IASTInitializerClause dc= getDefault();
 		IASTExpression d= null;
@@ -77,9 +79,9 @@ public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
 			d= (IASTExpression) dc;
 		} else if (dc instanceof ICPPASTInitializerList) {
 			ICPPASTInitializerList list= (ICPPASTInitializerList) dc;
-			switch(list.getSize()) {
+			switch (list.getSize()) {
 			case 0:
-				return new CPPTemplateArgument(Value.create(0), getType());
+				return new CPPTemplateNonTypeArgument(Value.create(0), getType());
 			case 1:
 				dc= list.getClauses()[0];
 				if (dc instanceof IASTExpression) {
@@ -93,9 +95,10 @@ public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
 		
 		IValue val= Value.create(d, Value.MAX_RECURSION_DEPTH);
 		IType t= getType();
-		return new CPPTemplateArgument(val, t);
+		return new CPPTemplateNonTypeArgument(val, t);
 	}
 
+	@Override
 	public IType getType() {
 		if (type == null) {
 			IASTNode parent= getPrimaryDeclaration().getParent();
@@ -110,28 +113,42 @@ public class CPPTemplateNonTypeParameter extends CPPTemplateParameter implements
 		return type;
 	}
 
+	@Override
 	public boolean isParameterPack() {
 		return getType() instanceof ICPPParameterPackType;
 	}
 
+	@Override
 	public boolean isStatic() {
 		return false;
 	}
+
+	@Override
 	public boolean isExtern() {
 		return false;
 	}
+
+	@Override
 	public boolean isAuto() {
 		return false;
 	}
+
+	@Override
 	public boolean isRegister() {
 		return false;
 	}
+
+	@Override
 	public IValue getInitialValue() {
 		return null;
 	}
+
+	@Override
 	public boolean isExternC() {
 		return false;
 	}
+
+	@Override
 	public boolean isMutable() {
 		return false;
 	}

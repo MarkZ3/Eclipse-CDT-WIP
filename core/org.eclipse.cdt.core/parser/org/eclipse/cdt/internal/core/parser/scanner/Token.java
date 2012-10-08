@@ -31,31 +31,38 @@ public class Token implements IToken, Cloneable {
 		fSource= source;
 	}
 
+	@Override
 	final public int getType() {
 		return fKind;
 	}
 
+	@Override
 	final public int getOffset() {
 		return fOffset;
 	}
 
+	@Override
 	final public int getEndOffset() {
 		return fEndOffset;
 	}
 
+	@Override
 	final public int getLength() {
 		return fEndOffset-fOffset;
 	}
 
+	@Override
 	final public IToken getNext() {
 		return fNextToken;
 	}
 
 	
+	@Override
 	final public void setType(int kind) {
 		fKind= kind;
 	}
 
+	@Override
 	final public void setNext(IToken t) {
 		fNextToken= t;
 	}
@@ -70,6 +77,7 @@ public class Token implements IToken, Cloneable {
 		fEndOffset+= shift;
 	}
 
+	@Override
 	public char[] getCharImage() {
 		return TokenUtil.getImage(getType());
 	}
@@ -79,18 +87,20 @@ public class Token implements IToken, Cloneable {
 		return getImage();
 	}
 	
+	@Override
 	final public boolean isOperator() {
 		return TokenUtil.isOperator(fKind);
 	}
 
+	@Override
 	public String getImage() {
 		return new String(getCharImage());
 	}
 
 	@Override
-	final public Object clone() {
+	final public Token clone() {
 		try {
-			return super.clone();
+			return (Token) super.clone();
 		} catch (CloneNotSupportedException e) {
 			return null;
 		}

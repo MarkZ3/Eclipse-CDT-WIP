@@ -13,9 +13,11 @@ package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import org.eclipse.cdt.core.dom.ast.ASTTypeUtil;
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionTemplate;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateInstance;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
@@ -30,15 +32,17 @@ public class CPPFunctionTemplateSpecialization extends CPPFunctionSpecialization
 
 	private ObjectMap instances = null;
 	
-	public CPPFunctionTemplateSpecialization(ICPPFunction original, ICPPClassType owner, ICPPTemplateParameterMap argumentMap) {
-		super(original, owner, argumentMap);
+	public CPPFunctionTemplateSpecialization(ICPPFunction original, ICPPClassType owner, ICPPTemplateParameterMap argumentMap, ICPPFunctionType type, IType[] exceptionSpecs) {
+		super(original, owner, argumentMap, type, exceptionSpecs);
 	}
 
+	@Override
 	public ICPPTemplateParameter[] getTemplateParameters() {
 		ICPPFunctionTemplate template = (ICPPFunctionTemplate) getSpecializedBinding();
 		return template.getTemplateParameters();
 	}
 
+	@Override
 	public synchronized final void addInstance(ICPPTemplateArgument[] arguments, ICPPTemplateInstance instance) {
 		if (instances == null)
 			instances = new ObjectMap(2);
@@ -46,6 +50,7 @@ public class CPPFunctionTemplateSpecialization extends CPPFunctionSpecialization
 		instances.put(key, instance);
 	}
 
+	@Override
 	public synchronized final ICPPTemplateInstance getInstance(ICPPTemplateArgument[] arguments) {
 		if (instances != null) {
 			String key= ASTTypeUtil.getArgumentListString(arguments, true);
@@ -54,6 +59,7 @@ public class CPPFunctionTemplateSpecialization extends CPPFunctionSpecialization
 		return null;
 	}
 	
+	@Override
 	public synchronized ICPPTemplateInstance[] getAllInstances() {
 		if (instances != null) {
 			ICPPTemplateInstance[] result= new ICPPTemplateInstance[instances.size()];
@@ -65,6 +71,7 @@ public class CPPFunctionTemplateSpecialization extends CPPFunctionSpecialization
 		return ICPPTemplateInstance.EMPTY_TEMPLATE_INSTANCE_ARRAY;
 	}
 	
+	@Override
 	public IBinding resolveTemplateParameter(ICPPTemplateParameter param) {
 		return param;
 	}

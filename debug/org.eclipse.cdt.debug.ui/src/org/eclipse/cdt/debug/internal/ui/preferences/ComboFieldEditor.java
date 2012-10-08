@@ -71,6 +71,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#adjustForNumColumns(int)
 	 */
+	@Override
 	protected void adjustForNumColumns(int numColumns) {
 		if ( numColumns <= 1 )
 			return;
@@ -86,6 +87,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#doFillIntoGrid(Composite, int)
 	 */
+	@Override
 	protected void doFillIntoGrid(Composite parent, int numColumns) {
 		Control control = getLabelControl(parent);
 		GridData gd = new GridData();
@@ -100,6 +102,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#doLoad()
 	 */
+	@Override
 	protected void doLoad() {
 		updateComboForValue(getPreferenceStore().getString(getPreferenceName()));
 	}
@@ -107,6 +110,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#doLoadDefault()
 	 */
+	@Override
 	protected void doLoadDefault() {
 		updateComboForValue(getPreferenceStore().getDefaultString(getPreferenceName()));
 	}
@@ -114,6 +118,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#doStore()
 	 */
+	@Override
 	protected void doStore() {
 		if (fValue == null) {
 			getPreferenceStore().setToDefault(getPreferenceName());
@@ -126,6 +131,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * @see FieldEditor#getNumberOfControls()
 	 */
+	@Override
 	public int getNumberOfControls() {
 		return 1;
 	}
@@ -133,7 +139,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/**
 	 * Lazily create and return the Combo control.
 	 */
-	public Combo getComboBoxControl(Composite parent) {
+	protected Combo getComboBoxControl(Composite parent) {
 		if (fCombo == null) {
 			fCombo = new Combo(parent, SWT.READ_ONLY);
 			for (int i = 0; i < fEntryNamesAndValues.length; i++) {
@@ -141,6 +147,7 @@ public class ComboFieldEditor extends FieldEditor {
 			}
 			
 			fCombo.addSelectionListener(new SelectionAdapter() {
+				@Override
 				public void widgetSelected(SelectionEvent evt) {
 					String oldValue = fValue;
 					String name = fCombo.getText();
@@ -151,6 +158,10 @@ public class ComboFieldEditor extends FieldEditor {
 			});
 		}
 		return fCombo;
+	}
+	
+	protected Combo getComboBoxControl() {
+	    return fCombo;
 	}
 	
 	/**
@@ -185,6 +196,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.preference.FieldEditor#fireValueChanged(String, Object, Object)
 	 */
+	@Override
 	protected void fireValueChanged( String property, Object oldValue, Object newValue )
 	{
 		super.fireValueChanged( property, oldValue, newValue );
@@ -193,6 +205,7 @@ public class ComboFieldEditor extends FieldEditor {
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.preference.FieldEditor#setPresentsDefaultValue(boolean)
 	 */
+	@Override
 	protected void setPresentsDefaultValue( boolean b )
 	{
 		super.setPresentsDefaultValue( b );

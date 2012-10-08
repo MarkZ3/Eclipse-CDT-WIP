@@ -148,6 +148,7 @@ class Klasse0
 public:
     Klasse0();   //Comment
     std::string toString();
+
 private:
     int i;
 };
@@ -170,6 +171,7 @@ class Klasse0
 public:
     Klasse1();
     std::string toString();
+
 private:
     int i;
 };
@@ -182,6 +184,7 @@ class Klasse0
 public:
     Klasse1();
     std::string toString();
+
 private:
     int i;
 }; = //Comment1
@@ -2779,26 +2782,26 @@ int foo = bar; = //Zweiteilig
 //#org.eclipse.cdt.core.parser.tests.rewrite.comenthandler.CommentHandlingTest
 //@Klasse1.h
 //TEST 1
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST 2
 } //TEST 3
 
 //=
 =>leading
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST 2
 } = //TEST 1
 
 =>trailing
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST 2
 } = //TEST 3
 
 =>freestanding
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST 2
 } = //TEST 2
@@ -2807,7 +2810,7 @@ namespace ziemlichlangernamespace
 //!CommentRecognition215 - von ASTWriter NamesapceDefinition
 //#org.eclipse.cdt.core.parser.tests.rewrite.comenthandler.CommentHandlingTest
 //@Klasse1.h
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST
 }
@@ -2822,7 +2825,7 @@ void doIt(){
 =>trailing
 
 =>freestanding
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     //TEST
 } = //TEST
@@ -2830,7 +2833,7 @@ namespace ziemlichlangernamespace
 //!CommentRecognition216 - von ASTWriter NamesapceDefinition
 //#org.eclipse.cdt.core.parser.tests.rewrite.comenthandler.CommentHandlingTest
 //@Klasse1.h
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     int i = 0;
     //TEST
@@ -2846,7 +2849,7 @@ void doIt(){
 =>trailing
 
 =>freestanding
-namespace ziemlichlangernamespace
+namespace somenamespace
 {
     int i = 0;
     //TEST
@@ -2975,6 +2978,7 @@ class test
 
 //=
 =>leading
+#ifndef TEST_H_ = //TEST
 =>trailing
 =>freestanding
 
@@ -2996,6 +3000,9 @@ class test
 
 //=
 =>leading
+#ifndef TEST_H_ = /*
+ * Licence information...
+ */
 =>trailing
 =>freestanding
 
@@ -3018,6 +3025,9 @@ class test
 
 //=
 =>leading
+#ifndef TEST_H_ = /*
+ * Licence information...
+ */
 class test
 {
 }; = //test
@@ -3051,7 +3061,11 @@ private:
 
 //=
 =>leading
+#ifndef HIDEMETHOD_H_ = /*
+ * HideMethod.h
+ */
 =>trailing
+#endif = /* HIDEMETHOD_H_ */
 =>freestanding
 
 //!CommentRecognition Bug 233438
@@ -3074,6 +3088,7 @@ private:
 //=
 =>leading
 =>trailing
+#endif = /* HIDEMETHOD_H_ */
 =>freestanding
 
 //@test.cpp
@@ -3119,6 +3134,7 @@ private:
 //=
 =>leading
 =>trailing
+#endif = /* HIDEMETHOD_H_ */
 =>freestanding
 
 //@test.cpp
@@ -3142,4 +3158,44 @@ int HideMethod::methode2(){
 =>trailing
 i++; = //comment
 =>freestanding
+//!CommentRecognition preprocessor directives comment recognition
+//#org.eclipse.cdt.core.parser.tests.rewrite.comenthandler.CommentHandlingTest
+//@main.cpp
+//c1
+int i;//c2
+//inc1
 
+//inc2
+
+#include "foo.h" /*inc3*/ /*inc4*/
+//main
+int main() {
+	return 0;
+	//block1
+}
+//ifdef1
+#ifdef X //ifdef2
+//=
+=>leading
+int i; = //c1
+#include "foo.h" = //inc1 , //inc2
+int main() {
+	return 0;
+	//block1
+} = //main
+#ifdef X = //ifdef1
+=>trailing
+int i; = //c2
+#include "foo.h" = /*inc3*/ , /*inc4*/
+#ifdef X = //ifdef2
+=>freestanding
+{
+	return 0;
+	//block1
+} = //block1
+//@foo.h
+void foo();
+//=
+=>leading
+=>trailing
+=>freestanding

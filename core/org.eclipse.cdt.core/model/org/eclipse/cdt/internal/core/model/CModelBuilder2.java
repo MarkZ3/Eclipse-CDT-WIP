@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2006, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -104,7 +104,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 
 	/**
 	 * Create a model builder for the given translation unit.
-	 * 
+	 *
 	 * @param tu  the translation unit (must be a {@link TranslationUnit}
 	 * @param newElements  element cache
 	 * @param monitor the progress monitor
@@ -118,10 +118,12 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 	/*
 	 * @see org.eclipse.cdt.core.model.IContributedModelBuilder#parse(boolean)
 	 */
+	@Override
 	public void parse(boolean quickParseMode) throws Exception {
 		final IIndexManager indexManager= CCorePlugin.getIndexManager();
-		IIndex index= indexManager.getIndex(fTranslationUnit.getCProject(), IIndexManager.ADD_DEPENDENCIES);
-		
+		IIndex index = indexManager.getIndex(fTranslationUnit.getCProject(),
+				IIndexManager.ADD_EXTENSION_FRAGMENTS_EDITOR);
+
 		try {
 			if (index != null) {
 				try {
@@ -229,6 +231,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 		// sort by offset
 		final List<ICElement> children= getElementInfo(fTranslationUnit).internalGetChildren();
 		Collections.sort(children, new Comparator<ICElement>() {
+			@Override
 			public int compare(ICElement o1, ICElement o2) {
 				final SourceManipulationInfo info1= getSourceManipulationInfo((SourceManipulation) o1);
 				final SourceManipulationInfo info2= getSourceManipulationInfo((SourceManipulation) o2);
@@ -589,7 +592,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 		final Enumeration element= new Enumeration (parent, enumName);
 		setIndex(element);
 		element.setActive(enumSpecifier.isActive());
-		
+
 		// add to parent
 		parent.addChild(element);
 		EnumerationInfo info= (EnumerationInfo) getElementInfo(element);
@@ -600,7 +603,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 			final IASTFileLocation enumLocation= enumSpecifier.getFileLocation();
 			info.setIdPos(enumLocation.getNodeOffset(), type.length());
 		}
-		// add enumerators 
+		// add enumerators
 		final IASTEnumerator[] enumerators= enumSpecifier.getEnumerators();
 		for (final IASTEnumerator enumerator : enumerators) {
 			createEnumerator(element, enumerator);
@@ -967,7 +970,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 				element.setParameterTypes(parameterTypes);
 				element.setReturnType(returnType);
 				setIndex(element);
-				
+
 				info= (FunctionInfo) getElementInfo(element);
 				info.setConst(cppFunctionDeclarator.isConst());
 			}
@@ -978,7 +981,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 			element.setParameterTypes(parameterTypes);
 			element.setReturnType(returnType);
 			setIndex(element);
-			
+
 			info= (FunctionInfo) getElementInfo(element);
 		}
 		element.setActive(functionDeclaration.isActive());
@@ -1053,7 +1056,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 				element.setParameterTypes(parameterTypes);
 				element.setReturnType(returnType);
 				setIndex(element);
-				
+
 				info= (FunctionInfo)getElementInfo(element);
 				info.setConst(cppFunctionDeclarator.isConst());
 			}
@@ -1073,7 +1076,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 			return null;
 		}
 		element.setActive(declarator.isActive());
-		
+
 		// TODO [cmodel] correctly resolve isStatic
 		info.setStatic(declSpecifier.getStorageClass() == IASTDeclSpecifier.sc_static);
 
@@ -1281,7 +1284,7 @@ public class CModelBuilder2 implements IContributedModelBuilder {
 
 	/**
 	 * Determine the scope for given name.
-	 * 
+	 *
 	 * @param astName
 	 * @return the scope or <code>null</code>
 	 */

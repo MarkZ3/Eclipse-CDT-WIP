@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Doug Schaefer (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -18,7 +18,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTDeclSpecifier extends IASTNode {
-
 	/**
 	 * No storage class specified.
 	 */
@@ -28,9 +27,7 @@ public interface IASTDeclSpecifier extends IASTNode {
 	public static final int sc_static = 3;
 	public static final int sc_auto = 4;
 	public static final int sc_register = 5;
-	/**
-	 * @since 5.2
-	 */
+	/** @since 5.2 */
 	public static final int sc_mutable = 6;
 
 	/**
@@ -41,6 +38,7 @@ public interface IASTDeclSpecifier extends IASTNode {
 	// Type qualifier
 	public boolean isConst();
 	public boolean isVolatile();
+
 	/**
 	 * @since 5.2
 	 */
@@ -52,11 +50,13 @@ public interface IASTDeclSpecifier extends IASTNode {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTDeclSpecifier copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTDeclSpecifier copy(CopyStyle style);
 
 	/**
@@ -90,6 +90,4 @@ public interface IASTDeclSpecifier extends IASTNode {
 	 */
 	@Deprecated
 	public static final int sc_last = sc_register;
-
-
 }

@@ -49,7 +49,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 
 /**
  * @author David
- * 
+ *
  * To change the template for this generated type comment go to
  * Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments
  */
@@ -62,7 +62,7 @@ public class CDescriptorTests extends BaseTestCase {
 
 	/**
 	 * Constructor for CDescriptorTest.
-	 * 
+	 *
 	 * @param name
 	 */
 	public CDescriptorTests(String name) {
@@ -92,7 +92,7 @@ public class CDescriptorTests extends BaseTestCase {
 		};
 		return wrapper;
 	}
-	
+
 	@Override
 	protected void setUp() throws Exception {
 		fProject.open(new NullProgressMonitor());
@@ -101,7 +101,7 @@ public class CDescriptorTests extends BaseTestCase {
 	@Override
 	protected void tearDown() throws Exception {
 	}
-	
+
 	private static void addNatureToProject(IProject proj, String natureId, IProgressMonitor monitor) throws CoreException {
 		IProjectDescription description = proj.getDescription();
 		String[] prevNatures = description.getNatureIds();
@@ -114,6 +114,7 @@ public class CDescriptorTests extends BaseTestCase {
 
 	static public class CDescriptorListener implements ICDescriptorListener {
 
+		@Override
 		public void descriptorChanged(CDescriptorEvent event) {
 			fLastEvent = event;
 		}
@@ -122,6 +123,7 @@ public class CDescriptorTests extends BaseTestCase {
 	static void oneTimeSetUp() throws Exception {
 		CTestPlugin.getWorkspace().run(new IWorkspaceRunnable() {
 
+			@Override
 			public void run(IProgressMonitor monitor) throws CoreException {
 				IWorkspaceRoot root = CTestPlugin.getWorkspace().getRoot();
 				IProject project = root.getProject("testDescriptorProject");
@@ -149,6 +151,7 @@ public class CDescriptorTests extends BaseTestCase {
 	public void testDescriptorCreation() throws Exception {
 		CTestPlugin.getWorkspace().run(new IWorkspaceRunnable() {
 
+			@Override
 			public void run(IProgressMonitor monitor) throws CoreException {
 				CCorePlugin.getDefault().mapCProjectOwner(fProject, projectId, false);
 			}
@@ -179,6 +182,7 @@ public class CDescriptorTests extends BaseTestCase {
 			fProject.close(null);
 			fProject.open(null);
 			Thread t= new Thread() {
+				@Override
 				public void run() {
 					try {
 						CCorePlugin.getDefault().getCProjectDescription(fProject, true);
@@ -189,8 +193,11 @@ public class CDescriptorTests extends BaseTestCase {
 			};
 			t.start();
 			ICDescriptor desc = CCorePlugin.getDefault().getCProjectDescription(fProject, true);
-			t.join();
-			
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
+
 			ICStorageElement data = desc.getProjectStorageElement("testElement0");
 			data.createChild("test");
 			desc.saveProjectData();
@@ -200,7 +207,7 @@ public class CDescriptorTests extends BaseTestCase {
 
 	/*
 	 * This tests concurrent descriptor modification inside of a ICDescriptor operation run
-	 * with 
+	 * with
 	 * CConfigBasedDescriptorManager.runDescriptorOperation(IProject project, ICDescriptorOperation op, IProgressMonitor monitor)
 	 */
 	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=185930
@@ -227,6 +234,7 @@ public class CDescriptorTests extends BaseTestCase {
 					public void run() {
 						try {
 							ICDescriptorOperation operation= new ICDescriptorOperation() {
+								@Override
 								public void execute(ICDescriptor descriptor, IProgressMonitor monitor) throws CoreException {
 //									assertFalse(descriptor.getConfigurationDescription().isReadOnly());
 									ICStorageElement data = fdesc.getProjectStorageElement("testElement");
@@ -248,7 +256,10 @@ public class CDescriptorTests extends BaseTestCase {
 			}
 			for (int j = 0; j < threads.length; j++) {
 				if (threads[j] != null) {
-					threads[j].join();
+					try {
+						threads[j].join();
+					} catch (InterruptedException e) {
+					}
 				}
 				assertNull("Exception occurred: "+exception[j], exception[j]);
 			}
@@ -262,12 +273,13 @@ public class CDescriptorTests extends BaseTestCase {
 	}
 
 	/*
-	 * This test should pass as two threads, operating on the 
+	 * This test should pass as two threads, operating on the
 	 * different storage elements  (outside of an operation) should be safe
 	 */
 	public void testConcurrentDifferentStorageElementModification() throws Exception {
 		for (int i=0; i < 100; ++i) {
 			Thread t= new Thread() {
+				@Override
 				public void run() {
 					try {
 						ICDescriptor desc = CCorePlugin.getDefault().getCProjectDescription(fProject, true);
@@ -285,7 +297,10 @@ public class CDescriptorTests extends BaseTestCase {
 			ICStorageElement data = desc.getProjectStorageElement("testElement5");
 			data.createChild("test");
 			desc.saveProjectData();
-			t.join();
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
 
 			fLastEvent = null;
 		}
@@ -300,6 +315,7 @@ public class CDescriptorTests extends BaseTestCase {
 	public void testConcurrentSameStorageElementModification() throws Exception {
 		for (int i=0; i < 100; ++i) {
 			Thread t= new Thread() {
+				@Override
 				public void run() {
 					try {
 						ICDescriptor desc = CCorePlugin.getDefault().getCProjectDescription(fProject, true);
@@ -317,8 +333,11 @@ public class CDescriptorTests extends BaseTestCase {
 			ICStorageElement data = desc.getProjectStorageElement("testElement6");
 			data.createChild("test");
 			desc.saveProjectData();
-			t.join();
-			
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
+
 			fLastEvent = null;
 		}
 		Assert.assertEquals(200, CCorePlugin.getDefault().getCProjectDescription(fProject, false).getProjectStorageElement("testElement6").getChildren().length);
@@ -332,6 +351,7 @@ public class CDescriptorTests extends BaseTestCase {
 			oneTimeTearDown();
 			oneTimeSetUp();
 			Thread t= new Thread() {
+				@Override
 				public void run() {
 					try {
 						ICDescriptor desc = CCorePlugin.getDefault().getCProjectDescription(fProject, true);
@@ -348,8 +368,11 @@ public class CDescriptorTests extends BaseTestCase {
 			ICStorageElement data = desc.getProjectStorageElement("testElement0");
 			data.createChild("test");
 			desc.saveProjectData();
-			t.join();
-			
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
+
 			fLastEvent = null;
 		}
  	}
@@ -480,7 +503,7 @@ public class CDescriptorTests extends BaseTestCase {
 
 		String dotCProject1 = readDotCProjectFile(fProject);
 		long mtime1 = fProject.getFile(".cproject").getLocalTimeStamp();
-		
+
 		desc = CCorePlugin.getDefault().getCProjectDescription(fProject, true);
 		data = desc.getProjectStorageElement("testElement");
 		for (ICStorageElement child : data.getChildren()) {
@@ -514,11 +537,11 @@ public class CDescriptorTests extends BaseTestCase {
 
 	/**
 	 * Read .cproject file.
-	 * 
+	 *
 	 * @param project
 	 * @return content of .cproject file
-	 * @throws CoreException 
-	 * @throws IOException 
+	 * @throws CoreException
+	 * @throws IOException
 	 */
 	private static String readDotCProjectFile(IProject project) throws CoreException, IOException {
 		IFile cProjectFile = project.getFile(".cproject");

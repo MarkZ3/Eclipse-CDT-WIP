@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.cdt.debug.internal.core.ICWatchpointTarget;
+import org.eclipse.cdt.debug.core.ICWatchpointTarget;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
@@ -108,10 +108,12 @@ public class GdbVariableVMNode extends VariableVMNode {
 		/* (non-Javadoc)
 		 * @see org.eclipse.cdt.debug.internal.core.IWatchpointTarget#getSize()
 		 */
+        @Override
 		public void getSize(final ICWatchpointTarget.GetSizeRequest request) {
 			final IExpressionDMContext exprDmc = DMContexts.getAncestorOfType(getDMContext(), IExpressionDMContext.class);
 			if (exprDmc != null) {
 	            getSession().getExecutor().execute(new Runnable() {
+	                @Override
 	                public void run() {
 	                    final IExpressions expressionService = getServicesTracker().getService(IExpressions.class);
 	                    if (expressionService != null) {
@@ -144,6 +146,7 @@ public class GdbVariableVMNode extends VariableVMNode {
 		/* (non-Javadoc)
 		 * @see org.eclipse.cdt.debug.internal.core.IWatchpointTarget#canCreateWatchpoint(org.eclipse.cdt.debug.internal.core.IWatchpointTarget.CanCreateWatchpointRequest)
 		 */
+        @Override
 		public void canSetWatchpoint(final ICWatchpointTarget.CanCreateWatchpointRequest request) {
 			// If the expression is an l-value, then we say it supports a
 			// watchpoint. The logic here is basically the same as what's in
@@ -152,6 +155,7 @@ public class GdbVariableVMNode extends VariableVMNode {
 			final IExpressionDMContext exprDmc = DMContexts.getAncestorOfType(getDMContext(), IExpressionDMContext.class);
 			if (exprDmc != null) {
 	            getSession().getExecutor().execute(new Runnable() {
+	                @Override
 	                public void run() {
 	                    final IExpressions expressionService = getServicesTracker().getService(IExpressions.class);
 	                    if (expressionService != null) {

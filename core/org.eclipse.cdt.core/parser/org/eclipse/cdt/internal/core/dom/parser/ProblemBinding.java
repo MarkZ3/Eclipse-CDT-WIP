@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -42,19 +42,49 @@ import com.ibm.icu.text.MessageFormat;
  */
 public class ProblemBinding extends PlatformObject implements IProblemBinding, IASTInternalScope {
 	public static ProblemBinding NOT_INITIALIZED= new ProblemBinding(null, 0);
-	
+
     protected final int id;
     protected char[] arg;
     protected IASTNode node;
-    private final String message = null;
 	private IBinding[] candidateBindings;
-    
+
     public ProblemBinding(IASTName name, int id) {
     	this(name, id, null, null);
     }
 
     public ProblemBinding(IASTName name, int id, IBinding[] candidateBindings) {
     	this(name, id, null, candidateBindings);
+    }
+
+    /**
+     * @param name the name that could not be resolved, may be {@code null}
+     * @param point the point in code where the problem was encountered
+     * @param id the ID of the problem, see {@link IProblemBinding}
+     */
+    public ProblemBinding(IASTName name, IASTNode point, int id) {
+    	this(name, point, id, null);
+    }
+
+    /**
+     * @param name the name that could not be resolved, may be {@code null}
+     * @param point the point in code where the problem was encountered
+     * @param id the ID of the problem, see {@link IProblemBinding}
+     * @param candidateBindings candidate bindings that were rejected due to ambiguity or for other
+     *     reasons, may be {@code null}
+     */
+    public ProblemBinding(IASTName name, IASTNode point, int id, IBinding[] candidateBindings) {
+        this.id = id;
+        if (name != null && name.getTranslationUnit() != null) {
+        	this.node = name;
+        } else {
+        	this.node = point;
+        	if (name != null) {
+        		this.arg = name.getSimpleID();
+        	} else if (candidateBindings != null && candidateBindings.length != 0) {
+        		this.arg = candidateBindings[0].getNameCharArray();
+        	}
+        }
+		this.candidateBindings = candidateBindings;
     }
 
     public ProblemBinding(IASTNode node, int id, char[] arg) {
@@ -67,44 +97,45 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
         this.node = node;
 		this.candidateBindings = candidateBindings;
     }
-    
+
+    @Override
 	public EScopeKind getKind() {
 		return EScopeKind.eLocal;
 	}
 
-    public IASTNode getASTNode() {
+    @Override
+	public IASTNode getASTNode() {
         return node;
     }
 
+	@Override
 	public IBinding[] getCandidateBindings() {
 		return candidateBindings != null ? candidateBindings : IBinding.EMPTY_BINDING_ARRAY;
 	}
-	
+
 	public void setCandidateBindings(IBinding[] foundBindings) {
 		candidateBindings= foundBindings;
 	}
 
-    /* (non-Javadoc)
-     * @see org.eclipse.cdt.core.dom.ast.IProblemBinding#getID()
-     */
-    public int getID() {
+    @Override
+	public int getID() {
         return id;
     }
-    
-    /* (non-Javadoc)
-     * @see org.eclipse.cdt.core.dom.ast.IProblemBinding#getMessage()
-     */
-    public String getMessage() {
-        if (message != null)
-            return message;
 
+    @Override
+	public String getMessage() {
         String msg = ParserMessages.getProblemPattern(this);
         if (msg == null)
         	return ""; //$NON-NLS-1$
-        
-        if (arg == null && node instanceof IASTName)
-        	arg= ((IASTName) node).toCharArray();
-        
+
+        if (arg == null) {
+        	if (node instanceof IASTName) {
+            	arg= ((IASTName) node).toCharArray();
+        	} else if (candidateBindings != null && candidateBindings.length != 0) {
+        		arg = candidateBindings[0].getNameCharArray();
+        	}
+        }
+
         if (arg != null) {
             msg = MessageFormat.format(msg, new Object[] { new String(arg) });
         }
@@ -115,32 +146,36 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IBinding#getName()
      */
-    public String getName() {
+    @Override
+	public String getName() {
         return node instanceof IASTName ? new String(((IASTName) node).getSimpleID()) : CPPSemantics.EMPTY_NAME;
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IBinding#getNameCharArray()
      */
-    public char[] getNameCharArray() {
+    @Override
+	public char[] getNameCharArray() {
         return node instanceof IASTName ? ((IASTName) node).getSimpleID() : CharArrayUtils.EMPTY;
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IBinding#getScope()
      */
-    public IScope getScope() throws DOMException {
+    @Override
+	public IScope getScope() throws DOMException {
         throw new DOMException(this);
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IBinding#getPhysicalNode()
      */
-    public IASTNode getPhysicalNode() {
+    @Override
+	public IASTNode getPhysicalNode() {
         return getASTNode();
     }
 
-    
+
     @Override
 	public Object clone() {
     	// Don't clone problems
@@ -150,20 +185,23 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#getParent()
      */
-    public IScope getParent() throws DOMException {
+    @Override
+	public IScope getParent() throws DOMException {
         throw new DOMException(this);
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#find(java.lang.String)
      */
-    public IBinding[] find(String name) {
+    @Override
+	public IBinding[] find(String name) {
         return IBinding.EMPTY_BINDING_ARRAY;
     }
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.dom.ast.IScope#getScopeName()
 	 */
+	@Override
 	public IName getScopeName() {
 		return null;
 	}
@@ -171,16 +209,19 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#addName(org.eclipse.cdt.core.dom.ast.IASTName)
      */
-    public void addName(IASTName name) {
+    @Override
+	public void addName(IASTName name) {
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#getBinding(org.eclipse.cdt.core.dom.ast.IASTName, boolean)
      */
-    public IBinding getBinding(IASTName name, boolean resolve) {
+    @Override
+	public IBinding getBinding(IASTName name, boolean resolve) {
         return null;
     }
 
+	@Override
 	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix) {
         return IBinding.EMPTY_BINDING_ARRAY;
 	}
@@ -188,24 +229,40 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#getBinding(org.eclipse.cdt.core.dom.ast.IASTName, boolean)
      */
-    public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet fileSet) {
+    @Override
+	public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet fileSet) {
         return null;
     }
 
     /* (non-Javadoc)
+	 * @see org.eclipse.cdt.core.dom.ast.IScope#getBinding(org.eclipse.cdt.core.dom.ast.IASTName, boolean)
+	 */
+	/**
+	 * @deprecated Use {@link #getBindings(ScopeLookupData)} instead
+	 */
+	@Deprecated
+	@Override
+	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+	}
+
+	/* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IScope#getBinding(org.eclipse.cdt.core.dom.ast.IASTName, boolean)
      */
-    public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+    @Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
         return IBinding.EMPTY_BINDING_ARRAY;
     }
 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IType#isSameType(org.eclipse.cdt.core.dom.ast.IType)
      */
-    public boolean isSameType(IType type) {
+    @Override
+	public boolean isSameType(IType type) {
         return type == this;
     }
 
+	@Override
 	public String getFileName() {
 		if (node != null)
 			return node.getContainingFilename();
@@ -213,6 +270,7 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
 		return ""; //$NON-NLS-1$
 	}
 
+	@Override
 	public int getLineNumber() {
 		if (node != null) {
 			IASTFileLocation fileLoc = node.getFileLocation();
@@ -222,18 +280,21 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
 		return -1;
 	}
 
+	@Override
 	public void addBinding(IBinding binding) {
 	}
 
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.NO_LINKAGE;
 	}
-	
+
 	@Override
 	public String toString() {
 		return getMessage();
 	}
 
+	@Override
 	public IBinding getOwner() {
 		if (node instanceof IASTName) {
 			IASTTranslationUnit tu= node.getTranslationUnit();
@@ -251,10 +312,14 @@ public class ProblemBinding extends PlatformObject implements IProblemBinding, I
 		}
 	}
 
+	@Override
 	public void populateCache() {
 	}
-	
-	
+
+	@Override
+	public void removeNestedFromCache(IASTNode container) {
+	}
+
 	// Dummy methods for derived classes
     public IType getType() {
     	return new ProblemType(getID());

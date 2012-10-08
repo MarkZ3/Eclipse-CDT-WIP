@@ -18,6 +18,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.cdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.cdt.core.formatter.DefaultCodeFormatterOptions;
+import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.internal.formatter.align.Alignment;
 import org.eclipse.cdt.internal.formatter.align.AlignmentException;
 import org.eclipse.cdt.internal.formatter.scanner.Scanner;
@@ -34,7 +36,6 @@ import org.eclipse.text.edits.TextEdit;
  */
 public class Scribe {
 	private static final String EMPTY_STRING= ""; //$NON-NLS-1$
-	private static final char[] EMPTY_CHAR_ARRAY= {};
 	private static final String SPACE= " "; //$NON-NLS-1$
 
 	private static final int INITIAL_SIZE= 100;
@@ -104,7 +105,7 @@ public class Scribe {
 		int currentIndentation;
 		int indentation;
 		int lines;
-		char[] leadingSpaces = EMPTY_CHAR_ARRAY;
+		char[] leadingSpaces = CharArrayUtils.EMPTY_CHAR_ARRAY;
 	}
 	final LineComment lastLineComment = new LineComment();
 
@@ -127,27 +128,34 @@ public class Scribe {
 		indentationLevel= preferences.initial_indentation_level * indentationSize;
 		preserveNewLines = false;
 		textRegionStart= offset;
-		textRegionEnd= offset + length - 1;
+		textRegionEnd= offset + length;
 		reset();
 	}
 
 	private final void addDeleteEdit(int start, int end) {
-		if (edits.length == editsIndex) {
-			resize();
-		}
 		addOptimizedReplaceEdit(start, end - start + 1, EMPTY_STRING);
 	}
 
 	public final void addInsertEdit(int insertPosition, CharSequence insertedString) {
-		if (edits.length == editsIndex) {
-			resize();
-		}
 		addOptimizedReplaceEdit(insertPosition, 0, insertedString);
 	}
 
+	/**
+	 * Adds a replace edit.
+	 * @param start  start offset (inclusive)
+	 * @param end  end offset (inclusive)
+	 * @param replacement  the replacement string
+	 */
+	public final void addReplaceEdit(int start, int end, CharSequence replacement) {
+		addOptimizedReplaceEdit(start, end - start + 1, replacement);
+	}
+
 	private final void addOptimizedReplaceEdit(int offset, int length, CharSequence replacement) {
+		if (edits.length == editsIndex) {
+			resize();
+		}
 		if (editsIndex > 0) {
-			// try to merge last two edits
+			// Try to merge last two edits
 			final OptimizedReplaceEdit previous= edits[editsIndex - 1];
 			final int previousOffset= previous.offset;
 			final int previousLength= previous.length;
@@ -170,7 +178,8 @@ public class Scribe {
 			if (endOffsetOfPreviousEdit == offset) {
 				if (length != 0) {
 					if (replacementLength != 0) {
-						edits[editsIndex - 1]= new OptimizedReplaceEdit(previousOffset, previousLength + length,
+						editsIndex--;
+						appendOptimizedReplaceEdit(previousOffset, previousLength + length,
 								previousReplacement + replacement);
 					} else if (previousLength + length == previousReplacementLength) {
 						// Check the characters. If they are identical,
@@ -178,8 +187,9 @@ public class Scribe {
 						boolean canBeRemoved= true;
 						loop: for (int i= previousOffset; i < previousOffset + previousReplacementLength; i++) {
 							if (scanner.source[i] != previousReplacement.charAt(i - previousOffset)) {
-								edits[editsIndex - 1]= new OptimizedReplaceEdit(previousOffset,
-										previousReplacementLength, previousReplacement);
+								editsIndex--;
+								appendOptimizedReplaceEdit(previousOffset, previousReplacementLength,
+										previousReplacement);
 								canBeRemoved= false;
 								break loop;
 							}
@@ -195,35 +205,45 @@ public class Scribe {
 							editsIndex--;
 						}
 					} else {
-						edits[editsIndex - 1]= new OptimizedReplaceEdit(previousOffset, previousLength + length,
+						editsIndex--;
+						appendOptimizedReplaceEdit(previousOffset, previousLength + length,
 								previousReplacement);
 					}
 				} else {
 					if (replacementLength != 0) {
-						edits[editsIndex - 1]= new OptimizedReplaceEdit(previousOffset, previousLength,
+						editsIndex--;
+						appendOptimizedReplaceEdit(previousOffset, previousLength,
 								previousReplacement + replacement);
 					}
 				}
 			} else {
 				assert endOffsetOfPreviousEdit < offset;
-				edits[editsIndex++]= new OptimizedReplaceEdit(offset, length, replacement);
+				appendOptimizedReplaceEdit(offset, length, replacement);
 			}
 		} else {
-			edits[editsIndex++]= new OptimizedReplaceEdit(offset, length, replacement);
+			appendOptimizedReplaceEdit(offset, length, replacement);
 		}
 	}
 
 	/**
-	 * Add a replace edit.
-	 * @param start  start offset (inclusive)
-	 * @param end  end offset (inclusive)
-	 * @param replacement  the replacement string
+	 * Trims redundant prefix from a replacement edit and, if there is anything left, appends
+	 * the replacement edit to the edits array.   
 	 */
-	public final void addReplaceEdit(int start, int end, String replacement) {
-		if (edits.length == editsIndex) {
-			resize();
+	private void appendOptimizedReplaceEdit(int offset, int length, CharSequence replacement) {
+		int replacementLength = replacement.length();
+		int i;
+		for (i = 0; i < length && i < replacementLength; i++, offset++) {
+			if (scanner.source[offset] != replacement.charAt(i))
+				break;
 		}
-		addOptimizedReplaceEdit(start, end - start + 1, replacement);
+		length -= i;
+		if (i > 0) {
+			replacement = i == replacementLength ?
+					 EMPTY_STRING : replacement.subSequence(i, replacementLength);
+		}
+		if (length > 0 || replacement.length() > 0) {
+			edits[editsIndex++]= new OptimizedReplaceEdit(offset, length, replacement);
+		}
 	}
 
 	public void alignFragment(Alignment alignment, int fragmentIndex) {
@@ -328,9 +348,9 @@ public class Scribe {
 	}
 
 	public Alignment createMemberAlignment(String name, int mode, int count, int sourceRestart) {
-		Alignment mAlignment= createAlignment(name, mode, Alignment.R_INNERMOST, count, sourceRestart);
-		mAlignment.breakIndentationLevel= indentationLevel;
-		return mAlignment;
+		Alignment alignment= createAlignment(name, mode, Alignment.R_INNERMOST, count, sourceRestart);
+		alignment.breakIndentationLevel= indentationLevel;
+		return alignment;
 	}
 
 	public void enterAlignment(Alignment alignment) {
@@ -554,15 +574,15 @@ public class Scribe {
 
 	public TextEdit getRootEdit() {
 		MultiTextEdit edit= null;
-		int length= textRegionEnd - textRegionStart + 1;
+		int length= textRegionEnd - textRegionStart;
 		if (textRegionStart <= 0) {
 			if (length <= 0) {
 				edit= new MultiTextEdit(0, 0);
 			} else {
-				edit= new MultiTextEdit(0, textRegionEnd + 1);
+				edit= new MultiTextEdit(0, textRegionEnd);
 			}
 		} else {
-			edit= new MultiTextEdit(textRegionStart, textRegionEnd - textRegionStart + 1);
+			edit= new MultiTextEdit(textRegionStart, length);
 		}
 		for (int i= 0, max= editsIndex; i < max; i++) {
 			OptimizedReplaceEdit currentEdit= edits[i];
@@ -575,7 +595,7 @@ public class Scribe {
 	}
 
 	public void handleLineTooLong() {
-		// Search for closest breakable alignment, using tie break rules.
+		// Search for closest breakable alignment, using tie-breaking rules.
 		// Look for innermost breakable one.
 		int relativeDepth= 0;
 		Alignment targetAlignment= currentAlignment;
@@ -601,6 +621,7 @@ public class Scribe {
 		if (outerMostDepth >= 0) {
 			throwAlignmentException(AlignmentException.LINE_TOO_LONG, outerMostDepth);
 		}
+
 		// Look for innermost breakable one but don't stop if we encounter a R_OUTERMOST
 		// tie-breaking rule.
 		relativeDepth= 0;
@@ -690,7 +711,7 @@ public class Scribe {
 		final int editReplacementLength= edit.replacement.length();
 		final int editOffset= edit.offset;
 		if (editLength != 0) {
-			if (textRegionStart <= editOffset && (editOffset + editLength - 1) <= textRegionEnd) {
+			if (textRegionStart <= editOffset && editOffset + editLength <= textRegionEnd) {
 				if (editReplacementLength != 0 && editLength == editReplacementLength) {
 					for (int i= editOffset, max= editOffset + editLength; i < max; i++) {
 						if (scanner.source[i] != edit.replacement.charAt(i - editOffset)) {
@@ -717,9 +738,9 @@ public class Scribe {
 					return true;
 				}
 			}
-		} else if (textRegionStart <= editOffset && editOffset <= textRegionEnd) {
+		} else if (textRegionStart <= editOffset && editOffset < textRegionEnd) {
 			return true;
-		} else if (editOffset == scannerEndPosition && editOffset == textRegionEnd + 1) {
+		} else if (editOffset == scannerEndPosition && editOffset == textRegionEnd) {
 			return true;
 		}
 		return false;
@@ -766,7 +787,7 @@ public class Scribe {
 		skipOverInactive= false;
 		scannerEndPosition= startOffset + length;
 		try {
-			scanner.resetTo(Math.max(startOffset, currentPosition), startOffset + length - 1);
+			scanner.resetTo(Math.max(startOffset, currentPosition), startOffset + length);
 			int parenLevel= 0;
 			while (true) {
 				boolean hasWhitespace= printComment();
@@ -784,7 +805,7 @@ public class Scribe {
 				}
 				switch (currentToken.type) {
 				case Token.tLBRACE: {
-					scanner.resetTo(scanner.getCurrentTokenStartPosition(), scannerEndPosition - 1);
+					scanner.resetTo(scanner.getCurrentTokenStartPosition(), scannerEndPosition);
 					formatOpeningBrace(preferences.brace_position_for_block,
 							preferences.insert_space_before_opening_brace_in_block);
 					if (preferences.indent_statements_compare_to_block) {
@@ -793,7 +814,7 @@ public class Scribe {
 					break;
 				}
 				case Token.tRBRACE: {
-					scanner.resetTo(scanner.getCurrentTokenStartPosition(), scannerEndPosition - 1);
+					scanner.resetTo(scanner.getCurrentTokenStartPosition(), scannerEndPosition);
 					if (preferences.indent_statements_compare_to_block) {
 						unIndent();
 					}
@@ -848,7 +869,7 @@ public class Scribe {
 			}
 		} finally {
 			scannerEndPosition= savedScannerEndPos;
-			scanner.resetTo(startOffset + length, scannerEndPosition - 1);
+			scanner.resetTo(startOffset + length, scannerEndPosition);
 			skipOverInactive= savedSkipOverInactive;
 			preserveNewLines= savedPreserveNL;
 		}
@@ -912,7 +933,7 @@ public class Scribe {
 		int currentTokenStartPosition= scanner.getCurrentTokenStartPosition();
 		int currentTokenEndPosition= scanner.getCurrentTokenEndPosition() + 1;
 
-		scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition - 1);
+		scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition);
 		int currentCharacter;
 		boolean isNewLine= false;
 		int start= currentTokenStartPosition;
@@ -982,7 +1003,7 @@ public class Scribe {
 		}
 		lastNumberOfNewLines= 0;
 		needSpace= false;
-		scanner.resetTo(currentTokenEndPosition, scannerEndPosition - 1);
+		scanner.resetTo(currentTokenEndPosition, scannerEndPosition);
 		if (forceNewLine) {
 			startNewLine();
 		}
@@ -992,7 +1013,7 @@ public class Scribe {
 		int currentTokenStartPosition= scanner.getCurrentTokenStartPosition();
 		int currentTokenEndPosition= scanner.getCurrentTokenEndPosition() + 1;
 
-		scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition - 1);
+		scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition);
 		int currentCharacter;
 		boolean isNewLine= false;
 		int nextCharacterStart= currentTokenStartPosition;
@@ -1032,7 +1053,7 @@ public class Scribe {
 		if (currentAlignment != null) {
 			indentationLevel= currentAlignment.breakIndentationLevel;
 		}
-		scanner.resetTo(currentTokenEndPosition, scannerEndPosition - 1);
+		scanner.resetTo(currentTokenEndPosition, scannerEndPosition);
 	}
 
 	public void printEndOfTranslationUnit() {
@@ -1061,7 +1082,7 @@ public class Scribe {
 		boolean hasComment= false;
 		boolean hasLineComment= false;
 		boolean hasWhitespace= false;
-		char[] whiteSpaces= EMPTY_CHAR_ARRAY;
+		char[] whiteSpaces= CharArrayUtils.EMPTY_CHAR_ARRAY;
 		int lines= 0;
 		while ((currentToken= scanner.nextToken()) != null) {
 			if (skipOverInactive) {
@@ -1073,7 +1094,7 @@ public class Scribe {
 							inactivePos.getOffset() + inactivePos.getLength());
 					if (startOffset < endOffset) {
 						int savedIndentLevel= indentationLevel;
-						scanner.resetTo(scanner.getCurrentTokenStartPosition(), scanner.eofPosition - 1);
+						scanner.resetTo(scanner.getCurrentTokenStartPosition(), scanner.eofPosition);
 						printRaw(startOffset, endOffset - startOffset);
 						while (indentationLevel > savedIndentLevel) {
 							unIndent();
@@ -1081,7 +1102,7 @@ public class Scribe {
 						while (indentationLevel < savedIndentLevel) {
 							indent();
 						}
-						scanner.resetTo(endOffset, scanner.eofPosition - 1);
+						scanner.resetTo(endOffset, scanner.eofPosition);
 						continue;
 					}
 				}
@@ -1145,7 +1166,7 @@ public class Scribe {
 								break;
 							}
 						}
-						scanner.resetTo(currentTokenPosition, scanner.eofPosition - 1);
+						scanner.resetTo(currentTokenPosition, scanner.eofPosition);
 						scanner.getNextToken(); // Get current token again to restore the scanner state.
 					}
 				}
@@ -1158,10 +1179,10 @@ public class Scribe {
 							currentTokenStartPosition = tokenStartPosition;
 							preserveEmptyLines(lines, currentTokenStartPosition);
 							addDeleteEdit(currentTokenStartPosition, whitespacesEndPosition);
-							scanner.resetTo(scanner.getCurrentPosition(), scannerEndPosition - 1);
+							scanner.resetTo(scanner.getCurrentPosition(), scannerEndPosition);
 							return hasWhitespace;
 						}
-						scanner.resetTo(currentTokenStartPosition, scannerEndPosition - 1);
+						scanner.resetTo(currentTokenStartPosition, scannerEndPosition);
 						return hasWhitespace;
 					} 
 					// If one or several new lines are consumed, following comments
@@ -1170,7 +1191,7 @@ public class Scribe {
 						if (hasComment) {
 							printNewLine(tokenStartPosition);
 						}
-						scanner.resetTo(currentTokenStartPosition, scannerEndPosition - 1);
+						scanner.resetTo(currentTokenStartPosition, scannerEndPosition);
 						return hasWhitespace;
 					}
 					// Delete consumed white spaces
@@ -1222,7 +1243,7 @@ public class Scribe {
 					lastLineComment.leadingSpaces = whiteSpaces;
 					lastLineComment.lines = lines;
 				}
-				whiteSpaces= EMPTY_CHAR_ARRAY;
+				whiteSpaces= CharArrayUtils.EMPTY_CHAR_ARRAY;
 				hasWhitespace= false;
 				printLineComment();
 				currentTokenStartPosition= scanner.getCurrentPosition();
@@ -1239,7 +1260,7 @@ public class Scribe {
 				} else if (hasWhitespace) {
 					space();
 				}
-				whiteSpaces= EMPTY_CHAR_ARRAY;
+				whiteSpaces= CharArrayUtils.EMPTY_CHAR_ARRAY;
 				hasWhitespace= false;
 				printBlockComment(false);
 				currentTokenStartPosition= scanner.getCurrentPosition();
@@ -1259,7 +1280,7 @@ public class Scribe {
 						// printNewLine(scanner.getCurrentTokenStartPosition());
 					}
 				}
-				whiteSpaces= EMPTY_CHAR_ARRAY;
+				whiteSpaces= CharArrayUtils.EMPTY_CHAR_ARRAY;
 				hasWhitespace= false;
 				printPreprocessorDirective();
 				printNewLine();
@@ -1270,7 +1291,7 @@ public class Scribe {
 				break;
 			default:
 				// step back one token
-				scanner.resetTo(currentTokenStartPosition, scannerEndPosition - 1);
+				scanner.resetTo(currentTokenStartPosition, scannerEndPosition);
 				return hasWhitespace;
 			}
 		}
@@ -1294,7 +1315,7 @@ public class Scribe {
 	private void printLineComment() {
     	int currentTokenStartPosition = scanner.getCurrentTokenStartPosition();
     	int currentTokenEndPosition = scanner.getCurrentTokenEndPosition() + 1;
-    	scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition - 1);
+    	scanner.resetTo(currentTokenStartPosition, currentTokenEndPosition);
     	int currentCharacter;
     	int start = currentTokenStartPosition;
     	int nextCharacterStart = currentTokenStartPosition;
@@ -1417,7 +1438,7 @@ public class Scribe {
 				}
 	    	}
 	    	resetAt(location);
-			scanner.resetTo(location.inputOffset, scanner.eofPosition - 1);
+			scanner.resetTo(location.inputOffset, scanner.eofPosition);
 		}
 
     	needSpace = false;
@@ -1443,7 +1464,7 @@ public class Scribe {
     			indentationLevel = currentAlignment.breakIndentationLevel;
     		}
     	}
-    	scanner.resetTo(currentTokenEndPosition, scannerEndPosition - 1);
+    	scanner.resetTo(currentTokenEndPosition, scannerEndPosition);
     }
 
 	public void printEmptyLines(int linesNumber) {
@@ -1452,17 +1473,18 @@ public class Scribe {
 
 	private void printEmptyLines(int linesNumber, int insertPosition) {
 		final String buffer= getEmptyLines(linesNumber);
-		if (EMPTY_STRING == buffer)
-			return;
-
-		addInsertEdit(insertPosition, buffer);
+		if (!buffer.isEmpty()) {
+			addInsertEdit(insertPosition, buffer);
+		}
 	}
 
 	void printIndentationIfNecessary() {
+		if (column > indentationLevel)
+			return;
 		StringBuilder buffer= new StringBuilder();
 		printIndentationIfNecessary(buffer);
 		if (buffer.length() > 0) {
-			addInsertEdit(scanner.getCurrentTokenStartPosition(), buffer.toString());
+			addInsertEdit(scanner.getCurrentTokenStartPosition(), buffer);
 			pendingSpace= false;
 		}
 	}
@@ -1559,7 +1581,7 @@ public class Scribe {
 		}
 	}
 
-	public void startNode() {
+	public void enterNode() {
 		lastLineComment.contiguous = false;
 	}
 
@@ -1579,7 +1601,7 @@ public class Scribe {
 		}
 		if (lastNumberOfNewLines >= 1) {
 			// Ensure that the scribe is at the beginning of a new line
-			// only if no specific indentation has been previously set
+			// only if no specific indentation has been previously set.
 			if (!preserveLineBreakIndentation) {
 				column = 1; 
 			}
@@ -1700,7 +1722,7 @@ public class Scribe {
 		}
 		// Reset scribe/scanner to restart at this given location
 		resetAt(currentAlignment.location);
-		scanner.resetTo(currentAlignment.location.inputOffset, scanner.eofPosition - 1);
+		scanner.resetTo(currentAlignment.location.inputOffset, scanner.eofPosition);
 		// Clean alignment chunkKind so it will think it is a new chunk again
 		currentAlignment.chunkKind= 0;
 		currentAlignmentException= null;
@@ -1709,7 +1731,7 @@ public class Scribe {
 	void redoMemberAlignment(AlignmentException e) {
 		// Reset scribe/scanner to restart at this given location
 		resetAt(memberAlignment.location);
-		scanner.resetTo(memberAlignment.location.inputOffset, scanner.eofPosition - 1);
+		scanner.resetTo(memberAlignment.location.inputOffset, scanner.eofPosition);
 		// Clean alignment chunkKind so it will think it is a new chunk again
 		memberAlignment.chunkKind= 0;
 		currentAlignmentException= null;
@@ -1890,7 +1912,7 @@ public class Scribe {
 					}
 				}
 				// Step back one token
-				scanner.resetTo(currentTokenStartPosition, scannerEndPosition - 1);
+				scanner.resetTo(currentTokenStartPosition, scannerEndPosition);
 				return !isFirstModifier;
 			}
 		}
@@ -1916,7 +1938,7 @@ public class Scribe {
 		}
 		printRaw(skipStart, tokenStart - skipStart);
 		currentToken= scanner.nextToken();
-		scanner.resetTo(tokenStart, scannerEndPosition - 1);
+		scanner.resetTo(tokenStart, scannerEndPosition);
 		return true;
 	}
 
@@ -1997,7 +2019,7 @@ public class Scribe {
 				}
 			}
 		} finally {
-			scanner.resetTo(startPosition, scannerEndPosition - 1);
+			scanner.resetTo(startPosition, scannerEndPosition);
 		}
 		return -1;
 	}
@@ -2015,10 +2037,10 @@ public class Scribe {
 	public int findToken(int tokenType, int startPosition, int endPosition) {
 		int currentPosition= scanner.getCurrentPosition();
 		try {
-			scanner.resetTo(startPosition, scannerEndPosition - 1);
+			scanner.resetTo(startPosition, scannerEndPosition);
 			return findToken(tokenType, endPosition);
 		} finally {
-			scanner.resetTo(currentPosition, scannerEndPosition - 1);
+			scanner.resetTo(currentPosition, scannerEndPosition);
 		}
 	}
 
@@ -2033,7 +2055,7 @@ public class Scribe {
 	}
 
 	boolean shouldSkip(int offset) {
-		return offset >= fSkipStartOffset;
+		return offset >= fSkipStartOffset && offset < fSkipEndOffset;
 	}
 
 	void skipRange(int offset, int endOffset) {
@@ -2063,7 +2085,7 @@ public class Scribe {
 			}
 			if (offset > currentPosition) {
 				printRaw(currentPosition, offset - currentPosition);
-				scanner.resetTo(offset, scannerEndPosition - 1);
+				scanner.resetTo(offset, scannerEndPosition);
 			}
 			while (fSkippedIndentations > 0) {
 				indent();
@@ -2077,7 +2099,7 @@ public class Scribe {
 					space();
 				}
 				printRaw(nextPosition, offset - nextPosition);
-				scanner.resetTo(offset, scannerEndPosition - 1);
+				scanner.resetTo(offset, scannerEndPosition);
 			}
 		}
 	}

@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 import org.eclipse.cdt.debug.core.model.ICBreakpoint;
+import org.eclipse.cdt.debug.core.model.IConnectHandler;
 import org.eclipse.cdt.debug.core.model.IResumeWithoutSignalHandler;
 import org.eclipse.cdt.debug.core.model.IReverseResumeHandler;
 import org.eclipse.cdt.debug.core.model.IReverseStepIntoHandler;
@@ -41,14 +42,13 @@ import org.eclipse.cdt.dsf.debug.ui.viewmodel.SteppingController;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.actions.DefaultRefreshAllTarget;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.actions.IRefreshAllTarget;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.launch.DefaultDsfModelSelectionPolicyFactory;
-import org.eclipse.cdt.dsf.gdb.actions.IConnect;
 import org.eclipse.cdt.dsf.gdb.internal.commands.ISelectNextTraceRecordHandler;
 import org.eclipse.cdt.dsf.gdb.internal.commands.ISelectPrevTraceRecordHandler;
 import org.eclipse.cdt.dsf.gdb.internal.ui.actions.DsfTerminateCommand;
-import org.eclipse.cdt.dsf.gdb.internal.ui.actions.GdbConnectCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.actions.GdbDisconnectCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.actions.GdbRestartCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.actions.GdbSteppingModeTarget;
+import org.eclipse.cdt.dsf.gdb.internal.ui.commands.GdbConnectCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.commands.GdbResumeWithoutSignalCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.commands.GdbReverseResumeCommand;
 import org.eclipse.cdt.dsf.gdb.internal.ui.commands.GdbReverseStepIntoCommand;
@@ -188,7 +188,7 @@ public class GdbAdapterFactory
             session.registerModelAdapter(IResumeWithoutSignalHandler.class, fResumeWithoutSignalCommand);
             session.registerModelAdapter(IRestartHandler.class, fRestartCommand);
             session.registerModelAdapter(ITerminateHandler.class, fTerminateCommand);
-            session.registerModelAdapter(IConnect.class, fConnectCommand);
+            session.registerModelAdapter(IConnectHandler.class, fConnectCommand);
             session.registerModelAdapter(IDisconnectHandler.class, fDisconnectCommand);
             session.registerModelAdapter(IModelSelectionPolicyFactory.class, fModelSelectionPolicyFactory);
             session.registerModelAdapter(IRefreshAllTarget.class, fRefreshAllTarget);
@@ -202,8 +202,9 @@ public class GdbAdapterFactory
 
             fDebugModelProvider = new IDebugModelProvider() {
                 // @see org.eclipse.debug.core.model.IDebugModelProvider#getModelIdentifiers()
+                @Override
                 public String[] getModelIdentifiers() {
-                    return new String[] { GdbLaunchDelegate.GDB_DEBUG_MODEL_ID, ICBreakpoint.C_BREAKPOINTS_DEBUG_MODEL_ID };
+                    return new String[] { GdbLaunchDelegate.GDB_DEBUG_MODEL_ID, ICBreakpoint.C_BREAKPOINTS_DEBUG_MODEL_ID, "org.eclipse.cdt.gdb" }; //$NON-NLS-1$
                 }
             };
             session.registerModelAdapter(IDebugModelProvider.class, fDebugModelProvider);
@@ -247,7 +248,7 @@ public class GdbAdapterFactory
             session.unregisterModelAdapter(IResumeWithoutSignalHandler.class);
             session.unregisterModelAdapter(IRestartHandler.class);
             session.unregisterModelAdapter(ITerminateHandler.class);
-            session.unregisterModelAdapter(IConnect.class);
+            session.unregisterModelAdapter(IConnectHandler.class);
             session.unregisterModelAdapter(IDisconnectHandler.class);
             session.unregisterModelAdapter(IModelSelectionPolicyFactory.class);
             session.unregisterModelAdapter(IRefreshAllTarget.class);
@@ -329,6 +330,7 @@ public class GdbAdapterFactory
      * This method only actually returns adapters for the launch object.
      */
     @SuppressWarnings("rawtypes")
+    @Override
     public Object getAdapter(Object adaptableObject, Class adapterType) {
         if (!(adaptableObject instanceof GdbLaunch)) return null;
 
@@ -379,6 +381,7 @@ public class GdbAdapterFactory
     }
 
     @SuppressWarnings("rawtypes")
+    @Override
     public Class[] getAdapterList() {
         return new Class[] {
             IElementContentProvider.class, IModelProxyFactory.class, ISuspendTrigger.class,
@@ -386,6 +389,7 @@ public class GdbAdapterFactory
             };
     }
 
+    @Override
     public void launchesRemoved(ILaunch[] launches) {
         // Dispose the set of adapters for a launch only after the launch is
         // removed.
@@ -396,12 +400,15 @@ public class GdbAdapterFactory
         }
     }
 
+    @Override
     public void launchesTerminated(ILaunch[] launches) {
     }
 
+    @Override
     public void launchesAdded(ILaunch[] launches) {
     }
     
+    @Override
     public void launchesChanged(ILaunch[] launches) {
     }
     

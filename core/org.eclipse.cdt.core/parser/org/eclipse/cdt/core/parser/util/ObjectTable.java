@@ -13,10 +13,10 @@ package org.eclipse.cdt.core.parser.util;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 
 public abstract class ObjectTable<T> extends HashTable implements Iterable<T> {  
 	protected T[] keyTable;
@@ -167,14 +167,17 @@ public abstract class ObjectTable<T> extends HashTable implements Iterable<T> {
 	/**
 	 * @since 5.4
 	 */
+	@Override
 	public Iterator<T> iterator() {
 		return new Iterator<T>() {
 			int nextIndex;
 
+			@Override
 			public boolean hasNext() {
 				return nextIndex < size();
 			}
 
+			@Override
 			public T next() {
 				T element = keyAt(nextIndex);
 				if (element == null) {
@@ -184,9 +187,15 @@ public abstract class ObjectTable<T> extends HashTable implements Iterable<T> {
 				return element;
 			}
 
+			@Override
 			public void remove() {
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	@Override
+	public String toString() {
+		return Arrays.toString(keyTable);
 	}
 }

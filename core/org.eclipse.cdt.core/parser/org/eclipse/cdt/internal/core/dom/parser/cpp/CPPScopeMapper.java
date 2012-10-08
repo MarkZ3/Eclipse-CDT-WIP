@@ -26,6 +26,7 @@ import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IScope;
@@ -60,12 +61,15 @@ public class CPPScopeMapper {
 			fContainer= container;
 			fNominated= inline;
 		}
+		@Override
 		public IScope getContainingScope() {
 			return fContainer;
 		}
+		@Override
 		public ICPPNamespaceScope getNominatedScope() throws DOMException {
 			return fNominated;
 		}
+		@Override
 		public int getPointOfDeclaration() {
 			return 0;
 		}
@@ -84,25 +88,37 @@ public class CPPScopeMapper {
 			assert fScope instanceof IIndexScope;
 		}
 
+		@Override
 		public EScopeKind getKind() {
 			return fScope.getKind();
 		}
 
+		@Override
 		public IBinding[] find(String name) {
 			return fScope.find(name);
 		}
+		@Override
 		public IBinding getBinding(IASTName name, boolean resolve) {
 			return fScope.getBinding(name, resolve);
 		}
+		@Override
 		public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet acceptLocalBindings) {
 			return fScope.getBinding(name, resolve, acceptLocalBindings);
 		}
+		@Override @Deprecated
 		public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup) {
 			return fScope.getBindings(name, resolve, prefixLookup);
 		}
+		@Override @Deprecated
 		public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup,	IIndexFileSet acceptLocalBindings) {
-			return fScope.getBindings(name, resolve, prefixLookup, acceptLocalBindings);
+			return getBindings(name, resolve, prefixLookup, acceptLocalBindings);
 		}
+
+		@Override
+		public IBinding[] getBindings(ScopeLookupData lookup) {
+			return fScope.getBindings(lookup);
+		}
+		@Override
 		public IScope getParent() throws DOMException {
 			IScope parent= fScope.getParent();
 			if (parent instanceof IIndexScope) {
@@ -111,10 +127,12 @@ public class CPPScopeMapper {
 			return fTu.getScope();
 		}
 
+		@Override
 		public IName getScopeName() {
 			return fScope.getScopeName();
 		}
 
+		@Override
 		public void addUsingDirective(ICPPUsingDirective usingDirective) {
 			initUsingDirectives();
 			fUsingDirectives.add(usingDirective);
@@ -130,11 +148,13 @@ public class CPPScopeMapper {
 			}
 		}
 
+		@Override
 		public ICPPUsingDirective[] getUsingDirectives() {
 			initUsingDirectives();
 			return fUsingDirectives.toArray(new ICPPUsingDirective[fUsingDirectives.size()]);
 		}
 
+		@Override
 		public ICPPNamespaceScope[] getEnclosingNamespaceSet() {
 			if (fEnclosingNamespaceSet == null)
 				return fEnclosingNamespaceSet= CPPNamespaceScope.computeEnclosingNamespaceSet(this);
@@ -142,6 +162,7 @@ public class CPPScopeMapper {
 			return fEnclosingNamespaceSet;
 		}
 
+		@Override
 		public boolean isInlineNamepace() {
 			IIndexBinding binding = ((IIndexScope) fScope).getScopeBinding();
 			if (binding instanceof ICPPNamespace && ((ICPPNamespace) binding).isInline())
@@ -150,6 +171,7 @@ public class CPPScopeMapper {
 			return false;
 		}
 
+		@Override
 		public ICPPInternalNamespaceScope[] getInlineNamespaces() {
 			// Obtain the inline namespaces from the index and map them to the ast
 			ICPPNamespaceScope[] pre = fScope.getInlineNamespaces();
@@ -173,6 +195,7 @@ public class CPPScopeMapper {
 			fDirective= ud;
 		}
 
+		@Override
 		public IScope getContainingScope() {
 			final IScope scope= fDirective.getContainingScope();
 			if (scope == null) {
@@ -181,10 +204,12 @@ public class CPPScopeMapper {
 			return scope;
 		}
 
+		@Override
 		public ICPPNamespaceScope getNominatedScope() throws DOMException {
 			return fDirective.getNominatedScope();
 		}
 
+		@Override
 		public int getPointOfDeclaration() {
 			return fOffset;
 		}
@@ -208,7 +233,7 @@ public class CPPScopeMapper {
 					final char[] nameChars = name.getLookupKey();
 					if (nameChars.length > 0) {
 						IASTName[] names= fClasses.get(nameChars);
-						names= (IASTName[]) ArrayUtil.append(IASTName.class, names, name);
+						names= ArrayUtil.append(IASTName.class, names, name);
 						fClasses.put(nameChars, names);
 					}
 					return PROCESS_CONTINUE;
@@ -344,14 +369,14 @@ public class CPPScopeMapper {
 		return scope;
 	}
 	
-	public ICPPClassType mapToAST(ICPPClassType type) {
+	public ICPPClassType mapToAST(ICPPClassType type, IASTNode point) {
 		if (type instanceof ICPPTemplateInstance) {
 			ICPPTemplateInstance inst= (ICPPTemplateInstance) type;
 			ICPPTemplateDefinition template= inst.getTemplateDefinition();
 			if (template instanceof IIndexBinding && template instanceof ICPPClassType) {
-				IBinding mapped= mapToAST((ICPPClassType) template);
+				IBinding mapped= mapToAST((ICPPClassType) template, point);
 				if (mapped != template && mapped instanceof ICPPClassType) {
-					mapped= CPPTemplates.instantiate((ICPPClassTemplate) mapped, inst.getTemplateArguments());
+					mapped= CPPTemplates.instantiate((ICPPClassTemplate) mapped, inst.getTemplateArguments(), point);
 					if (mapped instanceof ICPPClassType)
 						return (ICPPClassType) mapped;
 				}

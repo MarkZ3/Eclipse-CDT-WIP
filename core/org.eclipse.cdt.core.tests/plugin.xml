@@ -82,6 +82,9 @@
             isCategory="true"
             location="resources/templateengine/AddFile.xml"
             projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
       </template>
       <template
             id="org.eclipse.cdt.core.tests.templates.AddFiles"
@@ -90,38 +93,68 @@
             projectType="org.eclipse.cdt.core.tests.projectType">
          <toolChain id="org.eclipse.cdt.core.tests.toolChain1"/>
          <toolChain id="org.eclipse.cdt.core.tests.toolChain2"/>
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
       </template>
       <template
             id="org.eclipse.cdt.core.tests.templates.AddLink"
             filterPattern=".*AddLink"
             location="resources/templateengine/AddLink.xml"
             projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
       </template>
       <template
-            id="org.eclipse.cdt.core.tests.templates.Append"
             filterPattern=".*Append"
+            id="org.eclipse.cdt.core.tests.templates.Append"
             location="resources/templateengine/Append.xml"
-            projectType="org.eclipse.cdt.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.core.tests.templates.AppendCreate"
             filterPattern=".*AppendCreate"
+            id="org.eclipse.cdt.core.tests.templates.AppendCreate"
             location="resources/templateengine/AppendCreate.xml"
-            projectType="org.eclipse.cdt.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.core.tests.templates.Copy"
             filterPattern=".*Copy"
+            id="org.eclipse.cdt.core.tests.templates.Copy"
             location="resources/templateengine/Copy.xml"
-            projectType="org.eclipse.cdt.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.core.tests.templates.CreateResourceIdentifier"
             filterPattern=".*CreateResourceIdentifier"
+            id="org.eclipse.cdt.core.tests.templates.CreateResourceIdentifier"
             location="resources/templateengine/CreateResourceIdentifier.xml"
-            projectType="org.eclipse.cdt.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.core.tests.templates.CreateSourceFolder"
             filterPattern=".*CreateSourceFolder"
+            id="org.eclipse.cdt.core.tests.templates.CreateSourceFolder"
             location="resources/templateengine/CreateSourceFolder.xml"
-            projectType="org.eclipse.cdt.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.core.tests.coreTests">
+         </parentCategory>
+      </template>
+      <category
+            id="org.eclipse.cdt.core.tests.coreTests"
+            label="Core Tests">
+      </category>
    </extension>
    <extension
          point="org.eclipse.cdt.core.templateAssociations">
@@ -149,6 +182,54 @@
       <ReadOnlyPDOMProvider
             class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Dummy5">
       </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="true" include_browser="true" 
+            	navigation="true" search="true" type_hierarchy="true"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="true" include_browser="true" 
+            	navigation="true" search="true" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="true" include_browser="true" 
+            	navigation="true" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="true" include_browser="true" 
+            	navigation="false" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="true" include_browser="false" 
+            	navigation="false" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="true" content_assist="false" include_browser="false" 
+            	navigation="false" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="true" call_hierarchy="false" content_assist="false" include_browser="false" 
+            	navigation="false" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
+      <ReadOnlyPDOMProvider
+            class="org.eclipse.cdt.core.internal.index.provider.test.Providers$Counter">
+            <FragmentProviderUsage 
+            	add_import="false" call_hierarchy="false" content_assist="false" include_browser="false" 
+            	navigation="false" search="false" type_hierarchy="false"  />
+      </ReadOnlyPDOMProvider>
    </extension>
    <extension
          point="org.eclipse.core.filesystem.filesystems">
@@ -158,6 +239,13 @@
                class="org.eclipse.cdt.core.internal.tests.filesystem.ram.MemoryFileSystem">
          </run>
       </filesystem>
+   </extension>
+   <extension
+         point="org.eclipse.cdt.core.EFSExtensionProvider">
+      <EFSExtensionProvider
+            class="org.eclipse.cdt.core.internal.tests.filesystem.ram.MemoryEFSExtensionProvider"
+            scheme="mem">
+      </EFSExtensionProvider>
    </extension>
    <extension
          id="RegexErrorParserId"
@@ -182,6 +270,168 @@
             class="org.eclipse.cdt.core.internal.efsextension.tests.EFSExtensionProviderTestsProvider"
             scheme="EFSExtensionProviderTestsScheme">
       </EFSExtensionProvider>
+   </extension>
+   <extension
+         point="org.eclipse.cdt.core.LanguageSettingsProvider">
+<!-- uncomment to test message about missing class in the log -->
+<!--
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MissingClass"
+            id="org.eclipse.cdt.core.tests.missing.language.settings.provider"
+            name="Test Plugin Missing Language Settings Provider">
+      </provider>
+-->
+      <provider
+            id="org.eclipse.cdt.core.tests.language.settings.base.provider"
+            name="Test Plugin Mock Language Settings Base Provider"
+            parameter="custom parameter">
+         <language-scope
+               id="org.eclipse.cdt.core.tests.language.id">
+         </language-scope>
+         <entry
+               kind="includePath"
+               name="/usr/include/">
+            <flag
+                  value="BUILTIN">
+            </flag>
+            <flag
+                  value="LOCAL">
+            </flag>
+            <flag
+                  value="VALUE_WORKSPACE_PATH">
+            </flag>
+            <flag
+                  value="RESOLVED">
+            </flag>
+            <flag
+                  value="UNDEFINED">
+            </flag>
+         </entry>
+            <entry
+               kind="macro"
+               name="TEST_DEFINE"
+               value="100">
+         </entry>
+         <entry
+               kind="includeFile"
+               name="/include/file.inc">
+         </entry>
+         <entry
+               kind="libraryPath"
+               name="/usr/lib/">
+         </entry>
+         <entry
+               kind="libraryFile"
+               name="libdomain.a">
+         </entry>
+         <entry
+               kind="macroFile"
+               name="/macro/file.mac">
+         </entry>
+      </provider>
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MockLanguageSettingsProvider"
+            id="org.eclipse.cdt.core.tests.custom.language.settings.provider"
+            name="Test Plugin Mock Language Settings Provider">
+      </provider>
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MockLanguageSettingsSerializableProvider"
+            id="org.eclipse.cdt.core.tests.custom.serializable.language.settings.provider"
+            name="Test Plugin Mock Serializable Language Settings Provider">
+         <entry
+               kind="macro"
+               name="MACRO"
+               value="value">
+         </entry>
+      </provider>
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MockLanguageSettingsEditableProvider"
+            id="org.eclipse.cdt.core.tests.custom.editable.language.settings.provider"
+            name="Test Plugin Mock Editable Language Settings Provider"
+            prefer-non-shared="true">
+         <entry
+               kind="macro"
+               name="MACRO"
+               value="value">
+         </entry>
+      </provider>
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MockLanguageSettingsBaseProvider"
+            id="org.eclipse.cdt.core.tests.language.settings.base.provider.subclass"
+            name="Test Plugin Mock Base Provider Subclass"
+            parameter="custom parameter subclass">
+         <entry
+               kind="includePath"
+               name="/usr/include/">
+            <flag
+                  value="BUILTIN">
+            </flag>
+         </entry>
+      </provider>
+      <provider
+            class="org.eclipse.cdt.core.language.settings.providers.MockListenerRegisterer"
+            id="org.eclipse.cdt.core.tests.language.settings.listener.registerer.provider"
+            name="Test Plugin Mock Listener Language Settings Provider">
+         <entry
+               kind="macro"
+               name="MACRO"
+               value="value">
+         </entry>
+      </provider>
+      <provider
+            id="org.eclipse.cdt.core.tests.language.settings"
+            name="Test Plugin Setting Entries UI Tester">
+         <language-scope
+               id="org.eclipse.cdt.core.gcc">
+         </language-scope>
+         <entry
+               kind="includePath"
+               name="/test/include/path">
+         </entry>
+         <entry
+               kind="includePath"
+               name="/test/workspace/include/path">
+            <flag
+                  value="VALUE_WORKSPACE_PATH">
+            </flag>
+         </entry>
+         <entry
+               kind="includePath"
+               name="/test/builtin/include/path">
+            <flag
+                  value="BUILTIN">
+            </flag>
+         </entry>
+         <entry
+               kind="macro"
+               name="MACRO"
+               value="macro">
+         </entry>
+         <entry
+               kind="macro"
+               name="BUILTIN_MACRO"
+               value="builtin-macro">
+            <flag
+                  value="BUILTIN">
+            </flag>
+         </entry>
+         <entry
+               kind="includeFile"
+               name="/test/includes/file">
+         </entry>
+         <entry
+               kind="libraryPath"
+               name="/test/library/path">
+         </entry>
+         <entry
+               kind="libraryFile"
+               name="/test/library/file">
+         </entry>
+         <entry
+               kind="macroFile"
+               name="/test/macro/file">
+         </entry>
+      </provider>
    </extension>
    <extension
          point="org.eclipse.cdt.core.RefreshExclusionFactory">

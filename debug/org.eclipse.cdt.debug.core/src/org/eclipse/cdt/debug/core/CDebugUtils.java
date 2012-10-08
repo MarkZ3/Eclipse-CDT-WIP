@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 QNX Software Systems and others.
+ * Copyright (c) 2000, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -52,6 +52,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.IStatusHandler;
@@ -396,7 +397,7 @@ public class CDebugUtils {
 		int lineNumber = breakpoint.getLineNumber();
 		if (lineNumber > 0) {
 			label.append(' ');
-			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.0"), new String[]{ Integer.toString(lineNumber) })); //$NON-NLS-1$
+			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.0"), (Object[])new String[]{ Integer.toString(lineNumber) })); //$NON-NLS-1$
 		}
 		return label;
 	}
@@ -404,7 +405,7 @@ public class CDebugUtils {
 	protected static StringBuffer appendAddress(ICAddressBreakpoint breakpoint, StringBuffer label) throws CoreException {
 		try {
 			label.append(' ');
-			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.1"), new String[]{ breakpoint.getAddress() })); //$NON-NLS-1$
+			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.1"), (Object[])new String[]{ breakpoint.getAddress() })); //$NON-NLS-1$
 		} catch (NumberFormatException e) {
 		}
 		return label;
@@ -414,7 +415,7 @@ public class CDebugUtils {
 		String function = breakpoint.getFunction();
 		if (function != null && function.trim().length() > 0) {
 			label.append(' ');
-			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.2"), new String[]{ function.trim() })); //$NON-NLS-1$
+			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.2"), (Object[])new String[]{ function.trim() })); //$NON-NLS-1$
 		}
 		return label;
 	}
@@ -423,7 +424,7 @@ public class CDebugUtils {
 		int ignoreCount = breakpoint.getIgnoreCount();
 		if (ignoreCount > 0) {
 			label.append(' ');
-			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.3"), new String[]{ Integer.toString(ignoreCount) })); //$NON-NLS-1$
+			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.3"), (Object[])new String[]{ Integer.toString(ignoreCount) })); //$NON-NLS-1$
 		}
 		return label;
 	}
@@ -432,7 +433,7 @@ public class CDebugUtils {
 		String condition = breakpoint.getCondition();
 		if (condition != null && condition.length() > 0) {
 			buffer.append(' ');
-			buffer.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.4"), new String[] { condition })); //$NON-NLS-1$
+			buffer.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.4"), (Object[])new String[] { condition })); //$NON-NLS-1$
 		}
 	}
 
@@ -440,7 +441,7 @@ public class CDebugUtils {
 		String expression = watchpoint.getExpression();
 		if (expression != null && expression.length() > 0) {
 			label.append(' ');
-			label.append(MessageFormat.format( DebugCoreMessages.getString("CDebugUtils.5"), new String[] { expression })); //$NON-NLS-1$
+			label.append(MessageFormat.format( DebugCoreMessages.getString("CDebugUtils.5"), (Object[])new String[] { expression })); //$NON-NLS-1$
 		}
 	}
 
@@ -448,7 +449,7 @@ public class CDebugUtils {
 		String memorySpace = watchpoint.getMemorySpace();
 		if (memorySpace != null && memorySpace.length() > 0) {
 			label.append(' ');
-			label.append(MessageFormat.format( DebugCoreMessages.getString("CDebugUtils.6"), new String[] { memorySpace })); //$NON-NLS-1$
+			label.append(MessageFormat.format( DebugCoreMessages.getString("CDebugUtils.6"), (Object[])new String[] { memorySpace })); //$NON-NLS-1$
 		}
 	}
 
@@ -456,7 +457,7 @@ public class CDebugUtils {
 		String range = watchpoint.getRange().toString();
 		if (range.length() > 0 && !range.equals("0")) { //$NON-NLS-1$
 			label.append(' ');
-			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.7"), new String[]{ range })); //$NON-NLS-1$
+			label.append(MessageFormat.format(DebugCoreMessages.getString("CDebugUtils.7"), (Object[])new String[]{ range })); //$NON-NLS-1$
 		}
 	}
 	
@@ -489,7 +490,7 @@ public class CDebugUtils {
 			if (typeString.length() > 0) {
 				label.append(' ');
 				label.append(MessageFormat.format(
-						DebugCoreMessages.getString("CDebugUtils.8"), new String[] { typeString })); //$NON-NLS-1$
+						DebugCoreMessages.getString("CDebugUtils.8"), (Object[])new String[] { typeString })); //$NON-NLS-1$
 			}
 		}
 		return label;
@@ -502,7 +503,7 @@ public class CDebugUtils {
 	private static CharsetDecoder fDecoder;
 
 	public static CharsetDecoder getCharsetDecoder() {
-		String charsetName = CDebugCorePlugin.getDefault().getPluginPreferences().getString(ICDebugConstants.PREF_CHARSET);
+		String charsetName = CDebugCorePlugin.getDefault().getPluginPreferences().getString(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET);
 		if (fDecoder == null || !fDecoder.charset().name().equals(charsetName)) {
 			Charset charset = Charset.forName(charsetName);
 			fDecoder = charset.newDecoder();
@@ -542,7 +543,11 @@ public class CDebugUtils {
      * @since 6.0
      */
     public static String getProgramName(ILaunchConfiguration configuration) throws CoreException {
-        return configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, (String)null);
+        String programName = configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, (String) null);
+        if (programName != null) {
+        	programName = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programName);
+        }
+        return programName;
     }
 
     /**

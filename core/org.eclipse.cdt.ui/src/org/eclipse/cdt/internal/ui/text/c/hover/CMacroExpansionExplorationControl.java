@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2010 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -108,12 +108,15 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 		public CDiffNode(int type, String id, IDocument doc, int start, int length) {
 			super(type, id, doc, start, length);
 		}
+		@Override
 		public String getName() {
 			return getId();
 		}
+		@Override
 		public String getType() {
 			return "c2"; //$NON-NLS-1$
 		}
+		@Override
 		public Image getImage() {
 			return null;
 		}
@@ -142,14 +145,17 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 		super(parent, new ToolBarManager(SWT.FLAT));
 		setMacroExpansionInput(input);
 		addFocusListener(new FocusListener() {
+			@Override
 			public void focusGained(FocusEvent e) {
 				registerCommandHandlers();
 			}
+			@Override
 			public void focusLost(FocusEvent e) {
 				unregisterCommandHandlers();
 			}
 		});
 		getShell().addListener(SWT.Close, new Listener() {
+			@Override
 			public void handleEvent(Event event) {
 				widgetClosed();
 			}});
@@ -262,8 +268,7 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 		GridData gd= new GridData(GridData.BEGINNING | GridData.FILL_BOTH);
 		gd.heightHint= fMacroText.getLineHeight() * 2;
 		fMacroText.setLayoutData(gd);
-		fMacroText.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_FOREGROUND));
-		
+
 		final Document doc= new Document();
 		CUIPlugin.getDefault().getTextTools().setupCDocument(doc);
 		sourceViewer.setDocument(doc);
@@ -287,19 +292,22 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 			return;
 		}
         IHandler backwardHandler= new AbstractHandler() {
-            public Object execute(ExecutionEvent event) throws ExecutionException {
+            @Override
+			public Object execute(ExecutionEvent event) throws ExecutionException {
                 backward();
                 return null;
             }
         };
         IHandler forwardHandler= new AbstractHandler() {
-            public Object execute(ExecutionEvent event) throws ExecutionException {
+            @Override
+			public Object execute(ExecutionEvent event) throws ExecutionException {
                 forward();
                 return null;
             }
         };
         IHandler gotoDefinitionHandler= new AbstractHandler() {
-            public Object execute(ExecutionEvent event) throws ExecutionException {
+            @Override
+			public Object execute(ExecutionEvent event) throws ExecutionException {
                 gotoMacroDefinition();
                 return null;
             }
@@ -442,10 +450,13 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 	public void setInput(Object input) {
 		if (input instanceof CMacroExpansionInput) {
 			setMacroExpansionInput((CMacroExpansionInput) input);
-		} else {
+		} else if (input != null) {
 			if (fMacroCompareViewer != null) {
 				fMacroCompareViewer.setMacroExpansionStep(fIndex);
 			}
+			super.setInput(input);
+		} else {
+			setMacroExpansionInput(null);
 			super.setInput(input);
 		}
 	}
@@ -499,6 +510,9 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 	 */
 	private void setMacroExpansionInput(CMacroExpansionInput input) {
 		fInput= input;
+		if (fMacroCompareViewer != null) {
+			fMacroCompareViewer.setMacroExpansionInput(input);
+		}
 		if (fInput != null) {
 			fIndex= fixIndex(input.fStartWithFullExpansion ? getStepCount() : 0);
 			showExpansion();
@@ -527,7 +541,7 @@ public class CMacroExpansionExplorationControl extends AbstractCompareViewerInfo
 		final ITypedElement left= getContentForIndex(fIndex, true);
 		final ITypedElement right= getContentForIndex(fIndex, false);
 		
-		setTitleText(CHoverMessages.bind(CHoverMessages.CMacroExpansionControl_title_macroExpansionExploration, getStepCount()));
+		setTitleText(NLS.bind(CHoverMessages.CMacroExpansionControl_title_macroExpansionExploration, getStepCount()));
 		fMacroViewer.getDocument().set(getMacroText(fIndex));
 		final StyledText textWidget= fMacroViewer.getTextWidget();
 		final Point size= textWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT);

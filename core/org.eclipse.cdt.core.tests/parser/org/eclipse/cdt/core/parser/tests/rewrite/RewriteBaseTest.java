@@ -7,15 +7,15 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- * Institute for Software - initial API and implementation
+ *     Institute for Software - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.parser.tests.rewrite;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.Vector;
 
 import org.eclipse.cdt.core.tests.BaseTestFramework;
 import org.eclipse.core.resources.IFile;
@@ -27,7 +27,6 @@ import org.eclipse.jface.text.TextSelection;
 
 /**
  * @author Guido Zgraggen IFS
- *
  */
 public abstract class RewriteBaseTest extends BaseTestFramework implements ILogListener{
 	protected static final NullProgressMonitor NULL_PROGRESS_MONITOR = new NullProgressMonitor();
@@ -39,8 +38,8 @@ public abstract class RewriteBaseTest extends BaseTestFramework implements ILogL
 	protected RewriteBaseTest(String name) {
 		super(name);
 	}
-	
-	public RewriteBaseTest(String name, Vector<TestSourceFile> files) {
+
+	public RewriteBaseTest(String name, List<TestSourceFile> files) {
 		super(name);
 		for (TestSourceFile file : files) {
 			fileMap.put(file.getName(), file);
@@ -49,37 +48,37 @@ public abstract class RewriteBaseTest extends BaseTestFramework implements ILogL
 
 	@Override
 	protected abstract void runTest() throws Throwable;
-	
 
 	@Override
 	protected void setUp() throws Exception {
 		super.setUp();
 		for (TestSourceFile testFile : fileMap.values()) {
-			if(testFile.getSource().length() > 0) {
+			if (testFile.getSource().length() > 0) {
 				importFile(testFile.getName(), testFile.getSource());
 			}
 		}
 	}
 	
 	protected void assertEquals(TestSourceFile file, IFile file2) throws Exception {
-		StringBuffer code = getCodeFromIFile(file2);
+		StringBuilder code = getCodeFromFile(file2);
 		assertEquals(file.getExpectedSource(), TestHelper.unifyNewLines(code.toString()));
 	}
 	
-	protected void compareFiles(Map<String,TestSourceFile> testResourceFiles) throws Exception {
+	protected void compareFiles(Map<String, TestSourceFile> testResourceFiles) throws Exception {
 		for (String fileName : testResourceFiles.keySet()) {
 			TestSourceFile file = testResourceFiles.get(fileName);
 			IFile iFile = project.getFile(new Path(fileName));
-			StringBuffer code = getCodeFromIFile(iFile);
-			assertEquals(TestHelper.unifyNewLines(file.getExpectedSource()), TestHelper.unifyNewLines(code.toString()));
+			StringBuilder code = getCodeFromFile(iFile);
+			assertEquals(TestHelper.unifyNewLines(file.getExpectedSource()),
+					TestHelper.unifyNewLines(code.toString()));
 		}
 	}
 
-	protected StringBuffer getCodeFromIFile(IFile file) throws Exception {
+	protected StringBuilder getCodeFromFile(IFile file) throws Exception {
 		BufferedReader br = new BufferedReader(new InputStreamReader(file.getContents()));
-		StringBuffer code = new StringBuffer();
+		StringBuilder code = new StringBuilder();
 		String line;
-		while((line = br.readLine()) != null) {
+		while ((line = br.readLine()) != null) {
 			code.append(line);
 			code.append('\n');
 		}
@@ -94,12 +93,13 @@ public abstract class RewriteBaseTest extends BaseTestFramework implements ILogL
 		super.tearDown();
 	}
 
+	@Override
 	public void logging(IStatus status, String plugin) {
 		Throwable ex = status.getException();
-		StringBuffer stackTrace = new StringBuffer();
-		if(ex != null) {
+		StringBuilder stackTrace = new StringBuilder();
+		if (ex != null) {
 			stackTrace.append('\n');
-			for(StackTraceElement ste : ex.getStackTrace()) {
+			for (StackTraceElement ste : ex.getStackTrace()) {
 				stackTrace.append(ste.toString());
 			}
 		}

@@ -11,6 +11,9 @@
 package org.eclipse.cdt.tests.dsf.gdb.tests.tests_7_1;
 
 import org.eclipse.cdt.dsf.mi.service.command.commands.Suite_Sessionless_Tests;
+import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
+import org.eclipse.cdt.tests.dsf.gdb.tests.ITestConstants;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -31,6 +34,7 @@ import org.junit.runners.Suite;
 	MIRunControlTargetAvailableTest_7_1.class,
 	MIRunControlNonStopTargetAvailableTest_7_1.class,
 	MIExpressionsTest_7_1.class,
+	GDBPatternMatchingExpressionsTest_7_1.class,
 	MIMemoryTest_7_1.class,
 	MIBreakpointsTest_7_1.class,
 	MICatchpointsTest_7_1.class,
@@ -40,8 +44,16 @@ import org.junit.runners.Suite;
 	OperationsWhileTargetIsRunningTest_7_1.class,
 	OperationsWhileTargetIsRunningNonStopTest_7_1.class,
 	PostMortemCoreTest_7_1.class,
-	Suite_Sessionless_Tests.class
+	CommandTimeoutTest_7_1.class,
+	GDBMultiNonStopRunControlTest_7_1.class,
+	Suite_Sessionless_Tests.class,
 	/* Add your test class here */
 })
 
-public class Suite_7_1 {}
+public class Suite_7_1 {
+	@BeforeClass
+	public static void beforeClassMethod() {
+		BaseTestCase.setGdbProgramNamesLaunchAttributes(ITestConstants.SUFFIX_GDB_7_1);
+		BaseTestCase.ignoreIfGDBMissing();
+	}
+}

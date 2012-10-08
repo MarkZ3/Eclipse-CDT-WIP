@@ -11,7 +11,6 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.ui.text.c.hover;
 
-
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewer;
@@ -22,8 +21,8 @@ import org.eclipse.ui.IEditorInput;
 import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.IFunctionSummary;
-import org.eclipse.cdt.ui.IRequiredInclude;
 import org.eclipse.cdt.ui.IFunctionSummary.IFunctionPrototypeSummary;
+import org.eclipse.cdt.ui.IRequiredInclude;
 import org.eclipse.cdt.ui.text.ICHelpInvocationContext;
 import org.eclipse.cdt.ui.text.IHoverHelpInvocationContext;
 
@@ -33,15 +32,12 @@ import org.eclipse.cdt.internal.ui.text.CWordFinder;
 import org.eclipse.cdt.internal.ui.text.HTMLPrinter;
 
 public class CDocHover extends AbstractCEditorTextHover {
-	
-	/**
-	 * Constructor for DefaultCEditorTextHover
-	 */
+
 	public CDocHover() {
 	}
 
 	/* (non-Javadoc)
-	 * @see org.eclipse.jface.text.ITextHover#getHoverInfo(org.eclipse.jface.text.ITextViewer, org.eclipse.jface.text.IRegion)
+	 * @see ITextHover#getHoverInfo(ITextViewer, IRegion)
 	 */
 	@Override
 	public String getHoverInfo(ITextViewer viewer, IRegion region) {
@@ -52,7 +48,7 @@ public class CDocHover extends AbstractCEditorTextHover {
 		try {
 			expression = viewer.getDocument().get(region.getOffset(), region.getLength());
 			expression = expression.trim();
-			if (expression.length() == 0)
+			if (expression.isEmpty())
 				return null; 
 
 			StringBuilder buffer = new StringBuilder();
@@ -61,7 +57,7 @@ public class CDocHover extends AbstractCEditorTextHover {
 			// call the Help to get info
 
 			ICHelpInvocationContext context = new IHoverHelpInvocationContext() {
-
+				@Override
 				public IProject getProject() {
 					ITranslationUnit unit = getTranslationUnit();
 					if (unit != null) {
@@ -70,15 +66,16 @@ public class CDocHover extends AbstractCEditorTextHover {
 					return null;
 				}
 
+				@Override
 				public ITranslationUnit getTranslationUnit() {
 					IEditorInput editorInput= getEditor().getEditorInput();
 					return CUIPlugin.getDefault().getWorkingCopyManager().getWorkingCopy(editorInput);
 				}
 
+				@Override
 				public IRegion getHoverRegion() {
 					return hoverRegion; 
 				}
-				
 			};
 
 			IFunctionSummary fs = CHelpProviderManager.getDefault().getFunctionInfo(context, expression);
@@ -90,7 +87,7 @@ public class CDocHover extends AbstractCEditorTextHover {
 					buffer.append(CEditorMessages.DefaultCEditorTextHover_html_prototype); 
 					buffer.append(HTMLPrinter.convertToHTMLContent(prototype.getPrototypeString(false)));
 				}
-				if(fs.getDescription() != null) {
+				if (fs.getDescription() != null) {
 					buffer.append(CEditorMessages.DefaultCEditorTextHover_html_description); 
 					//Don't convert this description since it could already be formatted
 					buffer.append(fs.getDescription());
@@ -114,7 +111,7 @@ public class CDocHover extends AbstractCEditorTextHover {
 				HTMLPrinter.addPageEpilog(buffer);
 				return buffer.toString();
 			}
-		} catch(Exception ex) {
+		} catch (Exception e) {
 			/* Ignore */
 		}
 		
@@ -122,7 +119,7 @@ public class CDocHover extends AbstractCEditorTextHover {
 	}
 
 	/* (non-Javadoc)
-	 * @see org.eclipse.jface.text.ITextHover#getHoverRegion(org.eclipse.jface.text.ITextViewer, int)
+	 * @see ITextHover#getHoverRegion(ITextViewer, int)
 	 */
 	@Override
 	public IRegion getHoverRegion(ITextViewer viewer, int offset) {
@@ -131,12 +128,12 @@ public class CDocHover extends AbstractCEditorTextHover {
 			if (selectedRange.x >= 0 && 
 					selectedRange.y > 0 &&
 					offset >= selectedRange.x &&
-					offset <= selectedRange.x + selectedRange.y)
-				return new Region( selectedRange.x, selectedRange.y );
+					offset <= selectedRange.x + selectedRange.y) {
+				return new Region(selectedRange.x, selectedRange.y);
+			}
 			
 			return CWordFinder.findWord(viewer.getDocument(), offset);
 		}
 		return null;
 	}
-	
 }

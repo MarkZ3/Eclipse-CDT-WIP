@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2010 Wind River Systems, Inc. and others.
+ * Copyright (c) 2009, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.core.parser;
 
@@ -21,7 +21,6 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IPath;
 
-
 /**
  * Abstract class for representing the content of a file.
  * It serves as the input to the preprocessor.
@@ -30,11 +29,43 @@ import org.eclipse.core.runtime.IPath;
  * @since 5.2
  */
 public abstract class FileContent {
+	/** @since 5.4 */
+	public static final long NULL_TIMESTAMP = -1;
+	/** @since 5.4 */
+	public static final long NULL_FILE_SIZE = -1;
 
 	/** 
 	 * Returns the location of this file content as it will appear in {@link IASTFileLocation#getFileName()}
 	 */
 	public abstract String getFileLocation();
+
+	/**
+	 * Returns the modification time of the file containing the content, or NULL_TIMESTAMP if
+	 * the content does not originate from a file. A zero value may be returned if there was
+	 * an I/O error.
+	 * @since 5.4
+	 */
+	public abstract long getTimestamp();
+
+	/**
+	 * Returns time when the file was read. Corresponds to the start of reading.    
+	 * @return time before reading started in milliseconds since epoch
+	 * @since 5.4
+	 */
+	public abstract long getReadTime();
+
+	/**
+	 * Returns the size of the file, or NULL_FILE_SIZE if the content does not originate from
+	 * a file. A zero value may be returned if there was an I/O error.
+	 * @since 5.4
+	 */
+	public abstract long getFileSize();
+
+	/**
+	 * Returns {@code true} if there were I/O errors while retrieving contents of this file.
+	 * @since 5.4
+	 */
+	public abstract boolean hasError();
 
 	/**
 	 * Returns a 64-bit hash value of the file contents.
@@ -49,7 +80,7 @@ public abstract class FileContent {
 	public static FileContent create(String filePath, char[] contents) {
 		return new InternalFileContent(filePath, new CharArray(contents));
 	}
-	
+
 	/**
 	 * Creates a file content object for a translation-unit, which may be a working copy.
 	 */

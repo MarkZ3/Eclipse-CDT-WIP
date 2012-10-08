@@ -65,11 +65,10 @@ public class BinaryRunner {
 			ICElement root = factory.getCModel();
 			CElementDelta cdelta = new CElementDelta(root);
 			cdelta.changed(cproj, ICElementDelta.F_CONTENT);
-			for (int j = 0; j < containers.length; ++j) {
+			for (IParent container : containers) {
 				if (fMonitor.isCanceled()) {
 					return;
 				}
-				IParent container = containers[j];
 				ICElement[] children = container.getChildren();
 				if (children.length > 0) {
 					cdelta.added((ICElement)container);
@@ -80,9 +79,9 @@ public class BinaryRunner {
 			}
 			addDelta(cdelta);
 		}
-		
+
 	}
-	
+
 	private final ICProject cproject;
 	private final Job runnerJob;		// final fields don't need synchronization
 	private IOutputEntry[] entries = new IOutputEntry[0];
@@ -171,9 +170,9 @@ public class BinaryRunner {
 	}
 
 	private class Visitor implements IResourceProxyVisitor {
-		private IProgressMonitor vMonitor;
-		private IProject project;
-		private IContentType textContentType;
+		private final IProgressMonitor vMonitor;
+		private final IProject project;
+		private final IContentType textContentType;
 
 		public Visitor(IProgressMonitor monitor) {
 			vMonitor = monitor;
@@ -182,6 +181,7 @@ public class BinaryRunner {
 			textContentType = mgr.getContentType("org.eclipse.core.runtime.text"); //$NON-NLS-1$
 		}
 
+		@Override
 		public boolean visit(IResourceProxy proxy) throws CoreException {
 			if (vMonitor.isCanceled()) {
 				return false;
@@ -189,21 +189,24 @@ public class BinaryRunner {
 			vMonitor.worked(1);
 			// Attempt to speed things up by rejecting up front
 			// Things we know should not be Binary files.
-			
+
 			// check if it's a file resource
 			// and bail out early
 			if (proxy.getType() != IResource.FILE) {
 				return true;
 			}
-			
+
 			// check against known content types
+			// if the file has an extension
 			String name = proxy.getName();
-			IContentType contentType = CCorePlugin.getContentType(project, name);
-			if (contentType != null && textContentType != null) {
-				if (contentType.isKindOf(textContentType)) {
-					return true;
-				} else if (textContentType.isAssociatedWith(name)) {
-					return true;
+			if (name.contains(".")) { //$NON-NLS-1$
+				IContentType contentType = CCorePlugin.getContentType(project, name);
+				if (contentType != null && textContentType != null) {
+					if (contentType.isKindOf(textContentType)) {
+						return true;
+					} else if (textContentType.isAssociatedWith(name)) {
+						return true;
+					}
 				}
 			}
 
@@ -213,8 +216,8 @@ public class BinaryRunner {
 			// we have a candidate
 			IPath path = proxy.requestFullPath();
 			if (path != null) {
-				for (int i = 0; i < entries.length; ++i) {
-					if (isOnOutputEntry(entries[i], path)) {
+				for (IOutputEntry entrie : entries) {
+					if (isOnOutputEntry(entrie, path)) {
 						IFile file = (IFile) proxy.requestResource();
 						CModelManager factory = CModelManager.getDefault();
 						IBinaryFile bin = factory.createBinaryFile(file);
@@ -228,7 +231,7 @@ public class BinaryRunner {
 			}
 			return true;
 		}
-		
+
 		private boolean isOnOutputEntry(IOutputEntry entry, IPath path) {
 			if (entry.getPath().isPrefixOf(path) && !CoreModelUtil.isExcluded(path, entry.fullExclusionPatternChars())) {
 				return true;

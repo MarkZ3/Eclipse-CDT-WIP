@@ -1,12 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2010 Tomasz Wesolowski
+ * Copyright (c) 2010, 2012 Tomasz Wesolowski
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Tomasz Wesolowski - initial API and implementation
+ *     Tomasz Wesolowski - initial API and implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
@@ -38,13 +39,13 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 
 public class QuickFixCreateParameter extends AbstractAstRewriteQuickFix {
+	@Override
 	public String getLabel() {
 		return Messages.QuickFixCreateParameter_0;
 	}
 
 	@Override
 	public void modifyAST(IIndex index, IMarker marker) {
-		CxxAstUtils utils = CxxAstUtils.getInstance();
 		CompositeChange c = new CompositeChange(Messages.QuickFixCreateParameter_0);
 		try {
 			ITranslationUnit baseTU = getTranslationUnitViaEditor(marker);
@@ -53,11 +54,11 @@ public class QuickFixCreateParameter extends AbstractAstRewriteQuickFix {
 			if (astName == null) {
 				return;
 			}
-			IASTDeclaration declaration = CxxAstUtils.getInstance().createDeclaration(astName, baseAST.getASTNodeFactory(), index);
+			IASTDeclaration declaration = CxxAstUtils.createDeclaration(astName, baseAST.getASTNodeFactory(), index);
 			// We'll need a FunctionParameterDeclaration later
 			final IASTDeclSpecifier finalDeclSpec = (IASTDeclSpecifier) declaration.getChildren()[0];
 			final IASTDeclarator finalDeclarator = (IASTDeclarator) declaration.getChildren()[1];
-			IASTFunctionDefinition function = utils.getEnclosingFunction(astName);
+			IASTFunctionDefinition function = CxxAstUtils.getEnclosingFunction(astName);
 			if (function == null) {
 				return;
 			}
@@ -73,7 +74,10 @@ public class QuickFixCreateParameter extends AbstractAstRewriteQuickFix {
 			HashMap<ITranslationUnit, IASTTranslationUnit> cachedASTs = new HashMap<ITranslationUnit, IASTTranslationUnit>();
 			HashMap<ITranslationUnit, ASTRewrite> cachedRewrites = new HashMap<ITranslationUnit, ASTRewrite>();
 			for (IIndexName iname : declarations) {
-				ITranslationUnit declTU = utils.getTranslationUnitFromIndexName(iname);
+				ITranslationUnit declTU = CxxAstUtils.getTranslationUnitFromIndexName(iname);
+				if (declTU == null) {
+					continue;
+				}
 				ASTRewrite rewrite;
 				IASTTranslationUnit declAST;
 				if (!cachedASTs.containsKey(declTU)) {

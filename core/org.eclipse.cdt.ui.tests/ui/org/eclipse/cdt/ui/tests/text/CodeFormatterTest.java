@@ -27,10 +27,10 @@ import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.gnu.c.GCCLanguage;
 import org.eclipse.cdt.core.formatter.CodeFormatter;
 import org.eclipse.cdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.cdt.core.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.cdt.ui.tests.BaseUITestCase;
 
 import org.eclipse.cdt.internal.corext.util.CodeFormatterUtil;
-import org.eclipse.cdt.internal.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.cdt.internal.formatter.align.Alignment;
 
 /**
@@ -457,19 +457,54 @@ public class CodeFormatterTest extends BaseUITestCase {
 	//
 	//void break_indenter(int a, int b) {
 	//	break_start(); // This semicolon moves to its own line.
-	//		if (a > b) {
-	//			indentation_remains();
-	//		}
+	//	if (a > b) {
+	//		indentation_remains();
+	//	}
 	//
-	//		if (b > a)
-	//			indentation_vanishes();
+	//	if (b > a)
+	//		indentation_vanishes();
 	//
-	//		break_end();
+	//	break_end();
 	//
 	//	if (b == a)
 	//		indentation_remains();
 	//}
 	public void testBracesInMacros_Bug217435() throws Exception {
+		assertFormatterResult();
+	}
+
+	//struct SimpleStruct {
+	//int num;
+	//char name[];
+	//float floatNum;
+	//};
+	//
+	//#define SIZEOF(A, B) sizeof(A.B)
+	//
+	//const SimpleStruct array[] = { { SIZEOF(simpleStruct, num),
+	//#if FOO
+	//"foo"
+	//#else
+	//"bar"
+	//#endif
+	//, 0.5 }, { SIZEOF(simpleStruct, floatNum), "name", 1.1 } };
+
+	//struct SimpleStruct {
+	//	int num;
+	//	char name[];
+	//	float floatNum;
+	//};
+	//
+	//#define SIZEOF(A, B) sizeof(A.B)
+	//
+	//const SimpleStruct array[] = { { SIZEOF(simpleStruct, num),
+	//#if FOO
+	//		"foo"
+	//#else
+	//		"bar"
+	//#endif
+	//		, 0.5 }, { SIZEOF(simpleStruct, floatNum), "name", 1.1 } };
+	public void testArrayInitializer() throws Exception {
 		assertFormatterResult();
 	}
 
@@ -535,11 +570,13 @@ public class CodeFormatterTest extends BaseUITestCase {
 	//static void *f(){}
 	//static void * g();
 	//static void* h();
+	//int* (*a) [2];
 
 	//static void *f() {
 	//}
 	//static void * g();
 	//static void* h();
+	//int* (*a)[2];
 	public void testSpaceBetweenDeclSpecAndDeclarator() throws Exception {
 		assertFormatterResult();
 	}
@@ -554,12 +591,12 @@ public class CodeFormatterTest extends BaseUITestCase {
 	//}
 
 	//typedef signed int TInt;
-	//extern void Bar(); // should not have space between parens
+	//extern void Bar();  // should not have space between parens
 	//
-	//void Foo() // should not have space between parens
+	//void Foo()    // should not have space between parens
 	//	{
-	//	TInt a( 3 ); // should become TInt a( 3 );
-	//	Bar(); // should not have space between parens
+	//	TInt a( 3 );  // should become TInt a( 3 );
+	//	Bar();   // should not have space between parens
 	//	}
 	public void testSpaceBetweenParen_Bug217918() throws Exception {
 		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_BRACE_POSITION_FOR_METHOD_DECLARATION,
@@ -891,9 +928,9 @@ public class CodeFormatterTest extends BaseUITestCase {
     //namespace ns1 {
 	//namespace ns2 {
 	//void foo() {
-	//    int x;        // comment
-	//    int y;        // comment
-	//    		        // continuation of the previous comment
+	//    int x;// comment
+	//    int y;// comment
+	//    		// continuation of the previous comment
 	////  int z;  <- comments starting from the beginning of line are not indented
 	//}
 	//}// namespace ns2
@@ -912,6 +949,7 @@ public class CodeFormatterTest extends BaseUITestCase {
 	public void testLineCommentMinDistanceFromCode() throws Exception {
 		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, CCorePlugin.SPACE);
 		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_COMMENT_MIN_DISTANCE_BETWEEN_CODE_AND_LINE_COMMENT, "2");
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_COMMENT_PRESERVE_WHITE_SPACE_BETWEEN_CODE_AND_LINE_COMMENT, DefaultCodeFormatterConstants.FALSE);
 		assertFormatterResult();
 	}
 
@@ -1827,6 +1865,20 @@ public class CodeFormatterTest extends BaseUITestCase {
 		assertFormatterResult();
 	}
 
+	//#define MACRO(a) a(const a&); void operator=(const a&)
+	//
+	//class Test{MACRO(Test);};
+
+	//#define MACRO(a) a(const a&); void operator=(const a&)
+	//
+	//class Test {
+	//    MACRO(Test);
+	//};
+	public void testMacroDeclaration() throws Exception {
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, CCorePlugin.SPACE);
+		assertFormatterResult();
+	}
+
 	//bool member __attribute__ ((__unused__)) = false;
 
 	//bool member __attribute__ ((__unused__)) = false;
@@ -2497,6 +2549,94 @@ public class CodeFormatterTest extends BaseUITestCase {
 		assertFormatterResult();
 	}
 
+	//bool loooooooooooong_name(int, int);
+	//int loooong_name;
+	//int very_loooooooooooooooooooooooong_name;
+	//
+	//struct Stream {
+	//Stream& operator <<(const char*);
+	//};
+	//Stream GetStream();
+	//
+	//struct Voidifier {
+	//void operator&(Stream&);
+	//};
+	//
+	//#define MY_MACRO(a) (a) ? (void) 0 : Voidifier() & GetStream() << " "
+	//
+	//void test(const char* variable_with_a_loooong_name) {
+	//  MY_MACRO(loooooooooooong_name(loooong_name,
+	//                                very_loooooooooooooooooooooooong_name))
+	//      << variable_with_a_loooong_name;
+	//}
+
+	//bool loooooooooooong_name(int, int);
+	//int loooong_name;
+	//int very_loooooooooooooooooooooooong_name;
+	//
+	//struct Stream {
+	//  Stream& operator <<(const char*);
+	//};
+	//Stream GetStream();
+	//
+	//struct Voidifier {
+	//  void operator&(Stream&);
+	//};
+	//
+	//#define MY_MACRO(a) (a) ? (void) 0 : Voidifier() & GetStream() << " "
+	//
+	//void test(const char* variable_with_a_loooong_name) {
+	//  MY_MACRO(loooooooooooong_name(loooong_name,
+	//          very_loooooooooooooooooooooooong_name))
+	//      << variable_with_a_loooong_name;
+	//}
+	public void testOverloadedLeftShiftChain_7() throws Exception {
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, CCorePlugin.SPACE);
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_SIZE, "2");
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_ALIGNMENT_FOR_OVERLOADED_LEFT_SHIFT_CHAIN,
+				Integer.toString(Alignment.M_COMPACT_SPLIT | Alignment.M_INDENT_ON_COLUMN));
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_ALIGNMENT_FOR_ARGUMENTS_IN_METHOD_INVOCATION,
+				Integer.toString(Alignment.M_COMPACT_SPLIT | Alignment.M_INDENT_ON_COLUMN));
+		assertFormatterResult();
+	}
+
+	//struct Stream {
+	//Stream& operator <<(const char*);
+	//};
+	//Stream GetStream();
+	//
+	//struct Voidifier {
+	//void operator&(Stream&);
+	//};
+	//
+	//#define MY_MACRO(a) (a) ? (void) 0 : Voidifier() & GetStream() << " "
+	//
+	//void test() {
+	//MY_MACRO(false)
+	//<< "Loooooooooooooooooooooooooooooooooooooooong string literal";
+	//}
+
+	//struct Stream {
+	//    Stream& operator <<(const char*);
+	//};
+	//Stream GetStream();
+	//
+	//struct Voidifier {
+	//    void operator&(Stream&);
+	//};
+	//
+	//#define MY_MACRO(a) (a) ? (void) 0 : Voidifier() & GetStream() << " "
+	//
+	//void test() {
+	//    MY_MACRO(false)
+	//            << "Loooooooooooooooooooooooooooooooooooooooong string literal";
+	//}
+	public void testOverloadedLeftShiftChain_Bug373034() throws Exception {
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, CCorePlugin.SPACE);
+		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_ALIGNMENT_FOR_OVERLOADED_LEFT_SHIFT_CHAIN,
+				Integer.toString(Alignment.M_COMPACT_SPLIT | Alignment.M_INDENT_ON_COLUMN));
+		assertFormatterResult();
+	}
 	//int main() {
 	//	std::vector<std::vector<int>> test;
 	//	// some comment
@@ -2756,6 +2896,25 @@ public class CodeFormatterTest extends BaseUITestCase {
 	public void testEnum() throws Exception {
 		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, CCorePlugin.SPACE);
 		fOptions.put(DefaultCodeFormatterConstants.FORMATTER_COMMENT_MIN_DISTANCE_BETWEEN_CODE_AND_LINE_COMMENT, "2");
+		assertFormatterResult();
+	}
+
+	//#define TESTING(m) ;do{}while(0)
+	//void f() {
+	//	TESTING(1);
+	//	if(Test(a) != 1) {
+	//		status = ERROR;
+	//	}
+	//}
+
+	//#define TESTING(m) ;do{}while(0)
+	//void f() {
+	//	TESTING(1);
+	//	if (Test(a) != 1) {
+	//		status = ERROR;
+	//	}
+	//}
+	public void testDoWhileInMacro_Bug359658() throws Exception {
 		assertFormatterResult();
 	}
 }

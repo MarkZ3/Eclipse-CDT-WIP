@@ -14,10 +14,10 @@ import java.util.Arrays;
 
 import junit.framework.Test;
 
-import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMManager;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.IField;
 import org.eclipse.cdt.core.dom.ast.IFunctionType;
 import org.eclipse.cdt.core.dom.ast.IPointerType;
 import org.eclipse.cdt.core.dom.ast.IType;
@@ -34,11 +34,11 @@ import org.eclipse.cdt.core.testplugin.CProjectHelper;
 import org.eclipse.cdt.core.testplugin.CTestPlugin;
 import org.eclipse.cdt.core.testplugin.util.TestSourceReader;
 import org.eclipse.cdt.internal.core.CCoreInternals;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.index.IIndexFragmentBinding;
 import org.eclipse.cdt.internal.core.pdom.PDOM;
 import org.eclipse.cdt.internal.core.pdom.indexer.IndexerPreferences;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 
 /**
@@ -65,11 +65,7 @@ public class CPPClassTemplateTests extends PDOMTestBase {
 			IFile file= TestSourceReader.createFile(cproject.getProject(), new Path("refs.cpp"), content.toString());
 		}
 		IndexerPreferences.set(cproject.getProject(), IndexerPreferences.KEY_INDEXER_ID, IPDOMManager.ID_FAST_INDEXER);
-		for(int i=0; i<5 && !CCoreInternals.getPDOMManager().isProjectRegistered(cproject); i++) {
-			Thread.sleep(200);
-		}
-		assertTrue(CCoreInternals.getPDOMManager().isProjectRegistered(cproject));
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(360000, new NullProgressMonitor()));
+		waitForIndexer(cproject);
 		pdom= (PDOM) CCoreInternals.getPDOMManager().getPDOM(cproject);
 		pdom.acquireReadLock();
 	}
@@ -237,9 +233,10 @@ public class CPPClassTemplateTests extends PDOMTestBase {
 		ICPPVariable var= (ICPPVariable) bs[0];
 		assertInstance(var.getType(), ICPPClassType.class);
 		ICPPClassType ct= (ICPPClassType) var.getType();
-		assertEquals(1, ct.getFields().length);
-		assertInstance(ct.getFields()[0].getType(), IPointerType.class);
-		IPointerType pt= (IPointerType) ct.getFields()[0].getType();
+		IField[] fields = ClassTypeHelper.getFields(ct, null);
+		assertEquals(1, fields.length);
+		assertInstance(fields[0].getType(), IPointerType.class);
+		IPointerType pt= (IPointerType) fields[0].getType();
 		assertInstance(pt.getType(), IFunctionType.class);
 		IFunctionType ft= (IFunctionType) pt.getType();
 		assertInstance(ft.getReturnType(), ICPPClassType.class);

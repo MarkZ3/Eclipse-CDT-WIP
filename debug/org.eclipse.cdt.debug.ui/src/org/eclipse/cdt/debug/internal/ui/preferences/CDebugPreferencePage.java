@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 QNX Software Systems and others.
+ * Copyright (c) 2004, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,13 +8,9 @@
  * Contributors:
  * QNX Software Systems - Initial API and implementation
  * Ken Ryall (Nokia) - 207675
+ * Mathias Kunter - Support for different charsets (bug 370462)
 *******************************************************************************/
 package org.eclipse.cdt.debug.internal.ui.preferences;
-
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.SortedMap;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.CCorePreferenceConstants;
@@ -24,10 +20,15 @@ import org.eclipse.cdt.debug.core.cdi.ICDIFormat;
 import org.eclipse.cdt.debug.internal.ui.ICDebugHelpContextIds;
 import org.eclipse.cdt.debug.ui.CDebugUIPlugin;
 import org.eclipse.cdt.utils.ui.controls.ControlFactory;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.preferences.DefaultScope;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.debug.ui.IDebugUIConstants;
 import org.eclipse.debug.ui.IDebugView;
+import org.eclipse.jface.preference.FieldEditor;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.preference.PreferencePage;
+import org.eclipse.jface.preference.PreferenceStore;
 import org.eclipse.jface.util.IPropertyChangeListener;
 import org.eclipse.jface.util.PropertyChangeEvent;
 import org.eclipse.jface.viewers.StructuredViewer;
@@ -46,6 +47,8 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.ide.dialogs.EncodingFieldEditor;
+import org.osgi.service.prefs.BackingStoreException;
 
 /**
  * Preference page for debug preferences that apply specifically to C/C++ Debugging.
@@ -57,15 +60,29 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	private Combo fVariableFormatCombo;
 
 	private Combo fExpressionFormatCombo;
-
+	
 	private Combo fRegisterFormatCombo;
 
-	private Combo fCharsetCombo;
+	private EncodingFieldEditor fCharsetEditor;
+	
+	private EncodingFieldEditor fWideCharsetEditor;
 	
 	// Format constants
-	private static int[] fFormatIds = new int[]{ ICDIFormat.NATURAL, ICDIFormat.HEXADECIMAL, ICDIFormat.DECIMAL, ICDIFormat.BINARY };
+	private static int[] fFormatIds = new int[] {
+		ICDIFormat.NATURAL,
+		ICDIFormat.HEXADECIMAL,
+		ICDIFormat.DECIMAL,
+		ICDIFormat.OCTAL,
+		ICDIFormat.BINARY
+	};
 
-	private static String[] fFormatLabels = new String[]{ PreferenceMessages.getString( "CDebugPreferencePage.0" ), PreferenceMessages.getString( "CDebugPreferencePage.1" ), PreferenceMessages.getString( "CDebugPreferencePage.2" ), PreferenceMessages.getString( "CDebugPreferencePage.14" ) }; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+	private static String[] fFormatLabels = new String[] {
+		PreferenceMessages.getString( "CDebugPreferencePage.0" ), //$NON-NLS-1$
+		PreferenceMessages.getString( "CDebugPreferencePage.1" ), //$NON-NLS-1$
+		PreferenceMessages.getString( "CDebugPreferencePage.2" ), //$NON-NLS-1$
+		PreferenceMessages.getString( "CDebugPreferencePage.17" ), //$NON-NLS-1$
+		PreferenceMessages.getString( "CDebugPreferencePage.14" ) //$NON-NLS-1$
+	};
 
 	private PropertyChangeListener fPropertyChangeListener;
 
@@ -75,13 +92,25 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 
 		private boolean fHasStateChanged = false;
 
+		@Override
 		public void propertyChange( PropertyChangeEvent event ) {
 			if ( event.getProperty().equals( ICDebugPreferenceConstants.PREF_SHOW_HEX_VALUES ) ) {
 				fHasStateChanged = true;
-			}
-			else if ( event.getProperty().equals( ICDebugPreferenceConstants.PREF_SHOW_CHAR_VALUES ) ) {
+			} else if ( event.getProperty().equals( ICDebugPreferenceConstants.PREF_SHOW_CHAR_VALUES ) ) {
 				fHasStateChanged = true;
+			} else if (event.getProperty().equals(FieldEditor.VALUE)) {
+				fHasStateChanged = true;
+			} else if (event.getProperty().equals(FieldEditor.IS_VALID)) {
+				setValid(fCharsetEditor.isValid() && fWideCharsetEditor.isValid());
+				if (!fCharsetEditor.isValid()) {
+					setErrorMessage(PreferenceMessages.getString("CDebugPreferencePage.19")); //$NON-NLS-1$
+				} else if (!fWideCharsetEditor.isValid()) {
+					setErrorMessage(PreferenceMessages.getString("CDebugPreferencePage.20")); //$NON-NLS-1$
+				} else {
+					setErrorMessage(null);
+				}
 			}
+
 		}
 
 		protected boolean hasStateChanged() {
@@ -121,6 +150,8 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 		createSpacer( composite, 1 );
 		createViewSettingPreferences( composite );
 		createSpacer( composite, 1 );
+		createCharsetSettingPreferences( composite );
+		createSpacer( composite, 1 );
 		createBinarySettings( composite );
 		setValues();
 		return composite;
@@ -145,11 +176,60 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	 * Set the values of the component widgets based on the values in the preference store
 	 */
 	private void setValues() {
-		fVariableFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getInt( ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT ) ) );
-		fExpressionFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getInt( ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT ) ) );
-		fRegisterFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getInt( ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT ) ) );
-		fCharsetCombo.setText( CDebugCorePlugin.getDefault().getPluginPreferences().getString( ICDebugConstants.PREF_CHARSET ) );
-		fShowBinarySourceFilesButton.setSelection( CCorePlugin.getDefault().getPluginPreferences().getBoolean( CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES ) );
+		// Set the number format combo boxes.
+		fVariableFormatCombo.select(getFormatIndex(Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID, ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT, ICDIFormat.NATURAL, null)));
+		fExpressionFormatCombo.select(getFormatIndex(Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID, ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, ICDIFormat.NATURAL, null)));
+		fRegisterFormatCombo.select(getFormatIndex(Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID, ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT, ICDIFormat.NATURAL, null)));
+		
+		
+		// Set the charset editors.
+		
+		// Create a temporary preference store.
+		PreferenceStore ps = new PreferenceStore();
+		
+		// Get the default charset and the default wide charset.
+		String defaultCharset = DefaultScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).get(ICDebugConstants.PREF_DEBUG_CHARSET, null);
+		if (defaultCharset != null) {
+			ps.setDefault(ICDebugConstants.PREF_DEBUG_CHARSET, defaultCharset);
+		}
+		String defaultWideCharset = DefaultScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).get(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, null);
+		if (defaultWideCharset != null) {
+			ps.setDefault(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, defaultWideCharset);
+		}
+		
+		// Get the charset and the wide charset. If they're unset, use the default instead.
+		// Note that we have to call the setValue() function of the PreferenceStore even if we
+		// want to use the default. This is to ensure proper display of the encoding field editor.
+		String charset = InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).get(ICDebugConstants.PREF_DEBUG_CHARSET, null);
+		if (charset != null) {
+			ps.setValue(ICDebugConstants.PREF_DEBUG_CHARSET, charset);
+		} else if (defaultCharset != null) {
+			ps.setValue(ICDebugConstants.PREF_DEBUG_CHARSET, defaultCharset);
+		}
+		String wideCharset = InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).get(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, null);
+		if (wideCharset != null) {
+			ps.setValue(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, wideCharset);
+		} else if (defaultWideCharset != null) {
+			ps.setValue(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, defaultWideCharset);
+		}
+		
+		// Initialize the encoding field editors with the values from the preference store.
+		fCharsetEditor.setPreferenceStore(ps);
+		fCharsetEditor.load();
+		fWideCharsetEditor.setPreferenceStore(ps);
+		fWideCharsetEditor.load();
+		
+		// Tell the encoding field editors to check the "Default" option if we're currently using the default values.
+		if (charset == null) {
+			fCharsetEditor.loadDefault();
+		}
+		if (wideCharset == null) {
+			fWideCharsetEditor.loadDefault();
+		}
+		
+		
+		// Set the values for the remaining preferences.
+		fShowBinarySourceFilesButton.setSelection(Platform.getPreferencesService().getBoolean(CCorePlugin.PLUGIN_ID, CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES, true, null));
 	}
 
 	/*
@@ -157,6 +237,7 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	 * 
 	 * @see org.eclipse.ui.IWorkbenchPreferencePage#init(IWorkbench)
 	 */
+	@Override
 	public void init( IWorkbench workbench ) {
 		fWorkbench = workbench;
 	}
@@ -194,21 +275,25 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 		fVariableFormatCombo = createComboBox( formatComposite, PreferenceMessages.getString( "CDebugPreferencePage.8" ), fFormatLabels, fFormatLabels[0] ); //$NON-NLS-1$
 		fExpressionFormatCombo = createComboBox( formatComposite, PreferenceMessages.getString( "CDebugPreferencePage.9" ), fFormatLabels, fFormatLabels[0] ); //$NON-NLS-1$
 		fRegisterFormatCombo = createComboBox( formatComposite, PreferenceMessages.getString( "CDebugPreferencePage.10" ), fFormatLabels, fFormatLabels[0] ); //$NON-NLS-1$
-		String[] charsetNames = getCharsetNames();
-		fCharsetCombo = createComboBox( formatComposite, PreferenceMessages.getString( "CDebugPreferencePage.16" ), charsetNames, charsetNames[0] ); //$NON-NLS-1$
 	}
-
-	private String[] getCharsetNames() {
-		ArrayList names = new ArrayList();
-		SortedMap setmap = Charset.availableCharsets();
+	
+	private void createCharsetSettingPreferences( Composite parent ) {
+		// Create containing composite
+		Composite formatComposite = ControlFactory.createComposite( parent, 2);
+		((GridLayout)formatComposite.getLayout()).marginWidth = 0;
+		((GridLayout)formatComposite.getLayout()).marginHeight = 0;
 		
-		for (Iterator iterator = setmap.keySet().iterator(); iterator.hasNext();) {
-			String entry = (String) iterator.next();
-			names.add(entry);
-		}
-		return (String[]) names.toArray(new String[names.size()]);
+		// Create charset editor
+		Composite charsetComposite = ControlFactory.createComposite(formatComposite, 1);
+		fCharsetEditor = new EncodingFieldEditor(ICDebugConstants.PREF_DEBUG_CHARSET, "", PreferenceMessages.getString( "CDebugPreferencePage.18" ), charsetComposite); //$NON-NLS-1$ //$NON-NLS-2$
+		fCharsetEditor.setPropertyChangeListener(getPropertyChangeListener());
+		
+		// Create wide charset editor
+		Composite wideCharsetComposite = ControlFactory.createComposite(formatComposite, 1);
+		fWideCharsetEditor = new EncodingFieldEditor(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, "", PreferenceMessages.getString( "CDebugPreferencePage.16" ), wideCharsetComposite); //$NON-NLS-1$ //$NON-NLS-2$
+		fWideCharsetEditor.setPropertyChangeListener(getPropertyChangeListener());
 	}
-
+	
 	private void createBinarySettings( Composite parent ) {
 		fShowBinarySourceFilesButton = createCheckButton( parent, PreferenceMessages.getString("CDebugPreferencePage.15") );		 //$NON-NLS-1$
 	}
@@ -251,8 +336,13 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 		if ( getPropertyChangeListener().hasStateChanged() ) {
 			refreshViews();
 		}
-		CDebugUIPlugin.getDefault().savePluginPreferences();
-		CDebugCorePlugin.getDefault().savePluginPreferences();
+		
+		try {
+			InstanceScope.INSTANCE.getNode(CDebugUIPlugin.PLUGIN_ID).flush();
+			InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).flush();
+		} catch (BackingStoreException e) {
+			// No operation
+		}
 		return true;
 	}
 
@@ -262,6 +352,7 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	private void refreshViews() {
 		BusyIndicator.showWhile( getShell().getDisplay(), new Runnable() {
 
+			@Override
 			public void run() {
 				// Refresh interested views
 				IWorkbenchWindow[] windows = CDebugUIPlugin.getDefault().getWorkbench().getWorkbenchWindows();
@@ -298,11 +389,29 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	 * Store the preference values based on the state of the component widgets
 	 */
 	private void storeValues() {
-		CDebugCorePlugin.getDefault().getPluginPreferences().setValue( ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT, getFormatId( fVariableFormatCombo.getSelectionIndex() ) );
-		CDebugCorePlugin.getDefault().getPluginPreferences().setValue( ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, getFormatId( fExpressionFormatCombo.getSelectionIndex() ) );
-		CDebugCorePlugin.getDefault().getPluginPreferences().setValue( ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT, getFormatId( fRegisterFormatCombo.getSelectionIndex() ) );
-		CDebugCorePlugin.getDefault().getPluginPreferences().setValue( ICDebugConstants.PREF_CHARSET, fCharsetCombo.getItem( fCharsetCombo.getSelectionIndex()) );
-		CCorePlugin.getDefault().getPluginPreferences().setValue( CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES, fShowBinarySourceFilesButton.getSelection() );
+		// Store the number formats.
+		InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).putInt(ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT, getFormatId(fVariableFormatCombo.getSelectionIndex()));
+		InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).putInt(ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, getFormatId(fExpressionFormatCombo.getSelectionIndex()));
+		InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).putInt(ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT, getFormatId(fRegisterFormatCombo.getSelectionIndex()));
+		
+		// Store the charset.
+		if (fCharsetEditor.presentsDefaultValue()) {
+			InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).remove(ICDebugConstants.PREF_DEBUG_CHARSET);
+		} else {
+			fCharsetEditor.store();
+			InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).put(ICDebugConstants.PREF_DEBUG_CHARSET, fCharsetEditor.getPreferenceStore().getString(ICDebugConstants.PREF_DEBUG_CHARSET));
+		}
+		
+		// Store the wide charset.
+		if (fWideCharsetEditor.presentsDefaultValue()) {
+			InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).remove(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET);
+		} else {
+			fWideCharsetEditor.store();
+			InstanceScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).put(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET, fWideCharsetEditor.getPreferenceStore().getString(ICDebugConstants.PREF_DEBUG_WIDE_CHARSET));
+		}
+		
+		// Store the other preferences.
+		InstanceScope.INSTANCE.getNode(CCorePlugin.PLUGIN_ID).putBoolean(CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES, fShowBinarySourceFilesButton.getSelection());
 	}
 
 	/**
@@ -317,10 +426,12 @@ public class CDebugPreferencePage extends PreferencePage implements IWorkbenchPr
 	}
 
 	private void setDefaultValues() {
-		fVariableFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getDefaultInt( ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT ) ) );
-		fExpressionFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getDefaultInt( ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT ) ) );
-		fRegisterFormatCombo.select( getFormatIndex( CDebugCorePlugin.getDefault().getPluginPreferences().getDefaultInt( ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT ) ) );
-		fCharsetCombo.setText(  CDebugCorePlugin.getDefault().getPluginPreferences().getDefaultString( ICDebugConstants.PREF_CHARSET )  );
+		fVariableFormatCombo.select(getFormatIndex(DefaultScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).getInt(ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT, ICDIFormat.NATURAL)));
+		fExpressionFormatCombo.select(getFormatIndex(DefaultScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).getInt(ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, ICDIFormat.NATURAL)));
+		fRegisterFormatCombo.select(getFormatIndex(DefaultScope.INSTANCE.getNode(CDebugCorePlugin.PLUGIN_ID).getInt(ICDebugConstants.PREF_DEFAULT_REGISTER_FORMAT, ICDIFormat.NATURAL)));
+		fCharsetEditor.loadDefault();
+		fWideCharsetEditor.loadDefault();
+		fShowBinarySourceFilesButton.setSelection(DefaultScope.INSTANCE.getNode(CCorePlugin.PLUGIN_ID).getBoolean(CCorePreferenceConstants.SHOW_SOURCE_FILES_IN_BINARIES, true));
 	}
 
 	private static int getFormatId( int index ) {

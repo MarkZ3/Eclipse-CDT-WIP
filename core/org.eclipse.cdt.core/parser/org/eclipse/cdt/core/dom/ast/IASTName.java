@@ -1,14 +1,14 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
- *    Bryan Wilkinson (QNX)
+ *     IBM - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Bryan Wilkinson (QNX)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -23,21 +23,22 @@ import org.eclipse.cdt.core.dom.IName;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTName extends IASTNode, IName {
-
 	/**
 	 * Constant sentinel.
 	 */
-	public static final IASTName[] EMPTY_NAME_ARRAY = new IASTName[0];
+	public static final IASTName[] EMPTY_NAME_ARRAY = {};
 
 	/**
 	 * Returns the name including qualification and template arguments. 
 	 */
+	@Override
 	public char[] toCharArray();
 	
 	/**
 	 * Same as {@link #toCharArray()}.
 	 * @since 5.1
 	 */
+	@Override
 	public String toString();
 
 	/**
@@ -101,11 +102,13 @@ public interface IASTName extends IASTNode, IName {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTName copy();
 	
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTName copy(CopyStyle style);
 
 	/** 
@@ -121,7 +124,7 @@ public interface IASTName extends IASTNode, IName {
 	public char[] getLookupKey();
 
 	/**
-	 * Gets the intermediate representation of the biniding, if already available.
+	 * Gets the intermediate representation of the binding, if already available.
 	 * @noreference This method is not intended to be referenced by clients.
 	 */
 	public IBinding getPreBinding();
@@ -131,4 +134,10 @@ public interface IASTName extends IASTNode, IName {
 	 * @noreference This method is not intended to be referenced by clients.
 	 */
 	public IBinding resolvePreBinding();
+
+	/**
+	 * Returns whether this name is qualified, i.e. whether it is preceded by a scope operator.
+	 * @since 5.4
+	 */
+	public boolean isQualified();
 }

@@ -21,7 +21,8 @@ import java.util.List;
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.concurrent.CountingRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateCountingRequestMonitor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.datamodel.CompositeDMContext;
@@ -54,16 +55,12 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.core.runtime.Platform;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(BackgroundRunner.class)
-
 public class MIRegistersTest extends BaseTestCase {
 	
 	protected List<String> get_X86_REGS() {
@@ -89,20 +86,21 @@ public class MIRegistersTest extends BaseTestCase {
 	private static final String EXEC_NAME = "MultiThread.exe";
 	private static final String SRC_NAME = "MultiThread.cc";
 
-    // Will be used to wait for asynchronous call to complete
-    //private final AsyncCompletionWaitor fWait = new AsyncCompletionWaitor();
 	private DsfSession fSession;
 	private DsfServicesTracker fServicesTracker;
 	private IContainerDMContext fContainerDmc;
     private IRegisters fRegService;
     private IRunControl fRunControl;
-    
-	@Before
-	public void init() throws Exception {
+
+    @Override
+	public void doBeforeTest() throws Exception {
+		super.doBeforeTest();
+		
 	    fSession = getGDBLaunch().getSession();
 	    
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
 	    		// We obtain the services we need after the new
 	    		// launch has been performed
 	    		fServicesTracker = new DsfServicesTracker(TestsPlugin.getBundleContext(), fSession.getId());
@@ -119,15 +117,19 @@ public class MIRegistersTest extends BaseTestCase {
 	    fSession.getExecutor().submit(runnable).get();
 	}
 	
-	@BeforeClass
-	public static void beforeClassMethod() {
+	@Override
+	protected void setLaunchAttributes() {
+		super.setLaunchAttributes();
+		
 		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, 
 				           EXEC_PATH + EXEC_NAME);
 	}
 
 
-	@After
-	public void tearDown() {
+	@Override
+	public void doAfterTest() throws Exception {
+		super.doAfterTest();
+		
 		fServicesTracker.dispose();
 		fRegService = null;
 	}
@@ -152,7 +154,8 @@ public class MIRegistersTest extends BaseTestCase {
         };
         
         fRegService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fRegService.getRegisterGroups(fContainerDmc, regGroupDone);
             }
         });
@@ -177,7 +180,8 @@ public class MIRegistersTest extends BaseTestCase {
     	final IRegisterGroupDMContext regGroupsDMC = getRegisterGroup();
 
    		fRegService.getExecutor().submit(new Runnable() {
-   			public void run() {
+   			@Override
+			public void run() {
    				fRegService.getRegisters(
    				    new CompositeDMContext(new IDMContext[] { regGroupsDMC, frameDmc} ), 
    		            new DataRequestMonitor<IRegisterDMContext[]>(fRegService.getExecutor(), null) {
@@ -250,13 +254,13 @@ public class MIRegistersTest extends BaseTestCase {
             protected void execute(DataRequestMonitor<IRegisterDMData[]> rm) {
                 final IRegisterDMData[] datas = new IRegisterDMData[regDMCs.length];
                 rm.setData(datas);
-                final CountingRequestMonitor countingRm = new CountingRequestMonitor(ImmediateExecutor.getInstance(), rm);
+                final CountingRequestMonitor countingRm = new ImmediateCountingRequestMonitor(rm);
                 countingRm.setDoneCount(regDMCs.length);
                 for (int i = 0; i < regDMCs.length; i++) {
                     final int index = i; 
                     fRegService.getRegisterData(
                         regDMCs[index], 
-                        new DataRequestMonitor<IRegisterDMData>(ImmediateExecutor.getInstance(), countingRm) {
+                        new ImmediateDataRequestMonitor<IRegisterDMData>(countingRm) {
                             @Override
                             protected void handleSuccess() {
                                 datas[index] = getData();
@@ -297,7 +301,8 @@ public class MIRegistersTest extends BaseTestCase {
         };
         
         fRegService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fRegService.getFormattedExpressionValue(valueDmc, regRm);
             }
         });
@@ -342,10 +347,16 @@ public class MIRegistersTest extends BaseTestCase {
 		// thread is conditional depending on environment. Run to the printf
 		// before it (which is common), then do step operations over the
 		// non-common code (but same number of lines)
-        SyncUtil.runToLine(SRC_NAME, Integer.toString(MIRunControlTest.LINE_MAIN_PRINTF));
-        SyncUtil.step(StepType.STEP_OVER);	// over the printf
-        SyncUtil.step(StepType.STEP_OVER);	// over the create-thread call
-        MIStoppedEvent stoppedEvent = SyncUtil.step(StepType.STEP_OVER, TestsPlugin.massageTimeout(2000));	// over the one second sleep
+    	SyncUtil.runToLine(SRC_NAME, Integer.toString(MIRunControlTest.LINE_MAIN_PRINTF));
+
+        // Because the program is about to go multi-threaded, we have to select the thread
+        // we want to keep stepping.  If we don't, we will ask GDB to step the entire process
+        // which is not what we want.  We can fetch the thread from the stopped event
+        // but we should do that before the second thread is created, to be sure the stopped
+        // event is for the main thread.
+        MIStoppedEvent stoppedEvent = SyncUtil.step(StepType.STEP_OVER);	// over the printf
+        SyncUtil.step(stoppedEvent.getDMContext(), StepType.STEP_OVER);	// over the create-thread call
+        stoppedEvent = SyncUtil.step(stoppedEvent.getDMContext(), StepType.STEP_OVER, TestsPlugin.massageTimeout(2000));	// over the one second sleep
     	
         // Get the thread IDs
     	final IContainerDMContext containerDmc = DMContexts.getAncestorOfType(stoppedEvent.getDMContext(), IContainerDMContext.class);
@@ -363,7 +374,8 @@ public class MIRegistersTest extends BaseTestCase {
         };
     	    	
     	fRegService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fRunControl.getExecutionContexts(containerDmc, drm);
             }
     	});
@@ -419,6 +431,7 @@ public class MIRegistersTest extends BaseTestCase {
     	final IRegisterDMContext[] regDMCs = getRegisters(frameDmc);
 
 		fRegService.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 			    fRegService.writeRegister(
 	                regDMCs[regIndex], 

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
+import org.eclipse.cdt.core.language.settings.providers.ScannerDiscoveryLegacySupport;
 import org.eclipse.cdt.core.model.ILanguage;
 import org.eclipse.cdt.core.model.LanguageManager;
 import org.eclipse.cdt.core.settings.model.ICStorageElement;
@@ -24,6 +25,7 @@ import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 import org.eclipse.cdt.internal.core.SafeStringInterner;
 import org.eclipse.cdt.managedbuilder.core.IAdditionalInput;
 import org.eclipse.cdt.managedbuilder.core.IBuildObject;
+import org.eclipse.cdt.managedbuilder.core.IConfiguration;
 import org.eclipse.cdt.managedbuilder.core.IFileInfo;
 import org.eclipse.cdt.managedbuilder.core.IInputOrder;
 import org.eclipse.cdt.managedbuilder.core.IInputType;
@@ -37,14 +39,15 @@ import org.eclipse.cdt.managedbuilder.core.ManagedBuildManager;
 import org.eclipse.cdt.managedbuilder.internal.enablement.OptionEnablementExpression;
 import org.eclipse.cdt.managedbuilder.makegen.IManagedDependencyGeneratorType;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
-import org.osgi.framework.Version;
 import org.eclipse.core.runtime.content.IContentType;
 import org.eclipse.core.runtime.content.IContentTypeManager;
+import org.osgi.framework.Version;
 
 public class InputType extends BuildObject implements IInputType {
 
@@ -731,6 +734,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getParent()
 	 */
+	@Override
 	public ITool getParent() {
 		return parent;
 	}
@@ -738,6 +742,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#createInputOrder()
 	 */
+	@Override
 	public IInputOrder createInputOrder(String path) {
 		InputOrder inputOrder = new InputOrder(this, false);
 		inputOrder.setPath(path);
@@ -749,6 +754,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getInputOrders()
 	 */
+	@Override
 	public IInputOrder[] getInputOrders() {
 		return getInputOrderList().toArray(new IInputOrder[0]);
 	}
@@ -756,6 +762,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getInputOrder()
 	 */
+	@Override
 	public IInputOrder getInputOrder(String path) {
 		// TODO Convert both paths to absolute?
 		for (InputOrder io : getInputOrderList()) {
@@ -769,6 +776,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#removeInputOrder()
 	 */
+	@Override
 	public void removeInputOrder(String path) {
 		IInputOrder order = getInputOrder(path);
 		if (order != null) removeInputOrder(order);
@@ -777,6 +785,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#removeInputOrder()
 	 */
+	@Override
 	public void removeInputOrder(IInputOrder element) {
 		getInputOrderList().remove(element);
 		setDirty(true);
@@ -785,6 +794,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#createAdditionalInput()
 	 */
+	@Override
 	public IAdditionalInput createAdditionalInput(String paths) {
 		AdditionalInput addlInput = new AdditionalInput(this, false);
 		addlInput.setPaths(paths);
@@ -803,6 +813,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getAdditionalInputs()
 	 */
+	@Override
 	public IAdditionalInput[] getAdditionalInputs() {
 		return getAdditionalInputList().toArray(new IAdditionalInput[0]);
 	}
@@ -810,6 +821,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getAdditionalInput()
 	 */
+	@Override
 	public IAdditionalInput getAdditionalInput(String paths) {
 		// TODO Convert both paths to absolute?
 		// Must match all strings
@@ -834,6 +846,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#removeAdditionalInput()
 	 */
+	@Override
 	public void removeAdditionalInput(String path) {
 		IAdditionalInput input = getAdditionalInput(path);
 		if (input != null) removeAdditionalInput(input);
@@ -842,6 +855,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#removeAdditionalInput()
 	 */
+	@Override
 	public void removeAdditionalInput(IAdditionalInput element) {
 		getAdditionalInputList().remove(element);
 		setDirty(true);
@@ -850,6 +864,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getAdditionalDependencies()
 	 */
+	@Override
 	public IPath[] getAdditionalDependencies() {
 		List<IPath> deps = new ArrayList<IPath>();
 		for (AdditionalInput additionalInput : getAdditionalInputList()) {
@@ -872,6 +887,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getAdditionalResources()
 	 */
+	@Override
 	public IPath[] getAdditionalResources() {
 		List<IPath> ins = new ArrayList<IPath>();
 		for (AdditionalInput additionalInput : getAdditionalInputList()) {
@@ -919,6 +935,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.managedbuilder.core.IInputType#getSuperClass()
 	 */
+	@Override
 	public IInputType getSuperClass() {
 		return superClass;
 	}
@@ -934,6 +951,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getBuildVariable()
 	 */
+	@Override
 	public String getBuildVariable() {
 		if (buildVariable == null) {
 			// If I have a superClass, ask it
@@ -949,6 +967,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setBuildVariable()
 	 */
+	@Override
 	public void setBuildVariable(String variableName) {
 		if (variableName == null && buildVariable == null) return;
 		if (buildVariable == null || variableName == null || !(variableName.equals(buildVariable))) {
@@ -961,6 +980,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getDependencyContentType()
 	 */
+	@Override
 	public IContentType getDependencyContentType() {
 		if (dependencyContentType == null) {
 			if (superClass != null) {
@@ -975,6 +995,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setDependencyContentType()
 	 */
+	@Override
 	public void setDependencyContentType(IContentType type) {
 		if (dependencyContentType != type) {
 			dependencyContentType = type;
@@ -991,6 +1012,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getDependencyExtensionsAttribute()
 	 */
+	@Override
 	public String[] getDependencyExtensionsAttribute() {
 		if (dependencyExtensions == null || dependencyExtensions.size() == 0) {
 			// If I have a superClass, ask it
@@ -1008,6 +1030,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setDependencyExtensionsAttribute()
 	 */
+	@Override
 	public void setDependencyExtensionsAttribute(String extensions) {
 		getDependencyExtensionsList().clear();
 		if (extensions != null) {
@@ -1023,6 +1046,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getDependencyExtensions()
 	 */
+	@Override
 	public String[] getDependencyExtensions(ITool tool) {
 		//  Use content type if specified and registered with Eclipse
 		IContentType type = getDependencyContentType();
@@ -1057,6 +1081,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#isDependencyExtension()
 	 */
+	@Override
 	public boolean isDependencyExtension(ITool tool, String ext) {
 		String[] exts = getDependencyExtensions(tool);
 		for (String depExt : exts) {
@@ -1075,6 +1100,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getDependencyGenerator()
 	 */
+	@Override
 	public IManagedDependencyGeneratorType getDependencyGenerator() {
 		if (dependencyGenerator != null) {
 			return dependencyGenerator;
@@ -1115,6 +1141,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getMultipleOfType()
 	 */
+	@Override
 	public boolean getMultipleOfType() {
 		if (multipleOfType == null) {
 			if (superClass != null) {
@@ -1129,6 +1156,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setMultipleOfType()
 	 */
+	@Override
 	public void setMultipleOfType(boolean b) {
 		if (multipleOfType == null || !(b == multipleOfType.booleanValue())) {
 			multipleOfType = new Boolean(b);
@@ -1140,6 +1168,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getPrimaryInput()
 	 */
+	@Override
 	public boolean getPrimaryInput() {
 		if (primaryInput == null) {
 			if (superClass != null) {
@@ -1154,6 +1183,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setMultipleOfType()
 	 */
+	@Override
 	public void setPrimaryInput(boolean b) {
 		if (primaryInput == null || !(b == primaryInput.booleanValue())) {
 			primaryInput = new Boolean(b);
@@ -1165,6 +1195,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getOptionId()
 	 */
+	@Override
 	public String getOptionId() {
 		if (optionId == null) {
 			if (superClass != null) {
@@ -1179,6 +1210,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setOptionId()
 	 */
+	@Override
 	public void setOptionId(String id) {
 		if (id == null && optionId == null) return;
 		if (id == null || optionId == null || !(optionId.equals(id))) {
@@ -1191,6 +1223,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getAssignToOptionId()
 	 */
+	@Override
 	public String getAssignToOptionId() {
 		if (assignToOptionId == null) {
 			if (superClass != null) {
@@ -1205,6 +1238,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setAssignToOptionId()
 	 */
+	@Override
 	public void setAssignToOptionId(String id) {
 		if (id == null && assignToOptionId == null) return;
 		if (id == null || assignToOptionId == null || !(assignToOptionId.equals(id))) {
@@ -1217,6 +1251,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getSourceContentType()
 	 */
+	@Override
 	public IContentType getSourceContentType() {
 		IContentType[] types = getSourceContentTypes();
 
@@ -1226,6 +1261,7 @@ public class InputType extends BuildObject implements IInputType {
 		return null;
 	}
 
+	@Override
 	public IContentType[] getSourceContentTypes() {
 		if (sourceContentTypes == null) {
 			if (superClass != null) {
@@ -1237,6 +1273,7 @@ public class InputType extends BuildObject implements IInputType {
 		return sourceContentTypes.clone();
 	}
 
+	@Override
 	public IContentType[] getHeaderContentTypes() {
 		if (headerContentTypes == null) {
 			if (superClass != null) {
@@ -1248,6 +1285,7 @@ public class InputType extends BuildObject implements IInputType {
 		return headerContentTypes.clone();
 	}
 
+	@Override
 	public String[] getHeaderExtensionsAttribute() {
 		if (headerExtensions == null) {
 			if (superClass != null) {
@@ -1261,6 +1299,7 @@ public class InputType extends BuildObject implements IInputType {
 
 
 
+	@Override
 	public String[] getHeaderContentTypeIds() {
 		if (headerContentTypeIds == null) {
 			if (superClass != null) {
@@ -1272,6 +1311,7 @@ public class InputType extends BuildObject implements IInputType {
 		return headerContentTypeIds.clone();
 	}
 
+	@Override
 	public String[] getSourceContentTypeIds() {
 		if (sourceContentTypeIds == null) {
 			if (superClass != null) {
@@ -1283,6 +1323,7 @@ public class InputType extends BuildObject implements IInputType {
 		return sourceContentTypeIds.clone();
 	}
 
+	@Override
 	public void setHeaderContentTypeIds(String[] ids) {
 		if(!Arrays.equals(headerContentTypeIds, ids)){
 			headerContentTypeIds = ids != null ?
@@ -1293,6 +1334,7 @@ public class InputType extends BuildObject implements IInputType {
 		}
 	}
 
+	@Override
 	public void setHeaderExtensionsAttribute(String[] extensions) {
 		if(!Arrays.equals(headerExtensions, extensions)){
 			headerExtensions = extensions != null ?
@@ -1303,6 +1345,7 @@ public class InputType extends BuildObject implements IInputType {
 		}
 	}
 
+	@Override
 	public void setSourceContentTypeIds(String[] ids) {
 		if(!Arrays.equals(sourceContentTypeIds, ids)){
 			sourceContentTypeIds = ids != null ?
@@ -1313,6 +1356,7 @@ public class InputType extends BuildObject implements IInputType {
 		}
 	}
 
+	@Override
 	public void setSourceExtensionsAttribute(String[] extensions) {
 		if(!Arrays.equals(inputExtensions, extensions)){
 			inputExtensions = extensions != null ?
@@ -1326,6 +1370,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setSourceContentType()
 	 */
+	@Override
 	public void setSourceContentType(IContentType type) {
 		if(type == null){
 			if(sourceContentTypes != null){
@@ -1372,6 +1417,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getSourceExtensionsAttribute()
 	 */
+	@Override
 	public String[] getSourceExtensionsAttribute() {
 		if( inputExtensions == null ) {
 			// If I have a superClass, ask it
@@ -1387,6 +1433,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#setSourceExtensionsAttribute()
 	 */
+	@Override
 	public void setSourceExtensionsAttribute(String extensions) {
 		if(extensions == null){
 			if(inputExtensions != null){
@@ -1413,6 +1460,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#getSourceExtensions()
 	 */
+	@Override
 	public String[] getSourceExtensions(ITool tool) {
 		return getSourceExtensions(tool, ((Tool)tool).getProject());
 //		//  Use content type if specified and registered with Eclipse
@@ -1443,6 +1491,7 @@ public class InputType extends BuildObject implements IInputType {
 	}
 
 
+	@Override
 	public String[] getHeaderExtensions(ITool tool) {
 		IContentType types[] = getHeaderContentTypes();
 		if (types.length != 0) {
@@ -1458,6 +1507,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.build.managed.IInputType#isSourceExtension()
 	 */
+	@Override
 	public boolean isSourceExtension(ITool tool, String ext) {
 		return isSourceExtension(tool, ext, ((Tool)tool).getProject());
 	}
@@ -1477,6 +1527,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.managedbuilder.core.IInputType#isExtensionElement()
 	 */
+	@Override
 	public boolean isExtensionElement() {
 		return isExtensionInputType;
 	}
@@ -1484,6 +1535,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.managedbuilder.core.IInputType#isDirty()
 	 */
+	@Override
 	public boolean isDirty() {
 		// This shouldn't be called for an extension InputType
 		if (isExtensionInputType) return false;
@@ -1502,6 +1554,7 @@ public class InputType extends BuildObject implements IInputType {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.managedbuilder.core.IInputType#setDirty(boolean)
 	 */
+	@Override
 	public void setDirty(boolean isDirty) {
 		this.isDirty = isDirty;
 		// Propagate "false" to the children
@@ -1687,6 +1740,7 @@ public class InputType extends BuildObject implements IInputType {
 		return languageName;
 	}
 
+	@Override
 	public String getLanguageId(ITool tool){
 		IResourceInfo rcInfo = getRcInfo(tool);
 		String langId = this.languageId;
@@ -1712,6 +1766,7 @@ public class InputType extends BuildObject implements IInputType {
 		return langId;
 	}
 
+	@Override
 	public String getLanguageName(ITool tool){
 		IResourceInfo rcInfo = getRcInfo(tool);
 		String langName = this.languageName;
@@ -1770,6 +1825,7 @@ public class InputType extends BuildObject implements IInputType {
 		return langName;
 	}
 
+	@Override
 	public String getDiscoveryProfileId(ITool tool) {
 		String id = getDiscoveryProfileIdAttribute();
 		if(id == null){
@@ -1785,16 +1841,68 @@ public class InputType extends BuildObject implements IInputType {
 		return id;
 	}
 
-	public String getDiscoveryProfileIdAttribute(){
-		if(buildInfoDicsoveryProfileId == null && superClass != null)
-			return ((InputType)superClass).getDiscoveryProfileIdAttribute();
+	/**
+	 * Check if legacy scanner discovery profiles should be used.
+	 */
+	private boolean useLegacyScannerDiscoveryProfiles() {
+		boolean useLegacy = true;
+		ITool tool = getParent();
+		if (tool != null) {
+			IBuildObject toolchain = tool.getParent();
+			if (toolchain instanceof IToolChain && ((IToolChain) toolchain).getDefaultLanguageSettingsProviderIds() != null) {
+				IConfiguration cfg = ((IToolChain) toolchain).getParent();
+				if (cfg != null && cfg.getDefaultLanguageSettingsProviderIds() != null) {
+					IResource rc = cfg.getOwner();
+					if (rc != null) {
+						IProject project = rc.getProject();
+						useLegacy = !ScannerDiscoveryLegacySupport.isLanguageSettingsProvidersFunctionalityEnabled(project);
+					}
+				}
+			}
+		}
+		return useLegacy;
+	}
+
+	/**
+	 * Temporary method to support compatibility during SD transition.
+	 * @noreference This method is not intended to be referenced by clients.
+	 */
+	public String getLegacyDiscoveryProfileIdAttribute() {
+		String profileId = buildInfoDicsoveryProfileId;
+		if (profileId == null) {
+			profileId = ScannerDiscoveryLegacySupport.getDeprecatedLegacyProfiles(id);
+			if (profileId == null && superClass instanceof InputType) {
+				profileId = ((InputType)superClass).getLegacyDiscoveryProfileIdAttribute();
+			}
+		}
+		return profileId;
+	}
+
+	public String getDiscoveryProfileIdAttribute() {
+		String discoveryProfileAttribute = getDiscoveryProfileIdAttributeInternal();
+		if (discoveryProfileAttribute == null && useLegacyScannerDiscoveryProfiles()) {
+			discoveryProfileAttribute = getLegacyDiscoveryProfileIdAttribute();
+		}
+
+		return discoveryProfileAttribute;
+	}
+
+	/**
+	 * Do not inline! This method needs to call itself recursively.
+	 */
+	private String getDiscoveryProfileIdAttributeInternal() {
+		if (buildInfoDicsoveryProfileId == null && superClass instanceof InputType) {
+			return ((InputType)superClass).getDiscoveryProfileIdAttributeInternal();
+		}
 		return buildInfoDicsoveryProfileId;
 	}
 
+	@Override
 	public void setLanguageIdAttribute(String id) {
 		languageId = id;
 	}
 
+	@Override
 	public void setLanguageNameAttribute(String name) {
 		languageName = name;
 	}
@@ -1826,7 +1934,7 @@ public class InputType extends BuildObject implements IInputType {
 
 		if (superClass!=null && superClass instanceof InputType)
 			return ((InputType)superClass).hasScannerConfigSettings();
-		
+
 		return false;
 	}
 
@@ -1834,10 +1942,10 @@ public class InputType extends BuildObject implements IInputType {
 		//TODO:
 		return false;
 	}
-	
+
 	/**
 	 * The intention is cosmetic - to make debugging easier.
-	 * 
+	 *
 	 * @see org.eclipse.cdt.managedbuilder.internal.core.BuildObject#toString()
 	 */
 	@Override

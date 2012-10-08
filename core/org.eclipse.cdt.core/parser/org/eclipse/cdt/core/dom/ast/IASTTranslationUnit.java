@@ -1,13 +1,14 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Doug Schaefer (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -16,6 +17,7 @@ import org.eclipse.cdt.core.dom.IName;
 import org.eclipse.cdt.core.index.IIndex;
 import org.eclipse.cdt.core.index.IIndexFileSet;
 import org.eclipse.cdt.core.model.ITranslationUnit;
+import org.eclipse.cdt.core.parser.ISignificantMacros;
 import org.eclipse.cdt.core.parser.ParserLanguage;
 import org.eclipse.core.runtime.IAdaptable;
 
@@ -28,8 +30,7 @@ import org.eclipse.core.runtime.IAdaptable;
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  */
-public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptable {
-
+public interface IASTTranslationUnit extends IASTDeclarationListOwner, IFileNomination, IAdaptable {
 	/**
 	 * <code>OWNED_DECLARATION</code> represents the relationship between an <code>IASTTranslationUnit</code> and
 	 * it's nested <code>IASTDeclaration</code>'s.
@@ -63,6 +64,7 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	 * 
 	 * @param declaration <code>IASTDeclaration</code>
 	 */
+	@Override
 	public void addDeclaration(IASTDeclaration declaration);
 
 	/**
@@ -105,7 +107,7 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	/**
      * Returns the array of definitions in this translation unit for the given binding.
      * The array contains the IASTName nodes that define the binding.
-	 * These are part of the AST no definitions are pulled in from the index.
+	 * These are part of the AST, no definitions are pulled in from the index.
 	 * 
 	 * @param binding
 	 * @return Array of IASTName nodes for the binding's declaration
@@ -115,7 +117,7 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	/**
 	 * Returns the list of references in this translation unit to the given
 	 * binding. This list contains the IASTName nodes that represent a use of
-	 * the binding. These are part of the AST no definitions are pulled in from 
+	 * the binding. These are part of the AST, no definitions are pulled in from 
 	 * the index.
 	 * 
 	 * @param binding
@@ -323,6 +325,7 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	 * @noreference This method is not intended to be referenced by clients.
 	 * @since 5.1
 	 */
+	@Override
 	public IASTTranslationUnit copy();
 
 	/**
@@ -334,6 +337,7 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	 * @noreference This method is not intended to be referenced by clients.
 	 * @since 5.3
 	 */
+	@Override
 	public IASTTranslationUnit copy(CopyStyle style);
 
 	/**
@@ -343,4 +347,23 @@ public interface IASTTranslationUnit extends IASTDeclarationListOwner, IAdaptabl
 	 * @since 5.3
 	 */
 	public ITranslationUnit getOriginatingTranslationUnit();
+	
+	/**
+	 * Returns {@code true} if the index was not fully initialized when the code of the translation
+	 * unit was parsed.
+	 * @since 5.4
+	 */
+	boolean isBasedOnIncompleteIndex();
+
+	/**
+	 * @since 5.4
+	 * @noreference This method is not intended to be referenced by clients.
+	 */
+	public void setSignificantMacros(ISignificantMacros sigMacros);
+
+	/**
+	 * @since 5.4
+	 * @noreference This method is not intended to be referenced by clients.
+	 */
+	public void setPragmaOnceSemantics(boolean value);
 }

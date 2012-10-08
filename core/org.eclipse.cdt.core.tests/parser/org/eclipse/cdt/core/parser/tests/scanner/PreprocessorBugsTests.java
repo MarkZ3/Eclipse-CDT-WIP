@@ -263,6 +263,22 @@ public class PreprocessorBugsTests extends PreprocessorTestsBase {
 		validateProblemCount(2);  // the inclusions
 	}
 	
+	//	#define UNFOLD(v,x) v:x
+	//	UNFOLD("A",
+	//		#ifdef X
+	//			"B")
+	//        #else
+	//            "C") /* parse error in this line */
+	//        #endif
+	public void testDirectiveInExpansion_Bug375739() throws Exception {
+		initializeScanner();
+		validateString("A");
+		validateToken(IToken.tCOLON);
+		validateString("C");
+		validateEOF();
+		validateProblemCount(0);  
+	}
+
 	// #if 0xe000
 	// ok
 	// #endif
@@ -340,5 +356,27 @@ public class PreprocessorBugsTests extends PreprocessorTestsBase {
 		validateEOF();
 		validateProblem(0, IProblem.PREPROCESSOR_MACRO_PASTING_ERROR, "foo");
 		validateProblemCount(1);
+	}
+	
+	//	#define PR ""
+	//	A
+	//	#ifdef _DEBUG
+	//	        PR"";
+	//	#endif
+	//	B
+	public void testRawString_Bug362562() throws Exception {
+		initializeScanner();
+		validateIdentifier("A");
+		validateIdentifier("B");
+		validateProblemCount(0);
+	}
+	
+	// __COUNTER__
+	// __COUNTER__
+	public void testCounter_Bug362148() throws Exception {
+		initializeScanner();
+		validateInteger("0");
+		validateInteger("1");
+		validateProblemCount(0);
 	}
 }

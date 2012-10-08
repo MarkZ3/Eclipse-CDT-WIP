@@ -6741,45 +6741,81 @@
    <extension
          point="org.eclipse.cdt.core.templates">
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.AppendToMBSStringOptionValue"
             filterPattern=".*AppendToMBSStringOptionValue"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.AppendToMBSStringOptionValue"
             location="testdata/AppendToMBSStringOptionValue.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.AppendToMBSStringListOptionValues"
             filterPattern=".*AppendToMBSStringListOptionValues"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.AppendToMBSStringListOptionValues"
             location="testdata/AppendToMBSStringListOptionValues.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.CreateIncludeFolder"
             filterPattern=".*CreateIncludeFolder"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.CreateIncludeFolder"
             location="testdata/CreateIncludeFolder.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.ExcludeResources"
             filterPattern=".*ExcludeResources"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.ExcludeResources"
             location="testdata/ExcludeResources.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.NewManagedProject"
             filterPattern=".*NewManagedProject"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.NewManagedProject"
             location="testdata/NewManagedProject.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSBooleanOptionValue"
             filterPattern=".*SetMBSBooleanOptionValue"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSBooleanOptionValue"
             location="testdata/SetMBSBooleanOptionValue.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSStringOptionValue"
             filterPattern=".*SetMBSStringOptionValue"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSStringOptionValue"
             location="testdata/SetMBSStringOptionValue.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
       <template
-            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSStringListOptionValues"
             filterPattern=".*SetMBSStringListOptionValues"
+            id="org.eclipse.cdt.managedbuilder.core.tests.templates.SetMBSStringListOptionValues"
             location="testdata/SetMBSStringListOptionValues.xml"
-            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType"/>
+            projectType="org.eclipse.cdt.managedbuilder.core.tests.projectType">
+         <parentCategory
+               id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests">
+         </parentCategory>
+      </template>
+      <category
+            id="org.eclipse.cdt.managedbuilder.core.tests.mbsTests"
+            label="MBS Tests">
+      </category>
    </extension>
    
    <!-- 4.0 tests -->
@@ -9265,4 +9301,76 @@
              </matchObject>
          </conflictDefinition>
    </extension>
+   <extension
+         id="org.eclipse.cdt.managedbuilder.core.tests.ErrorParsers"
+         name="org.eclipse.cdt.managedbuilder.core.tests ErrorParsers"
+         point="org.eclipse.cdt.core.ErrorParser">
+      <errorparser
+            class="org.eclipse.cdt.managedbuilder.language.settings.providers.GCCBuildCommandParser$GCCBuildCommandPatternHighlighter"
+            id="org.eclipse.cdt.core.tests.managedbuilder.core.GCCBuildCommandPatternHighlighter"
+            name="Test Plugin GCC BOP Patterns Highlighter">
+      </errorparser>
+   </extension>
+   <!-- Tree Option -->
+   <extension
+         id="cdt.managed.build.test.tree.option"
+         name="Test Managed Build TreeOption"
+         point="org.eclipse.cdt.managedbuilder.core.buildDefinitions">
+      <managedBuildRevision fileVersion="4.0.0"/>
+      <tool
+            natureFilter="cnature"
+            name="Test Tool"
+            outputFlag="-o"
+            command="gcc"
+            id="cdt.managedbuild.tool.gnu.c.linker.test.tree.tool"
+            errorParsers="org.eclipse.cdt.core.GLDErrorParser">
+
+            <option
+               defaultValue="grandChild_1_1_1"
+               name="Dummy Tree Option"
+               command="-dummy"
+               id="cdt.managedbuild.tool.gnu.c.linker.test.tree.option"
+               valueType="tree">
+                <treeOptionRoot name="root" id="option.tree.root">
+                    <treeOption name="Parent 1" id="parent_1">
+                        <treeOption name="Child 1 1" id="child_1_1">
+                            <treeOption name="Grand Child 1 1 1" id="grandChild_1_1_1" />
+                            <treeOption name="Grand Child 1 1 2" id="grandChild_1_1_2" />
+                            <treeOption name="Grand Child 1 1 3" id="grandChild_1_1_3" />
+                        </treeOption>
+                        <treeOption name="Child 1 2" id="child_1_2">
+                            <treeOption name="Grand Child 1 2 1" id="grandChild_1_2_1" />
+                            <treeOption name="Grand Child 1 2 2" id="grandChild_1_2_2" command="-dummy122" />
+                            <treeOption name="Grand Child 1 2 3" id="grandChild_1_2_3" />
+                        </treeOption>
+                    </treeOption>
+                    <treeOption name="Parent 2" id="parent_2">
+                        <treeOption name="Child 2 1" id="child_2_1">
+                            <treeOption name="Grand Child 2 1 1" id="grandChild_2_1_1" />
+                            <treeOption name="Grand Child 2 1 2" id="grandChild_2_1_2" />
+                            <treeOption name="Grand Child 2 1 3" id="grandChild_2_1_3" />
+                        </treeOption>
+                        <treeOption name="Child 2 2" id="child_2_2">
+                            <treeOption name="Grand Child 2 2 1" id="grandChild_2_2_1" />
+                            <treeOption name="Grand Child 2 2 2" id="grandChild_2_2_2" />
+                            <treeOption name="Grand Child 2 2 3" id="grandChild_2_2_3" />
+                        </treeOption>
+                    </treeOption>
+                    <treeOption name="Parent 3" id="parent_3" order="0">
+                        <treeOption name="Child 3 1" id="child_3_1">
+                            <treeOption name="Grand Child 3 1 1" id="grandChild_3_1_1" />
+                            <treeOption name="Grand Child 3 1 2" id="grandChild_3_1_2" />
+                            <treeOption name="Grand Child 3 1 3" id="grandChild_3_1_3" />
+                        </treeOption>
+                        <treeOption name="Child 3 2" id="child_3_2">
+                            <treeOption name="Grand Child 3 2 1" id="grandChild_3_2_1" />
+                            <treeOption name="Grand Child 3 2 2" id="grandChild_3_2_2" />
+                            <treeOption name="Grand Child 3 2 3" id="grandChild_3_2_3" />
+                        </treeOption>
+                    </treeOption>
+                </treeOptionRoot>
+            </option>
+        </tool>
+    </extension>
+
 </plugin>

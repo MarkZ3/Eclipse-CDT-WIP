@@ -86,6 +86,7 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		getDB().putByte(record + FLAG_OFFSET, (byte) flag);
 	}
 
+	@Override
 	public EScopeKind getKind() {
 		return EScopeKind.eNamespace;
 	}
@@ -110,9 +111,11 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 			getIndex().accept((IBTreeVisitor) visitor);
 		} else {
 			getIndex().accept(new IBTreeVisitor() {
+				@Override
 				public int compare(long record) throws CoreException {
 					return 0;
 				}
+				@Override
 				public boolean visit(long record) throws CoreException {
 					PDOMBinding binding = getLinkage().getBinding(record);
 					if (binding != null) {
@@ -142,14 +145,17 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		db.putRecPtr(listRecord, record);
 	}
 
+	@Override
 	public ICPPNamespaceScope getNamespaceScope() {
 		return this;
 	}
 
+	@Override
 	public ICPPUsingDirective[] getUsingDirectives() {
 		return ICPPUsingDirective.EMPTY_ARRAY;
 	}
 
+	@Override
 	public IBinding[] find(String name) {
 		try {
 			BindingCollector visitor = new BindingCollector(getLinkage(), name.toCharArray(),
@@ -176,25 +182,31 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		return null;
 	}
 	
-	@Override
+	@Deprecated	@Override
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+	}
+
+	@Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
 		IBinding[] result = null;
 		try {
-			if (!prefixLookup) {
-				result= getBindingsViaCache(name.getLookupKey());
+			if (!lookup.isPrefixLookup()) {
+				result= getBindingsViaCache(lookup.getLookupKey());
 			} else {
-				BindingCollector visitor= new BindingCollector(getLinkage(), name.getLookupKey(),
-						IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE, prefixLookup, prefixLookup, !prefixLookup);
+				BindingCollector visitor= new BindingCollector(getLinkage(), lookup.getLookupKey(),
+						IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE, true, true, false);
 				getIndex().accept(visitor);
 				result = visitor.getBindings();
 			}
-			if (fileSet != null) {
-				result= fileSet.filterFileLocalBindings(result);
+			IIndexFileSet filter = lookup.getIncludedFiles();
+			if (filter != null) {
+				result= filter.filterFileLocalBindings(result);
 			}
 		} catch (CoreException e) {
 			CCorePlugin.log(e);
 		}
-		return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+		return ArrayUtil.trim(IBinding.class, result);
 	}
 
 	private IBinding[] getBindingsViaCache(final char[] name) throws CoreException {
@@ -217,14 +229,17 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		return true;
 	}
 
+	@Override
 	public IBinding[] getMemberBindings() {
 		IBinding[] result = null;
 		final List<PDOMNode> preresult = new ArrayList<PDOMNode>();
 		try {
 			getIndex().accept(new IBTreeVisitor() {
+				@Override
 				public int compare(long record) throws CoreException {
 					return 0;
 				}
+				@Override
 				public boolean visit(long record) throws CoreException {
 					preresult.add(getLinkage().getNode(record));
 					return true;
@@ -237,10 +252,12 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		return result;
 	}
 	
+	@Override
 	public void addUsingDirective(ICPPUsingDirective directive) { 
 		throw new UnsupportedOperationException();
 	}
 	
+	@Override
 	public IIndexBinding getScopeBinding() {
 		return this;
 	}
@@ -254,6 +271,7 @@ class PDOMCPPNamespace extends PDOMCPPBinding
     	return ASTStringUtil.join(names, String.valueOf(Keywords.cpCOLONCOLON));
 	}
 
+	@Override
 	public ICPPNamespaceScope[] getInlineNamespaces() {
 		if (fInlineNamespaces == null) {
 			List<PDOMCPPNamespace> nslist = collectInlineNamespaces(getDB(), getLinkage(),
@@ -288,6 +306,7 @@ class PDOMCPPNamespace extends PDOMCPPBinding
 		return nslist;
 	}
 
+	@Override
 	public boolean isInline() {
 		if (fFlag == -1) {
 			try {

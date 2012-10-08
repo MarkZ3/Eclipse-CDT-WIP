@@ -16,14 +16,10 @@ import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IScope;
-import org.eclipse.cdt.core.dom.ast.IType;
-import org.eclipse.cdt.core.dom.ast.IValue;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPBinding;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassSpecialization;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespace;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPParameterPackType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPSpecialization;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameterMap;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
@@ -40,9 +36,9 @@ import org.eclipse.core.runtime.PlatformObject;
  * is a need to synchronize non-final members.
  */
 public abstract class CPPSpecialization extends PlatformObject implements ICPPSpecialization, ICPPInternalBinding {
-	private IBinding owner;
-	private IBinding specialized;
-	private ICPPTemplateParameterMap argumentMap;
+	private final IBinding owner;
+	private final IBinding specialized;
+	private final ICPPTemplateParameterMap argumentMap;
 	protected IASTNode definition;
 	private IASTNode[] declarations;
 	
@@ -52,62 +48,27 @@ public abstract class CPPSpecialization extends PlatformObject implements ICPPSp
 		this.argumentMap = argumentMap;
 	}
 
-	public IType specializeType(IType type) {
-		if (owner instanceof ICPPClassSpecialization) {
-			ICPPClassSpecialization within = getWithin((ICPPClassSpecialization) owner);
-			return CPPTemplates.instantiateType(type, getTemplateParameterMap(), -1, within);
-		} else {
-			return CPPTemplates.instantiateType(type, getTemplateParameterMap(), -1, null);
-		}
-	}
-
-	private ICPPClassSpecialization getWithin(ICPPClassSpecialization within) {
-		ICPPClassType orig = within.getSpecializedBinding();
-		for(;;) {
-			IBinding o1 = within.getOwner();
-			IBinding o2 = orig.getOwner();
-			if (!(o1 instanceof ICPPClassSpecialization && o2 instanceof ICPPClassType)) 
-				return within;
-			ICPPClassSpecialization nextWithin = (ICPPClassSpecialization) o1;
-			orig= (ICPPClassType) o2;
-			if (orig.isSameType(nextWithin)) 
-				return within;
-			within= nextWithin;
-		}
-	}
-
-	public IType[] specializeTypePack(ICPPParameterPackType type) {
-		if (owner instanceof ICPPClassSpecialization) {
-			return CPPTemplates.instantiateTypes(new IType[]{type}, getTemplateParameterMap(), -1, (ICPPClassSpecialization) owner);
-		} else {
-			return CPPTemplates.instantiateTypes(new IType[]{type}, getTemplateParameterMap(), -1, null);
-		}
-	}
-
-	public IValue specializeValue(IValue value, int maxdepth) {
-		if (owner instanceof ICPPClassSpecialization) {
-			return CPPTemplates.instantiateValue(value, getTemplateParameterMap(), -1, (ICPPClassSpecialization) owner, maxdepth);
-		} else {
-			return CPPTemplates.instantiateValue(value, getTemplateParameterMap(), -1, null, maxdepth);
-		}
-	}
-
+	@Override
 	public IBinding getSpecializedBinding() {
 		return specialized;
 	}
 
+	@Override
 	public IASTNode[] getDeclarations() {
 		return declarations;
 	}
 
+	@Override
 	public IASTNode getDefinition() {
 		return definition;
 	}
 
+	@Override
 	public void addDefinition(IASTNode node) {
 		definition = node;
 	}
 
+	@Override
 	public void addDeclaration(IASTNode node) {
 		if (declarations == null) {
 	        declarations = new IASTNode[] { node };
@@ -115,25 +76,29 @@ public abstract class CPPSpecialization extends PlatformObject implements ICPPSp
 	        // keep the lowest offset declaration in [0]
 			if (declarations.length > 0 &&
 					((ASTNode) node).getOffset() < ((ASTNode) declarations[0]).getOffset()) {
-				declarations = (IASTNode[]) ArrayUtil.prepend(IASTNode.class, declarations, node);
+				declarations = ArrayUtil.prepend(IASTNode.class, declarations, node);
 			} else {
-				declarations = (IASTNode[]) ArrayUtil.append(IASTNode.class, declarations, node);
+				declarations = ArrayUtil.append(IASTNode.class, declarations, node);
 			}
 	    }
 	}
 
+	@Override
 	public String getName() {
 		return specialized.getName();
 	}
 
+	@Override
 	public char[] getNameCharArray() {
 		return specialized.getNameCharArray();
 	}
 
+	@Override
 	public IBinding getOwner() {
 		return owner;
 	}
 	
+	@Override
 	public IScope getScope() throws DOMException {
 		if (owner instanceof ICPPClassType) {
 			return ((ICPPClassType) owner).getCompositeScope();
@@ -150,29 +115,35 @@ public abstract class CPPSpecialization extends PlatformObject implements ICPPSp
 		return specialized.getScope();
 	}
 
+	@Override
 	public String[] getQualifiedName() {
 		return CPPVisitor.getQualifiedName(this);
 	}
 
+	@Override
 	public char[][] getQualifiedNameCharArray() {
 		return CPPVisitor.getQualifiedNameCharArray(this);
 	}
 
+	@Override
 	public boolean isGloballyQualified() throws DOMException {
 		if (specialized instanceof ICPPBinding)
 			return ((ICPPBinding) specialized).isGloballyQualified();
 		return false;
 	}
 
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.CPP_LINKAGE;
 	}
 
+	@Override
 	@Deprecated
 	public ObjectMap getArgumentMap() {
 		return CPPTemplates.getArgumentMap(this, getTemplateParameterMap());
 	}
 	
+	@Override
 	public ICPPTemplateParameterMap getTemplateParameterMap() {
 		return argumentMap;
 	}

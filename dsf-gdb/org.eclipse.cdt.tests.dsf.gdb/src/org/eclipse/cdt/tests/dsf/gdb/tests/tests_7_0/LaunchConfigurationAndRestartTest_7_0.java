@@ -19,7 +19,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
 import org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointsTargetDMContext;
@@ -37,18 +37,14 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.ServiceEventWaitor;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.tests.ITestConstants;
 import org.eclipse.cdt.tests.dsf.gdb.tests.tests_6_8.LaunchConfigurationAndRestartTest_6_8;
-import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(BackgroundRunner.class)
 public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAndRestartTest_6_8 {
-	// For the launch config test, we must set the attributes in the @Before method
-	// instead of the @BeforeClass method.  This is because the attributes are overwritten
-	// by the tests themselves
-	@Before
-	public void beforeMethod_7_0() {
+	@Override
+	protected void setGdbVersion() {
 		setGdbProgramNamesLaunchAttributes(ITestConstants.SUFFIX_GDB_7_0);
 	}
 	
@@ -66,7 +62,7 @@ public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAn
 	 */
     @Test
     public void testPendingBreakpointSetting() throws Throwable {
-        performLaunch();
+        doLaunch();
     	MIStoppedEvent stoppedEvent = getInitialStoppedEvent();
 
     	final IBreakpointsTargetDMContext bpTargetDmc = DMContexts.getAncestorOfType(stoppedEvent.getDMContext(),
@@ -76,12 +72,12 @@ public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAn
     		protected void execute(final DataRequestMonitor<MIBreakListInfo> rm) {
     			fGdbControl.queueCommand(
     					fGdbControl.getCommandFactory().createCLITrace(bpTargetDmc, "invalid", ""),
-    					new DataRequestMonitor<CLITraceInfo>(ImmediateExecutor.getInstance(), rm) {
+    					new ImmediateDataRequestMonitor<CLITraceInfo>(rm) {
     						@Override
     						protected void handleSuccess() {
     							fGdbControl.queueCommand(
     									fGdbControl.getCommandFactory().createMIBreakList(bpTargetDmc), 
-    									new DataRequestMonitor<MIBreakListInfo>(ImmediateExecutor.getInstance(), rm) {
+    									new ImmediateDataRequestMonitor<MIBreakListInfo>(rm) {
     			    						@Override
     			    						protected void handleSuccess() {
     			    							rm.setData(getData());
@@ -119,7 +115,7 @@ public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAn
     	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_DEBUGGER_STOP_AT_MAIN, true);
     	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_DEBUGGER_STOP_AT_MAIN_SYMBOL, "main");
     	setLaunchAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_REVERSE, true);
-    	performLaunch();
+    	doLaunch();
 
     	MIStoppedEvent stoppedEvent = getInitialStoppedEvent();
     	// Make sure we stopped at the first line of main
@@ -195,7 +191,7 @@ public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAn
     	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_DEBUGGER_STOP_AT_MAIN, true);
     	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_DEBUGGER_STOP_AT_MAIN_SYMBOL, "stopAtOther");
     	setLaunchAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_REVERSE, true);
-    	performLaunch();
+    	doLaunch();
 
     	// Wait for the launch to properly complete.  This is because with reverse
     	// the first stopped event does not mean the launch is complete.  There will
@@ -280,7 +276,7 @@ public class LaunchConfigurationAndRestartTest_7_0 extends LaunchConfigurationAn
     	// MUST SET BREAKPOINT AT LAST LINE BUT BEFORE LAUNCH IS STARTED
     	// see testNoStopAtMain()
     	
-    	performLaunch();
+    	doLaunch();
 
     	// Wait for the launch to properly complete.  This is because with reverse
     	// the first stopped event does not mean the launch is complete.  There will

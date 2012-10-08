@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser;
 
@@ -20,9 +20,8 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 /**
  * Initializer with equals sign (copy initialization)
  */
-public abstract class ASTEqualsInitializer extends ASTNode implements IASTEqualsInitializer,
-		IASTAmbiguityParent {
-
+public abstract class ASTEqualsInitializer extends ASTNode
+		implements IASTEqualsInitializer, IASTAmbiguityParent {
     private IASTInitializerClause fArgument;
     
     public ASTEqualsInitializer() {
@@ -32,11 +31,13 @@ public abstract class ASTEqualsInitializer extends ASTNode implements IASTEquals
 		setInitializerClause(arg);
 	}
 
+	@Override
 	public IASTInitializerClause getInitializerClause() {
         return fArgument;
     }
 
-    public void setInitializerClause(IASTInitializerClause clause) {
+    @Override
+	public void setInitializerClause(IASTInitializerClause clause) {
         assertNotFrozen();
         fArgument = clause;
         if (clause != null) {
@@ -64,6 +65,7 @@ public abstract class ASTEqualsInitializer extends ASTNode implements IASTEquals
         return true;
     }
 
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (child == fArgument) {
 			other.setPropertyInParent(child.getPropertyInParent());

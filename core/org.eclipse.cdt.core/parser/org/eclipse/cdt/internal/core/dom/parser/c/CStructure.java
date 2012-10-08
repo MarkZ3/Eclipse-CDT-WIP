@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 IBM Corporation and others.
+ * Copyright (c) 2005, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -51,24 +51,28 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 			super(node, id, arg);
 		}
 
+		@Override
 		public IField findField(String name) {
 			return null;
 		}
 
+		@Override
 		public IScope getCompositeScope() {
 			return this;
 		}
 
+		@Override
 		public IField[] getFields() {
 			return IField.EMPTY_FIELD_ARRAY;
 		}
 
+		@Override
 		public int getKey() {
 			return k_struct;
 		}
 	}
 
-	private IASTName[] declarations = null;
+	private IASTName[] declarations;
 	private IASTName definition;
 	private boolean checked;
 	private ICompositeType typeInIndex;
@@ -82,8 +86,9 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		name.setBinding(this);
 	}
 
+	@Override
 	public IASTNode getPhysicalNode() {
-		return (definition != null) ? (IASTNode) definition : (IASTNode) declarations[0];
+		return definition != null ? (IASTNode) definition : (IASTNode) declarations[0];
 	}
 
 	private void checkForDefinition() {
@@ -109,11 +114,7 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		checked = true;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IBinding#getName()
-	 */
+	@Override
 	public String getName() {
 		if (definition != null)
 			return definition.toString();
@@ -121,6 +122,7 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return declarations[0].toString();
 	}
 
+	@Override
 	public char[] getNameCharArray() {
 		if (definition != null)
 			return definition.toCharArray();
@@ -128,14 +130,10 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return declarations[0].toCharArray();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IBinding#getScope()
-	 */
+	@Override
 	public IScope getScope() throws DOMException {
-		IASTDeclSpecifier declSpec = (IASTDeclSpecifier) ((definition != null) ? (IASTNode) definition
-				.getParent() : declarations[0].getParent());
+		IASTDeclSpecifier declSpec = (IASTDeclSpecifier) ((definition != null) ?
+				(IASTNode) definition.getParent() : declarations[0].getParent());
 		IScope scope = CVisitor.getContainingScope(declSpec);
 		while (scope instanceof ICCompositeTypeScope) {
 			scope = scope.getParent();
@@ -143,11 +141,7 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return scope;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.ICompositeType#getFields()
-	 */
+	@Override
 	public IField[] getFields() {
 		checkForDefinition();
 		if (definition == null) {
@@ -155,8 +149,8 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 					IProblemBinding.SEMANTIC_DEFINITION_NOT_FOUND, getNameCharArray()) };
 		}
 		ICASTCompositeTypeSpecifier compSpec = (ICASTCompositeTypeSpecifier) definition.getParent();
-		IField[] fields = collectFields(compSpec, null);
-		return (IField[]) ArrayUtil.trim(IField.class, fields);
+		IField[] fields = collectFields(compSpec, IField.EMPTY_FIELD_ARRAY);
+		return ArrayUtil.trim(fields);
 	}
 
 	private IField[] collectFields(ICASTCompositeTypeSpecifier compSpec, IField[] fields) {
@@ -176,8 +170,8 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 						for (IASTDeclarator declarator : declarators) {
 							IASTName name = ASTQueries.findInnermostDeclarator(declarator).getName();
 							IBinding binding = name.resolveBinding();
-							if (binding != null)
-								fields = (IField[]) ArrayUtil.append(IField.class, fields, binding);
+							if (binding instanceof IField)
+								fields = ArrayUtil.append(fields, (IField) binding);
 						}
 					}
 				}
@@ -186,6 +180,7 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return fields;
 	}
 
+	@Override
 	public IField findField(String name) {
 		IScope scope = getCompositeScope();
 		if (scope == null) {
@@ -202,22 +197,14 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.ICompositeType#getKey()
-	 */
+	@Override
 	public int getKey() {
 		return definition != null ?
 				((IASTCompositeTypeSpecifier) definition.getParent()).getKey() :
 				((IASTElaboratedTypeSpecifier) declarations[0].getParent()).getKind();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.ICompositeType#getCompositeScope()
-	 */
+	@Override
 	public IScope getCompositeScope() {
 		checkForDefinition();
 		if (definition != null) {
@@ -264,14 +251,10 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 			declarations[0] = decl;
 			decl = first;
 		}
-		declarations = (IASTName[]) ArrayUtil.append(IASTName.class, declarations, decl);
+		declarations = ArrayUtil.append(IASTName.class, declarations, decl);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IType#isSameType(org.eclipse.cdt.core.dom.ast.IType)
-	 */
+	@Override
 	public boolean isSameType(IType type) {
 		if (type == this)
 			return true;
@@ -280,18 +263,22 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return false;
 	}
 
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.C_LINKAGE;
 	}
 
+	@Override
 	public IASTNode[] getDeclarations() {
 		return declarations;
 	}
 
+	@Override
 	public IASTNode getDefinition() {
 		return definition;
 	}
 
+	@Override
 	public IBinding getOwner() {
 		IASTNode node = definition;
 		if (node == null) {
@@ -309,6 +296,7 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 		return null;
 	}
 
+	@Override
 	public boolean isAnonymous() {
 		if (getNameCharArray().length > 0 || definition == null)
 			return false;
@@ -323,5 +311,13 @@ public class CStructure extends PlatformObject implements ICompositeType, ICInte
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * For debugging purposes, only.
+	 */
+	@Override
+	public String toString() {
+		return getName(); 
 	}
 }

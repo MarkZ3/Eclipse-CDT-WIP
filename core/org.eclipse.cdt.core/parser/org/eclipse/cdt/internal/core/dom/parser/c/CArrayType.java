@@ -6,7 +6,7 @@
  *  http://www.eclipse.org/legal/epl-v10.html
  * 
  *  Contributors:
- *     Devin Steffler (IBM Corporation) - initial API and implementation
+ *      Devin Steffler (IBM Corporation) - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
 
@@ -54,7 +54,8 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 		isVariableSized= val;
 	}
 
-    public boolean isSameType(IType obj) {
+    @Override
+	public boolean isSameType(IType obj) {
         if (obj == this)
             return true;
         if (obj instanceof ITypedef)
@@ -85,10 +86,12 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.dom.ast.IArrayType#getType()
 	 */
+	@Override
 	public IType getType() {
 		return type;
 	}
 	
+	@Override
 	public void setType(IType t) {
 	    this.type = t;
 	}
@@ -102,27 +105,33 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 		sizeExpression= mod.getConstantExpression();
 	}
 
+	@Override
 	public boolean isConst() {
 		return isConst;
 	}
 
+	@Override
 	public boolean isRestrict() {
 		return isRestrict;
 	}
 
+	@Override
 	public boolean isVolatile() {
 		return isVolatile;
 	}
 
+	@Override
 	public boolean isStatic() {
 		return isStatic;
 	}
 
+	@Override
 	public boolean isVariableLength() {
 		return isVariableSized;
 	}
 
-    public IValue getSize() {
+    @Override
+	public IValue getSize() {
     	if (value != Value.NOT_INITIALIZED)
     		return value;
     	
@@ -148,9 +157,9 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 		return ASTTypeUtil.getType(this);
 	}
 
-	
+	@Override
 	public void marshal(ITypeMarshalBuffer buffer) throws CoreException {
-		int firstByte= ITypeMarshalBuffer.ARRAY;
+		int firstByte= ITypeMarshalBuffer.ARRAY_TYPE;
 		int flags= 0;
 		short nval= -1;
 		IValue val= null;
@@ -164,14 +173,13 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 			firstByte |= ITypeMarshalBuffer.FLAG1;
 		}
 
-
 		val= getSize();
 		if (val != null) {
 			firstByte |= ITypeMarshalBuffer.FLAG2;
 			Long num= val.numericalValue();
 			if (num != null) {
 				long l= num;
-				if (l>=0 && l <= Short.MAX_VALUE) {
+				if (l >= 0 && l <= Short.MAX_VALUE) {
 					nval= (short) l;
 					firstByte |= ITypeMarshalBuffer.FLAG3;
 				} 
@@ -207,6 +215,7 @@ public class CArrayType implements ICArrayType, ITypeContainer, ISerializableTyp
 		return result;
 	}
 	
+	@Override
 	@Deprecated
     public IASTExpression getArraySizeExpression() {
         if (sizeExpression != null)

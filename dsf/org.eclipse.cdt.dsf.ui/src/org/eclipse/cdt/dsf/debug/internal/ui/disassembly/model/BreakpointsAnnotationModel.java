@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,7 +7,8 @@
  *
  * Contributors:
  *     Anton Leherbauer (Wind River Systems) - initial API and implementation
- *     Patrick Chuong (Texas Instruments) - bug 300053
+ *     Patrick Chuong (Texas Instruments) - Bug 300053
+ *     Patrick Chuong (Texas Instruments) - Bug 369998
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.internal.ui.disassembly.model;
 
@@ -18,27 +19,25 @@ import org.eclipse.cdt.core.IAddress;
 import org.eclipse.cdt.debug.core.model.ICAddressBreakpoint;
 import org.eclipse.cdt.debug.core.model.ICFunctionBreakpoint;
 import org.eclipse.cdt.debug.core.model.ICLineBreakpoint;
-import org.eclipse.cdt.debug.internal.ui.disassembly.dsf.AddressRangePosition;
-import org.eclipse.cdt.debug.internal.ui.disassembly.dsf.LabelPosition;
+import org.eclipse.cdt.dsf.debug.internal.ui.disassembly.provisional.DisassemblyAnnotationModel;
 import org.eclipse.cdt.dsf.debug.internal.ui.disassembly.provisional.IBreakpointLocationProvider;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IMarkerDelta;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IBreakpointListener;
 import org.eclipse.debug.core.IBreakpointManager;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.ILineBreakpoint;
 import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.BadPositionCategoryException;
 import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
-import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.texteditor.MarkerAnnotation;
 import org.eclipse.ui.texteditor.SimpleMarkerAnnotation;
@@ -47,10 +46,15 @@ import org.eclipse.ui.texteditor.SimpleMarkerAnnotation;
  * Annotation model for breakpoints in the disassembly.
  * Works only with {@link DisassemblyDocument}.
  */
-public class BreakpointsAnnotationModel extends AnnotationModel implements IBreakpointListener, IDocumentListener {
+public class BreakpointsAnnotationModel extends DisassemblyAnnotationModel implements IBreakpointListener, IDocumentListener {
 	
 	private Runnable fCatchup;
-
+	private IAdaptable fDebugContext;
+	
+	public BreakpointsAnnotationModel(IAdaptable debugContext) {
+		fDebugContext = debugContext;
+	}
+	
 	@Override
 	public void connect(IDocument document) {
 		super.connect(document);
@@ -89,6 +93,7 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 	/*
 	 * @see org.eclipse.debug.core.IBreakpointListener#breakpointAdded(org.eclipse.debug.core.model.IBreakpoint)
 	 */
+	@Override
 	public void breakpointAdded(IBreakpoint breakpoint) {
 		addBreakpointAnnotation(breakpoint, true);
 	}
@@ -96,6 +101,7 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 	/*
 	 * @see org.eclipse.debug.core.IBreakpointListener#breakpointChanged(org.eclipse.debug.core.model.IBreakpoint, org.eclipse.core.resources.IMarkerDelta)
 	 */
+	@Override
 	public void breakpointChanged(IBreakpoint breakpoint, IMarkerDelta delta) {
 		Annotation a= findAnnotation(breakpoint.getMarker());
 		if (a != null) {
@@ -114,6 +120,7 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 	/*
 	 * @see org.eclipse.debug.core.IBreakpointListener#breakpointRemoved(org.eclipse.debug.core.model.IBreakpoint, org.eclipse.core.resources.IMarkerDelta)
 	 */
+	@Override
 	public void breakpointRemoved(IBreakpoint breakpoint, IMarkerDelta delta) {
 		Annotation a= findAnnotation(breakpoint.getMarker());
 		if (a != null) {
@@ -159,14 +166,14 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 		if (locationProvider != null) {
 
 			/* if there is source info, than create a source line position */
-			String sourceFile = locationProvider.getSourceFile(breakpoint);
+			String sourceFile = locationProvider.getSourceFile(breakpoint, fDebugContext);
 			if (sourceFile != null) {
-				int lineNumber = locationProvider.getLineNumber(breakpoint) - 1;
+				int lineNumber = locationProvider.getLineNumber(breakpoint, fDebugContext) - 1;
 				return createPositionFromSourceLine(sourceFile, lineNumber);
 			
 			} else {
 				/* if there is label info, than create a label position */
-				IAddress labelAddress = locationProvider.getLabelAddress(breakpoint);
+				IAddress labelAddress = locationProvider.getLabelAddress(breakpoint, fDebugContext);
 				if (labelAddress != null) {
 					return createPositionFromLabel(labelAddress.getValue());
 				
@@ -178,7 +185,7 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 					//
 					// So for now, we only create an annotation for the first valid address. We can add 
 					// support for multiple annotations per breakpoint when it's needed.
-					IAddress[] addresses = locationProvider.getAddresses(breakpoint);
+					IAddress[] addresses = locationProvider.getAddresses(breakpoint, fDebugContext);
 					for (int i = 0; addresses != null && i < addresses.length; ++i) {
 						BigInteger address = addresses[i].getValue();
 						Position position = createPositionFromAddress(address);
@@ -220,64 +227,6 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 		return null;
 	}
 
-	private Position createPositionFromSourceLine(String fileName, int lineNumber) {
-		if (fileName != null) {
-			return getDisassemblyDocument().getSourcePosition(fileName, lineNumber);
-		}
-		return null;
-	}
-
-	private Position createPositionFromSourceLine(IFile file, int lineNumber) {
-		return getDisassemblyDocument().getSourcePosition(file, lineNumber);
-	}
-
-	private Position createPositionFromAddress(BigInteger address) {
-		if (address != null) {
-			AddressRangePosition p= getDisassemblyDocument().getDisassemblyPosition(address);
-			if (p != null && p.fValid) {
-				return new Position(p.offset, p.length);
-			}
-		}
-		return null;
-	}
-	
-	private Position createPositionFromLabel(BigInteger address) {
-		if (address != null) {
-			LabelPosition p = getDisassemblyDocument().getLabelPosition(address);
-			if (p != null && p.fValid) {
-				return new Position(p.offset, p.length);
-			}
-		}
-		return null;
-	}
-
-	private Position createPositionFromLabel(String label) {
-		if (label != null) {
-			try {
-				Position[] labelPositions = getDisassemblyDocument().getPositions(DisassemblyDocument.CATEGORY_LABELS);
-				int labelLen = label.length();
-				for (Position position : labelPositions) {
-					if (position instanceof LabelPosition) {
-						String candidate = ((LabelPosition) position).fLabel;
-						if (candidate != null && candidate.startsWith(label)) {
-							// exact match or followed by ()
-							if (candidate.length() == labelLen || candidate.charAt(labelLen) == '(') {
-								return position;
-							}
-						}
-					}
-				}
-			} catch (BadPositionCategoryException exc) {
-				return null;
-			}
-		}
-		return null;
-	}
-
-	private DisassemblyDocument getDisassemblyDocument() {
-		return (DisassemblyDocument) fDocument;
-	}
-
 	/**
 	 * Decode given string representation of a non-negative integer. A
 	 * hexadecimal encoded integer is expected to start with <code>0x</code>.
@@ -305,15 +254,18 @@ public class BreakpointsAnnotationModel extends AnnotationModel implements IBrea
 	/*
 	 * @see org.eclipse.jface.text.IDocumentListener#documentAboutToBeChanged(org.eclipse.jface.text.DocumentEvent)
 	 */
+	@Override
 	public void documentAboutToBeChanged(DocumentEvent event) {
 	}
 
 	/*
 	 * @see org.eclipse.jface.text.IDocumentListener#documentChanged(org.eclipse.jface.text.DocumentEvent)
 	 */
+	@Override
 	public void documentChanged(DocumentEvent event) {
 		if (fCatchup == null && event.fText != null && event.fText.length() > 0) {
 			fCatchup= new Runnable() {
+				@Override
 				public void run() {
 					if (fCatchup == this) {
 						catchupWithBreakpoints();

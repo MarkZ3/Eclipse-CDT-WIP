@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 Intel Corporation and others.
+ * Copyright (c) 2004, 2012 Intel Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     Intel Corporation - Initial API and implementation
  *     Mark Mitchell, CodeSourcery - Bug 136896: View variables in binary format
+ *     Mathias Kunter - Bug 370462: View variables in octal format
  *******************************************************************************/
 package org.eclipse.cdt.utils;
 
@@ -29,6 +30,8 @@ public class Addr32 implements IAddress, Serializable {
 	private static final int BYTES_NUM = 4;
 	private static final int DIGITS_NUM = BYTES_NUM * 2;
 	private static final int CHARS_NUM = DIGITS_NUM + 2;
+	private static final int OCTAL_DIGITS_NUM = (BYTES_NUM * 8 + 2) / 3;
+	private static final int OCTAL_CHARS_NUM = OCTAL_DIGITS_NUM + 1;
 	private static final int BINARY_DIGITS_NUM = BYTES_NUM * 8;
 	private static final int BINARY_CHARS_NUM = BINARY_DIGITS_NUM + 2;
 
@@ -77,26 +80,32 @@ public class Addr32 implements IAddress, Serializable {
 		this(Long.parseLong(addr, radix), truncate);
 	}
 	
+	@Override
 	public IAddress add(BigInteger offset) {
 		return new Addr32(this.address + offset.longValue());
 	}
 
+	@Override
 	public IAddress add(long offset) {
 		return new Addr32(this.address + offset);
 	}
 
+	@Override
 	public BigInteger getMaxOffset() {
 		return MAX_OFFSET;
 	}
 	
+	@Override
 	public BigInteger getValue() {
 		return BigInteger.valueOf(address);
 	}
 
+	@Override
 	public BigInteger distanceTo(IAddress other) {
 		return other.getValue().subtract(getValue());
 	}
 
+	@Override
 	public int compareTo(Object other) {
 		if (!(other instanceof IAddress)) {
 			throw new IllegalArgumentException();
@@ -105,10 +114,12 @@ public class Addr32 implements IAddress, Serializable {
 		return getValue().compareTo(((IAddress)other).getValue());
 	}
 
+	@Override
 	public boolean isMax() {
 		return address == MAX.address;
 	}
 
+	@Override
 	public boolean isZero() {
 		return address == ZERO.address;
 	}
@@ -118,6 +129,7 @@ public class Addr32 implements IAddress, Serializable {
 		return toString(10);
 	}
 
+	@Override
 	public String toString(int radix) {
 		return Long.toString(address, radix);
 	}
@@ -136,6 +148,7 @@ public class Addr32 implements IAddress, Serializable {
 		return (int)(address ^ (address >> 32));
 	}
 	
+	@Override
 	public String toHexAddressString() {
 		String addressString = Long.toString(address, 16);
 		StringBuffer sb = new StringBuffer(CHARS_NUM);
@@ -147,7 +160,23 @@ public class Addr32 implements IAddress, Serializable {
 		sb.append(addressString);
 		return sb.toString();
 	}
-
+	
+	/**
+	 * @since 5.4
+	 */
+	public String toOctalAddressString() {
+		String addressString = Long.toString(address, 8);
+		StringBuffer sb = new StringBuffer(OCTAL_CHARS_NUM);
+		int count = OCTAL_DIGITS_NUM - addressString.length();
+		sb.append("0"); //$NON-NLS-1$
+		for (int i = 0; i < count; ++i) {
+			sb.append('0');
+		}
+		sb.append(addressString);
+		return sb.toString();
+	}
+	
+	@Override
 	public String toBinaryAddressString() {
 		String addressString = Long.toString(address, 2);
 		StringBuffer sb = new StringBuffer(BINARY_CHARS_NUM);
@@ -160,10 +189,12 @@ public class Addr32 implements IAddress, Serializable {
 		return sb.toString();
 	}
 
+	@Override
 	public int getCharsNum() {
 		return CHARS_NUM;
 	}
 
+	@Override
 	public int getSize() {
 		return BYTES_NUM;
 	}

@@ -34,7 +34,7 @@ class LocationCtxMacroExpansion extends LocationCtx {
 		fLength= length;
 		fLocationInfos= imageLocations;
 		fExpansionName= expansionName;
-		if (expansionName.getParent() instanceof ASTMacroExpansion == false) {
+		if (!(expansionName.getParent() instanceof ASTMacroExpansion)) {
 			throw new IllegalArgumentException(expansionName.toString() + " is not a macro expansion name"); //$NON-NLS-1$
 		}
 	}
@@ -104,5 +104,10 @@ class LocationCtxMacroExpansion extends LocationCtx {
 
 	public ASTPreprocessorName[] getNestedMacroReferences() {
 		return fLocationMap.getNestedMacroReferences((ASTMacroExpansion) fExpansionName.getParent());
+	}
+	
+	@Override
+	public String toString() {
+		return "Expansion of " + fExpansionName.toString(); //$NON-NLS-1$
 	}
 }

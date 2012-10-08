@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2008 IBM Corporation and others.
+ * Copyright (c) 2006, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.lrparser.c99.bindings;
 
@@ -24,7 +25,6 @@ import org.eclipse.core.runtime.PlatformObject;
 
 @SuppressWarnings("restriction")
 public class C99Function extends PlatformObject implements IC99Binding, IFunction, ITypeable {
-
 	private String name;
 	private IFunctionType type;
 	private List<IParameter> parameters = new ArrayList<IParameter>();
@@ -35,13 +35,13 @@ public class C99Function extends PlatformObject implements IC99Binding, IFunctio
 	private boolean isRegister;
 	private boolean isStatic;
 	private boolean isVarArgs;
+	private boolean isNoReturn;
 	
 	// the scope that the function is in (must be the global scope, no?)
 	private IScope scope;
 	
 	// the scope that represents the body of the function
 	private IScope bodyScope;
-	
 
 	public C99Function() {
 	}
@@ -54,8 +54,7 @@ public class C99Function extends PlatformObject implements IC99Binding, IFunctio
 		this(name);
 		this.type = type;
 	}
-	
-	
+
 	public IParameter[] getParameters() {
 		return parameters.toArray(new IParameter[parameters.size()]);
 	}
@@ -118,6 +117,14 @@ public class C99Function extends PlatformObject implements IC99Binding, IFunctio
 
 	public void setTakesVarArgs(boolean isVarArgs) {
 		this.isVarArgs = isVarArgs;
+	}
+
+	public boolean isNoReturn() {
+		return isNoReturn;
+	}
+
+	public void setNoReturn(boolean isNoReturn) {
+		this.isNoReturn = isNoReturn;
 	}
 
 	public ILinkage getLinkage() {

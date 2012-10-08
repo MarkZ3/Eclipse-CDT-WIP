@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,37 +13,28 @@
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
  
 import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.LVALUE;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.glvalueType;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.CVTYPE;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.REF;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil.TDEF;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTImplicitName;
 import org.eclipse.cdt.core.dom.ast.IASTInitializerClause;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
-import org.eclipse.cdt.core.dom.ast.IPointerType;
-import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTArraySubscriptExpression;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTInitializerClause;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
-import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPSemantics;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.Conversions;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalBinary;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 
-public class CPPASTArraySubscriptExpression extends ASTNode implements ICPPASTArraySubscriptExpression, IASTAmbiguityParent {
-
-    private IASTExpression arrayExpression;
-    private IASTInitializerClause subscriptExp;
-    private ICPPFunction overload= UNINITIALIZED_FUNCTION;
-
-    private IASTImplicitName[] implicitNames = null;
+public class CPPASTArraySubscriptExpression extends ASTNode
+		implements ICPPASTArraySubscriptExpression, IASTAmbiguityParent {
+    private ICPPASTExpression arrayExpression;
+    private ICPPASTInitializerClause subscriptExp;
+    private ICPPEvaluation evaluation;
+    private IASTImplicitName[] implicitNames;
     
     public CPPASTArraySubscriptExpression() {
 	}
@@ -53,10 +44,12 @@ public class CPPASTArraySubscriptExpression extends ASTNode implements ICPPASTAr
 		setArgument(operand);
 	}
 	
+	@Override
 	public CPPASTArraySubscriptExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTArraySubscriptExpression copy(CopyStyle style) {
 		CPPASTArraySubscriptExpression copy = new CPPASTArraySubscriptExpression();
 		copy.setArrayExpression(arrayExpression == null ? null : arrayExpression.copy(style));
@@ -68,45 +61,56 @@ public class CPPASTArraySubscriptExpression extends ASTNode implements ICPPASTAr
 		return copy;
 	}
 
-	public IASTExpression getArrayExpression() {
+	@Override
+	public ICPPASTExpression getArrayExpression() {
         return arrayExpression;
     }
 
-    public void setArrayExpression(IASTExpression expression) {
+    @Override
+	public void setArrayExpression(IASTExpression expression) {
         assertNotFrozen();
-        arrayExpression = expression;        
         if (expression != null) {
+        	if (!(expression instanceof ICPPASTExpression))
+        		throw new IllegalArgumentException(expression.getClass().getName());
 			expression.setParent(this);
 			expression.setPropertyInParent(ARRAY);
 		}
+        arrayExpression = (ICPPASTExpression) expression;        
     }
 
-    public IASTInitializerClause getArgument() {
+    @Override
+	public ICPPASTInitializerClause getArgument() {
         return subscriptExp;
     }
 
-    public void setArgument(IASTInitializerClause arg) {
+    @Override
+	public void setArgument(IASTInitializerClause arg) {
         assertNotFrozen();
-        subscriptExp = arg;
         if (arg != null) {
+        	if (!(arg instanceof ICPPASTInitializerClause))
+        		throw new IllegalArgumentException(arg.getClass().getName());
         	arg.setParent(this);
         	arg.setPropertyInParent(SUBSCRIPT);
 		}
+        subscriptExp = (ICPPASTInitializerClause) arg;
     }
 
-    @Deprecated
+    @Override
+	@Deprecated
     public IASTExpression getSubscriptExpression() {
     	if (subscriptExp instanceof IASTExpression)
     		return (IASTExpression) subscriptExp;
     	return null;
     }
 
-    @Deprecated
+    @Override
+	@Deprecated
     public void setSubscriptExpression(IASTExpression expression) {
     	setArgument(expression);
     }
-    
-    public IASTImplicitName[] getImplicitNames() {
+
+    @Override
+	public IASTImplicitName[] getImplicitNames() {
 		if (implicitNames == null) {
 			ICPPFunction overload = getOverload();
 			if (overload == null || overload instanceof CPPImplicitFunction)
@@ -128,20 +132,14 @@ public class CPPASTArraySubscriptExpression extends ASTNode implements ICPPASTAr
 		return implicitNames;
 	}
     
-    
-    public ICPPFunction getOverload() {
-    	if (overload == UNINITIALIZED_FUNCTION) {
-    		overload= null;
-    		IType t = getArrayExpression().getExpressionType();
-    		t= SemanticUtil.getNestedType(t, TDEF | REF | CVTYPE);
-    		if (t instanceof ICPPClassType) {
-    			overload= CPPSemantics.findOverloadedOperator(this);
-    		}
-    	}
-    	return overload;
-    }
-    
-    @Override
+	private ICPPFunction getOverload() {
+		ICPPEvaluation eval = getEvaluation();
+		if (eval instanceof EvalBinary)
+			return ((EvalBinary) eval).getOverload(this);
+		return null;
+	}
+
+	@Override
 	public boolean accept(ASTVisitor action) {
         if (action.shouldVisitExpressions) {
 		    switch (action.visit(this)) {
@@ -174,57 +172,46 @@ public class CPPASTArraySubscriptExpression extends ASTNode implements ICPPASTAr
         return true;
     }
 
-    public void replace(IASTNode child, IASTNode other) {
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
         if (child == subscriptExp) {
             other.setPropertyInParent(child.getPropertyInParent());
             other.setParent(child.getParent());
-            subscriptExp  = (IASTExpression) other;
+            subscriptExp  = (ICPPASTExpression) other;
         }
         if (child == arrayExpression) {
             other.setPropertyInParent(child.getPropertyInParent());
             other.setParent(child.getParent());
-            arrayExpression  = (IASTExpression) other;
+            arrayExpression  = (ICPPASTExpression) other;
         }
     }
-
-    public IType getExpressionType() {
-		ICPPFunction op = getOverload();
-		if (op != null) {
-			return ExpressionTypes.typeFromFunctionCall(op);
-		}
-		IType t1 = getArrayExpression().getExpressionType();
-		t1= Conversions.lvalue_to_rvalue(t1);
-		if (t1 instanceof IPointerType) {
-			t1= ((IPointerType) t1).getType();
-			return glvalueType(t1);
-		}
+    
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (evaluation == null) 
+			evaluation= computeEvaluation();
 		
-		IType t2= null;
-		IASTInitializerClause arg = getArgument();
-		if (arg instanceof IASTExpression) {
-			t2= Conversions.lvalue_to_rvalue(t2);
-			if (t2 instanceof IPointerType) {
-				t2= ((IPointerType) t2).getType();
-				return glvalueType(t2);
-			}
-		}
-		if (t1 instanceof ICPPUnknownType || t2 instanceof ICPPUnknownType) {
-			// mstodo type of unknown
-			return CPPUnknownClass.createUnnamedInstance();
-		}
-		
-		return new ProblemType(ISemanticProblem.TYPE_UNKNOWN_FOR_EXPRESSION);
+		return evaluation;
+	}
+	
+	private ICPPEvaluation computeEvaluation() {
+		if (arrayExpression == null || subscriptExp == null)
+			return EvalFixed.INCOMPLETE;
+		return new EvalBinary(EvalBinary.op_arrayAccess, arrayExpression.getEvaluation(), subscriptExp.getEvaluation());
+	}
+    
+    @Override
+	public IType getExpressionType() {
+    	return getEvaluation().getTypeOrFunctionSet(this);
     }
 
-	public boolean isLValue() {
-		return getValueCategory() == LVALUE;
+	@Override
+	public ValueCategory getValueCategory() {
+		return getEvaluation().getValueCategory(this);
 	}
 
-	public ValueCategory getValueCategory() {
-		ICPPFunction op = getOverload();
-		if (op != null) {
-			return ExpressionTypes.valueCategoryFromFunctionCall(op);
-		}
-		return ValueCategory.LVALUE;
+	@Override
+	public boolean isLValue() {
+		return getValueCategory() == LVALUE;
 	}
 }

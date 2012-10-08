@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2003, 2011 IBM Corporation and others.
+ * Copyright (c) 2003, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,8 +14,12 @@
 package org.eclipse.cdt.managedbuilder.ui.properties;
 
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +32,8 @@ import org.eclipse.cdt.managedbuilder.core.IConfiguration;
 import org.eclipse.cdt.managedbuilder.core.IHoldsOptions;
 import org.eclipse.cdt.managedbuilder.core.IManagedOptionValueHandler;
 import org.eclipse.cdt.managedbuilder.core.IOption;
+import org.eclipse.cdt.managedbuilder.core.IOption.ITreeOption;
+import org.eclipse.cdt.managedbuilder.core.IOption.ITreeRoot;
 import org.eclipse.cdt.managedbuilder.core.IOptionApplicability;
 import org.eclipse.cdt.managedbuilder.core.IOptionCategory;
 import org.eclipse.cdt.managedbuilder.core.IResourceInfo;
@@ -42,18 +48,37 @@ import org.eclipse.cdt.ui.newui.AbstractPage;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtension;
 import org.eclipse.core.runtime.IExtensionPoint;
+import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.jface.dialogs.IDialogConstants;
+import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.DirectoryFieldEditor;
 import org.eclipse.jface.preference.FieldEditor;
 import org.eclipse.jface.preference.FileFieldEditor;
+import org.eclipse.jface.preference.StringButtonFieldEditor;
 import org.eclipse.jface.preference.StringFieldEditor;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.util.PropertyChangeEvent;
-import org.eclipse.osgi.util.TextProcessor;
+import org.eclipse.jface.viewers.DoubleClickEvent;
+import org.eclipse.jface.viewers.IDoubleClickListener;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.ISelectionChangedListener;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.ITreeContentProvider;
+import org.eclipse.jface.viewers.LabelProvider;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
@@ -61,16 +86,17 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.PlatformUI;
-import org.osgi.framework.Bundle;
-
+import org.eclipse.ui.dialogs.FilteredTree;
+import org.eclipse.ui.dialogs.PatternFilter;
 
 /**
  * Option settings page in project properties Build Settings under Tool Settings tab.
  */
 public class BuildOptionSettingsUI extends AbstractToolSettingUI {
-	private Map<String, FieldEditor> fieldsMap = 
+	private Map<String, FieldEditor> fieldsMap =
 		new HashMap<String, FieldEditor>();
 	private IOptionCategory category;
 	private IHoldsOptions optionHolder;
@@ -79,18 +105,58 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	/** The index of the current IHoldsOptions in ohs */
 	private int curr = -1;
 	private Map<String, CustomFieldEditorDescriptor> customFieldEditorDescriptorIndex;
-	private Map<FieldEditor, Composite> fieldEditorsToParentMap = 
+	private Map<FieldEditor, Composite> fieldEditorsToParentMap =
 		new HashMap<FieldEditor, Composite>();
 	/** True if the user selected "Display tool option tips at a fixed location" in Preferences */
-	private boolean displayFixedTip;	
+	private boolean displayFixedTip;
 	/** type of mouse action the displayFixedTip responds to.
 	 ** currently set to Enter rather than Hover since the former seems more responsive **/
 	private final static int selectAction = SWT.MouseEnter;
 
+	private final class TreeBrowseFieldEditor extends StringButtonFieldEditor {
+		private final String nameStr;
+		private final IOption option;
+		private String contextId;
+
+		private TreeBrowseFieldEditor(String name, String labelText, Composite parent, String nameStr,
+				IOption option, String contextId) {
+			super(name, labelText, parent);
+			this.nameStr = nameStr;
+			this.option = option;
+			this.contextId = contextId;
+		}
+
+		@Override
+		protected String changePressed() {
+			ITreeRoot treeRoot;
+			try {
+				treeRoot = option.getTreeRoot();
+				TreeSelectionDialog dlg = new TreeSelectionDialog(getShell(), treeRoot, nameStr, contextId);
+				String name = getStringValue();
+				if (name != null) {
+					String treeId = option.getId(name);
+					if (treeId != null) {
+						ITreeOption node = treeRoot.findNode(treeId);
+						if (node != null) {
+							dlg.setSelection(node);
+						}
+					}
+				}
+				
+				if (dlg.open() == Window.OK) {
+					ITreeOption selected = dlg.getSelection();
+					return selected.getName();
+				}
+			} catch (BuildException e) {
+			}
+			return null;
+		}
+	}
+
 	private class TipInfo {
 		private String name;
 		private String tip;
-		
+
 		public TipInfo(String name, String tip) {
 			this.name = name;
 			this.tip = tip;
@@ -102,10 +168,10 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			return tip;
 		}
 	}
-	
+
 
 	public BuildOptionSettingsUI(AbstractCBuildPropertyTab page,
-			IResourceInfo info, IHoldsOptions optionHolder, 
+			IResourceInfo info, IHoldsOptions optionHolder,
 			IOptionCategory _category) {
 		this(page, info, optionHolder, _category, false);
 	}
@@ -118,11 +184,11 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	 * @param displayFixedTip - {@code true} if tooltips for the option are
 	 *    displayed at fixed area on the bottom of the dialog or
 	 *    {@code false} as a regular tooltip hover
-	 * 
+	 *
 	 * @since 7.0
 	 */
 	public BuildOptionSettingsUI(AbstractCBuildPropertyTab page,
-			IResourceInfo info, IHoldsOptions optionHolder, 
+			IResourceInfo info, IHoldsOptions optionHolder,
 			IOptionCategory cat, boolean displayFixedTip) {
 		super(info);
 		this.category = cat;
@@ -130,7 +196,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 		this.optionHolder = optionHolder;
 		buildPropPage = page;
 		if (info instanceof MultiItemsHolder) {
-			MultiResourceInfo mri = (MultiResourceInfo)info; 
+			MultiResourceInfo mri = (MultiResourceInfo)info;
 			IResourceInfo[] ris = (IResourceInfo[])mri.getItems();
 			String id = category.getId();
 
@@ -175,7 +241,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			curr = 0;
 		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.preference.IPreferencePage#computeSize()
 	 */
@@ -189,37 +255,37 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	 */
 	@Override
 	protected void createFieldEditors() {
-		// true if the user selected "Display tool option tips at a fixed location" in Preferences AND  
+		// true if the user selected "Display tool option tips at a fixed location" in Preferences AND
 		// and we are displaying the tool tip box on this page because one or more option has non-empty tool tip.
 		boolean pageHasToolTipBox = isToolTipBoxNeeded();
-		
+
 		// Get the preference store for the build settings
 		super.createFieldEditors();
 		// Iterate over the options in the category and create a field editor
 		// for each
 		Object[][] options = category.getOptions(fInfo, optionHolder);
-		
+
 		for (int index = 0; index < options.length; ++index) {
 			// Get the option
 			IHoldsOptions holder = (IHoldsOptions)options[index][0];
 			if (holder == null) break;	//  The array may not be full
 			IOption opt = (IOption)options[index][1];
-			
+
 			// check to see if the option has an applicability calculator
 			IOptionApplicability applicabilityCalculator = opt.getApplicabilityCalculator();
 			IBuildObject config = fInfo;
 
 			if (applicabilityCalculator == null || applicabilityCalculator.isOptionVisible(config, holder, opt)) {
-		
+
 				String optId = getToolSettingsPrefStore().getOptionId(opt);
-				String nameStr = TextProcessor.process(opt.getName());
-				String tipStr = TextProcessor.process(opt.getToolTip());
+				final String nameStr = opt.getName();
+				String tipStr = opt.getToolTip();
 				String contextId = opt.getContextId();
-				
+
 				if (pageHasToolTipBox && (tipStr==null || tipStr.trim().length()==0)) {
-					tipStr = Messages.BuildOptionSettingsUI_0; 
+					tipStr = Messages.BuildOptionSettingsUI_0;
 				}
-				
+
 				try {
 					// Figure out which type the option is and add a proper field
 					// editor for it
@@ -250,12 +316,12 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 					        }
 						}
 					}
-					
+
 					if(fieldEditor == null) {
 						switch (opt.getValueType()) {
 						case IOption.STRING: {
 							StringFieldEditor stringField;
-							
+
 							// If browsing is set, use a field editor that has a
 							// browse button of the appropriate type.
 							switch (opt.getBrowseType()) {
@@ -271,7 +337,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 										}
 									}
 								} break;
-		
+
 								case IOption.BROWSE_FILE: {
 									stringField = new FileFieldEditor(optId, nameStr, fieldEditorParent) {
 										/**
@@ -295,17 +361,18 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 									}
 									((FileFieldEditor)stringField).setFileExtensions(opt.getBrowseFilterExtensions());
 								} break;
-		
+
 								case IOption.BROWSE_NONE: {
 									final StringFieldEditorM local = new StringFieldEditorM(optId, nameStr, fieldEditorParent);
 									stringField = local;
 									local.getTextControl().addModifyListener(new ModifyListener() {
-							            public void modifyText(ModifyEvent e) {
+							            @Override
+										public void modifyText(ModifyEvent e) {
 							            	local.valueChanged();
 							            }
 									});
 								} break;
-		
+
 								default: {
 									throw new BuildException(null);
 								}
@@ -319,26 +386,26 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 								text.addListener(selectAction, tipSetListener);
 							} else {
 								label.setToolTipText(tipStr);
-								text.setToolTipText(tipStr);	
+								text.setToolTipText(tipStr);
 							}
-							if (!contextId.equals(AbstractPage.EMPTY_STR)) {	
+							if (!contextId.equals(AbstractPage.EMPTY_STR)) {
 								PlatformUI.getWorkbench().getHelpSystem().setHelp(text, contextId);
 							}
 							fieldEditor = stringField;
 						} break;
-						
+
 						case IOption.BOOLEAN: {
 							fieldEditor = new TriStateBooleanFieldEditor(
-									optId, 
-									nameStr, 
+									optId,
+									nameStr,
 									tipStr,
-									fieldEditorParent, 
-									contextId, 
+									fieldEditorParent,
+									contextId,
 									ohs,
 									curr);
 							// tipStr is handled in TriStateBooleanFieldEditor constructor
 						} break;
-						
+
 						case IOption.ENUMERATED: {
 							String selId = opt.getSelectedEnum();
 							String sel = opt.getEnumName(selId);
@@ -350,19 +417,19 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 							String[] enumNames = opt.getApplicableValues();
 							Vector<String> enumValidList = new Vector<String>();
 							for (int i = 0; i < enumNames.length; ++i) {
-								if (opt.getValueHandler().isEnumValueAppropriate(config, 
+								if (opt.getValueHandler().isEnumValueAppropriate(config,
 										opt.getOptionHolder(), opt, opt.getValueHandlerExtraArgument(), enumNames[i])) {
 									enumValidList.add(enumNames[i]);
 								}
 							}
 							String[] enumValidNames = new String[enumValidList.size()];
 							enumValidList.copyInto(enumValidNames);
-	
+
 							// if (displayFixedTip==false), tooltip was already set in BuildOptionComboFieldEditor constructor.
 							String tooltipHoverStr = displayFixedTip ? null : tipStr;
-							fieldEditor = new BuildOptionComboFieldEditor(optId, nameStr, 
+							fieldEditor = new BuildOptionComboFieldEditor(optId, nameStr,
 									tooltipHoverStr, contextId, enumValidNames, sel, fieldEditorParent);
-							
+
 							if (pageHasToolTipBox) {
 								Combo combo = ((BuildOptionComboFieldEditor)fieldEditor).getComboControl();
 								Label label = fieldEditor.getLabelControl(fieldEditorParent);
@@ -372,7 +439,21 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 								label.addListener(selectAction, tipSetListener);
 							}
 						} break;
-						
+
+						case IOption.TREE:
+							fieldEditor = new TreeBrowseFieldEditor(optId, nameStr, fieldEditorParent, nameStr, opt, contextId);
+							((StringButtonFieldEditor)fieldEditor).setChangeButtonText("..."); //$NON-NLS-1$
+
+							if (pageHasToolTipBox) {
+								Text text = ((StringButtonFieldEditor)fieldEditor).getTextControl(fieldEditorParent);
+								Label label = fieldEditor.getLabelControl(fieldEditorParent);
+								text.setData(new TipInfo(nameStr,tipStr));
+								text.addListener(selectAction, tipSetListener);
+								label.setData(new TipInfo(nameStr,tipStr));
+								label.addListener(selectAction, tipSetListener);
+							}
+							break;
+
 						case IOption.INCLUDE_PATH:
 						case IOption.STRING_LIST:
 						case IOption.PREPROCESSOR_SYMBOLS:
@@ -387,11 +468,11 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 						case IOption.UNDEF_INCLUDE_FILES:
 						case IOption.UNDEF_LIBRARY_PATHS:
 						case IOption.UNDEF_LIBRARY_FILES:
-						case IOption.UNDEF_MACRO_FILES:	
+						case IOption.UNDEF_MACRO_FILES:
 						{
 							 // if (displayFixedTip==false), tooltip was already set in FileListControlFieldEditor constructor.
 							String tooltipHoverStr = displayFixedTip ? null : tipStr;
-							fieldEditor = new FileListControlFieldEditor(optId, nameStr, 
+							fieldEditor = new FileListControlFieldEditor(optId, nameStr,
 									tooltipHoverStr, contextId, fieldEditorParent, opt.getBrowseType());
 							if(opt.getBrowseFilterPath() != null) {
 								try {
@@ -407,15 +488,15 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 							if (pageHasToolTipBox) {
 								Label label = fieldEditor.getLabelControl(fieldEditorParent);
 								label.setData(new TipInfo(nameStr,tipStr));
-								label.addListener(selectAction, tipSetListener);		
+								label.addListener(selectAction, tipSetListener);
 							}
 						} break;
-						
+
 						default:
 							throw new BuildException(null);
 						}
 					}
-					
+
 					setFieldEditorEnablement(holder, opt, applicabilityCalculator, fieldEditor, fieldEditorParent);
 
 					addField(fieldEditor);
@@ -427,58 +508,50 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			}
 		}
 	}
-	
+
 	/**
-	 * Instantiates the custom-field editor registered under the given id. 
+	 * Instantiates the custom-field editor registered under the given id.
 	 */
 	private FieldEditor createCustomFieldEditor(String customFieldEditorId) {
 		if(this.customFieldEditorDescriptorIndex == null) {
 			loadCustomFieldEditorDescriptors();
 		}
-		
+
 		CustomFieldEditorDescriptor editorDescriptor = this.customFieldEditorDescriptorIndex.get(customFieldEditorId);
 		if(editorDescriptor != null) {
 			return editorDescriptor.createEditor();
 		}
-		
+
 		return null;
 	}
-	
+
 	/**
-	 * Holds all the information necessary to instantiate a custom field-editor. 
+	 * Holds all the information necessary to instantiate a custom field-editor.
 	 * Also acts as a factory - instantiates and returns a non-initialized field-editor.
 	 */
 	private class CustomFieldEditorDescriptor
 	{
-		private final String editorClassName;
-		private final String bundleName;
-		
-		CustomFieldEditorDescriptor(String editorClassName, String bundleName) {
-			this.editorClassName = editorClassName;
-			this.bundleName = bundleName;
+		private final IConfigurationElement element;
+
+		public CustomFieldEditorDescriptor(IConfigurationElement providerElement) {
+			this.element = providerElement;
 		}
-		
+
 		FieldEditor createEditor() {
 			try {
-				Bundle bundle = Platform.getBundle(this.bundleName);
-				if(bundle != null) {
-					Class<?> editorClass = bundle.loadClass(this.editorClassName);
-					if(editorClass != null) {
-						Object editor = editorClass.newInstance();
-						if(editor instanceof FieldEditor && editor instanceof ICustomBuildOptionEditor) {
-							return (FieldEditor)editor;
-						}
-					}
+				Object editor = element.createExecutableExtension("class"); //$NON-NLS-1$
+				if(editor instanceof FieldEditor && editor instanceof ICustomBuildOptionEditor) {
+					return (FieldEditor)editor;
 				}
 			}
 			catch(Exception x) {
 				ManagedBuilderUIPlugin.log(x);
 			}
-			
+
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Loads all the registered custom field-editor descriptors.
 	 * Synchronization is not necessary as this would always be invoked on the UI thread.
@@ -486,28 +559,25 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	private void loadCustomFieldEditorDescriptors() {
 		if(this.customFieldEditorDescriptorIndex != null)
 			return;
-		
+
 		this.customFieldEditorDescriptorIndex = new HashMap<String, CustomFieldEditorDescriptor>();
-		
+
 		IExtensionPoint ep = Platform.getExtensionRegistry().getExtensionPoint(
 				ManagedBuilderUIPlugin.getUniqueIdentifier() + ".buildDefinitionsUI"); //$NON-NLS-1$
-		
+
 		for(IExtension e : ep.getExtensions()) {
 			for(IConfigurationElement providerElement : e.getConfigurationElements()) {
 				String editorId = providerElement.getAttribute("id"); //$NON-NLS-1$
-				String editorClassName = providerElement.getAttribute("class"); //$NON-NLS-1$
 
-				String bundleName = providerElement.getContributor().getName();
-				
-				this.customFieldEditorDescriptorIndex.put(editorId, new CustomFieldEditorDescriptor(editorClassName, bundleName));
+				this.customFieldEditorDescriptorIndex.put(editorId, new CustomFieldEditorDescriptor(providerElement));
 			}
 		}
 	}
-	
+
 	/**
 	 * Answers <code>true</code> if the settings page has been created for the
 	 * option category specified in the argument.
-	 * 
+	 *
 	 * @see org.eclipse.cdt.managedbuilder.ui.properties.AbstractToolSettingUI#isFor(java.lang.Object, java.lang.Object)
 	 */
 	@Override
@@ -518,7 +588,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 		}
 		return false;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.jface.preference.IPreferencePage#performOk()
 	 */
@@ -527,22 +597,22 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 		// Write the field editor contents out to the preference store
 		boolean ok = super.performOk();
 		// Write the preference store values back to the build model
-		
+
 		Object[][] clonedOptions;
 //		IResourceConfiguration realRcCfg = null;
 		IConfiguration realCfg = null;
 		IBuildObject handler = null;
-		
+
 		realCfg = buildPropPage.getCfg(); //.getRealConfig(clonedConfig);
 		if(realCfg == null)	return false;
 		handler = realCfg;
 		clonedOptions = category.getOptions(fInfo, optionHolder);
-		
+
 		for (int i = 0; i < clonedOptions.length; i++) {
 			IHoldsOptions clonedHolder = (IHoldsOptions)clonedOptions[i][0];
 			if (clonedHolder == null) break;	//  The array may not be full
 			IOption clonedOption = (IOption)clonedOptions[i][1];
-			
+
 			IHoldsOptions realHolder = clonedHolder; // buildPropPage.getRealHoldsOptions(clonedHolder);
 			IOption realOption = clonedOption; // buildPropPage.getRealOption(clonedOption, clonedHolder);
 			if(realOption == null) continue;
@@ -562,9 +632,10 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 //						}
 						break;
 					case IOption.ENUMERATED :
+					case IOption.TREE :
 						String enumVal = clonedOption.getStringValue();
-						String enumId = clonedOption.getEnumeratedId(enumVal);
-						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption, 
+						String enumId = clonedOption.getId(enumVal);
+						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption,
 								(enumId != null && enumId.length() > 0) ? enumId : enumVal);
 						// Reset the preference store since the Id may have changed
 //						if (setOption != option) {
@@ -575,7 +646,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 						break;
 					case IOption.STRING :
 						String strVal = clonedOption.getStringValue();
-						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption, strVal);	
+						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption, strVal);
 						// Reset the preference store since the Id may have changed
 //						if (setOption != option) {
 //							getToolSettingsPrefStore().setValue(setOption.getId(), strVal);
@@ -597,11 +668,11 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 					case IOption.UNDEF_INCLUDE_FILES:
 					case IOption.UNDEF_LIBRARY_PATHS:
 					case IOption.UNDEF_LIBRARY_FILES:
-					case IOption.UNDEF_MACRO_FILES:	
+					case IOption.UNDEF_MACRO_FILES:
 						@SuppressWarnings("unchecked")
 						String[] listVal = ((List<String>)clonedOption.getValue()).toArray(new String[0]);
-						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption, listVal);	
-						
+						setOption = ManagedBuildManager.setOption(realCfg, realHolder, realOption, listVal);
+
 						// Reset the preference store since the Id may have changed
 //						if (setOption != option) {
 //							getToolSettingsPrefStore().setValue(setOption.getId(), listStr);
@@ -613,32 +684,32 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 						break;
 				}
 
-				// Call an MBS CallBack function to inform that Settings related to Apply/OK button 
+				// Call an MBS CallBack function to inform that Settings related to Apply/OK button
 				// press have been applied.
 				if (setOption == null)
 					setOption = realOption;
-				
+
 				if (setOption.getValueHandler().handleValue(
-						handler, 
-						setOption.getOptionHolder(), 
+						handler,
+						setOption.getOptionHolder(),
 						setOption,
-						setOption.getValueHandlerExtraArgument(), 
+						setOption.getValueHandlerExtraArgument(),
 						IManagedOptionValueHandler.EVENT_APPLY)) {
 					// TODO : Event is handled successfully and returned true.
 					// May need to do something here say log a message.
 				} else {
-					// Event handling Failed. 
+					// Event handling Failed.
 				}
- 
+
 			} catch (BuildException e) {
 			} catch (ClassCastException e) {
 			}
-			
+
 
 		}
 		return ok;
 	}
-	
+
 	/**
 	 * Update field editors in this page when the page is loaded.
 	 */
@@ -653,7 +724,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			if (holder == null)
 				break; //  The array may not be full
 			IOption opt = (IOption) options[index][1];
-			String prefName = getToolSettingsPrefStore().getOptionId(opt); 
+			String prefName = getToolSettingsPrefStore().getOptionId(opt);
 
 			// is the option on this page?
 			if (fieldsMap.containsKey(prefName)) {
@@ -663,7 +734,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 						updateEnumList( fieldEditor, opt, holder, fInfo );
 					}
 				} catch ( BuildException be ) {}
-				
+
 				// check to see if the option has an applicability calculator
 				IOptionApplicability applicabilityCalculator = opt.getApplicabilityCalculator();
 				if (applicabilityCalculator != null) {
@@ -672,7 +743,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 				}
 			}
 		}
-		
+
 		Collection<FieldEditor> fieldsList = fieldsMap.values();
 		for (FieldEditor editor : fieldsList) {
 			if (editor instanceof TriStateBooleanFieldEditor)
@@ -680,7 +751,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			editor.load();
 		}
 	}
-	
+
 	private void setFieldEditorEnablement(IHoldsOptions holder, IOption option,
 			IOptionApplicability optionApplicability, FieldEditor fieldEditor, Composite parent) {
 		if (optionApplicability == null)
@@ -694,7 +765,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			fieldEditor.setEnabled(true, parent);
 		}
 	}
-	
+
 	private boolean hasStr(String tipStr) {
 		return (tipStr!=null && tipStr.trim().length()>0);
 	}
@@ -706,7 +777,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	public void propertyChange(PropertyChangeEvent event) {
 		// allow superclass to handle as well
 		super.propertyChange(event);
-		
+
 		Object source = event.getSource();
 		IOption changedOption = null;
 		IHoldsOptions changedHolder = null;
@@ -714,10 +785,10 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 
 		if(source instanceof FieldEditor){
 			FieldEditor fe = (FieldEditor)source;
-			
+
 			if (fe instanceof TriStateBooleanFieldEditor)
 				((TriStateBooleanFieldEditor)fe).set3(false);
-			
+
 			id = fe.getPreferenceName();
 
 			Object[] option = this.getToolSettingsPrefStore().getOption(id);
@@ -725,11 +796,11 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			if (option == null) {
 				int n = id.lastIndexOf('.');
 				if (n > 0) {
-					id = id.substring(0, n); 
+					id = id.substring(0, n);
 					option = getToolSettingsPrefStore().getOption(id);
 				}
 			}
-			
+
 			if(option != null){
 				changedOption = (IOption)option[1];
 				changedHolder = (IHoldsOptions)option[0];
@@ -753,7 +824,16 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 							String enumId = changedOption.getEnumeratedId(name);
 							ManagedBuildManager.setOption(fInfo,changedHolder,changedOption,
 									(enumId != null && enumId.length() > 0) ? enumId : name);
-	
+
+						}
+						break;
+					case IOption.TREE:
+						if(fe instanceof TreeBrowseFieldEditor){
+							String name = ((TreeBrowseFieldEditor)fe).getStringValue();
+							String treeId = changedOption.getId(name);
+							ManagedBuildManager.setOption(fInfo,changedHolder,changedOption,
+									(treeId != null && treeId.length() > 0) ? treeId : name);
+
 						}
 						break;
 					case IOption.INCLUDE_PATH:
@@ -793,7 +873,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			if (holder == null)
 				break; //  The array may not be full
 			IOption opt = (IOption) options[index][1];
-			String optId = getToolSettingsPrefStore().getOptionId(opt); 
+			String optId = getToolSettingsPrefStore().getOptionId(opt);
 
 			// is the option on this page?
 			if (fieldsMap.containsKey(optId)) {
@@ -807,32 +887,32 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 						updateEnumList( fieldEditor, opt, holder, fInfo );
 					}
 				} catch ( BuildException be ) {}
-				
+
 				if (applicabilityCalculator != null) {
 					Composite parent = fieldEditorsToParentMap.get(fieldEditor);
 					setFieldEditorEnablement(holder, opt, applicabilityCalculator, fieldEditor, parent);
 				}
 			}
 		}
-		
+
 		Collection<FieldEditor> xxx = fieldsMap.values();
 		for (FieldEditor editor : xxx) {
 			if(id == null || !id.equals(editor.getPreferenceName()))
 				editor.load();
 		}
 	}
-	
+
 	@Override
 	public void setValues() {
 		updateFields();
 	}
-	
+
 	/**
 	 * @param optionHolder - option holder such as {@link ITool}
 	 * @param category - option category
-	 * 
+	 *
 	 * @return true if the page needs to have the tool tip box.
-	 * 
+	 *
 	 * @since 7.0
 	 */
 	protected boolean needToolTipBox(IHoldsOptions optionHolder, IOptionCategory category) {
@@ -842,8 +922,8 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 				IHoldsOptions holder = (IHoldsOptions)options[index][0];
 				if (holder == null) break; //  The array may not be full
 				IOption opt = (IOption)options[index][1];
-				String tipStr = TextProcessor.process(opt.getToolTip());
-				
+				String tipStr = opt.getToolTip();
+
 				// check to see if the option has an applicability calculator
 				IOptionApplicability applicabilityCalculator = opt.getApplicabilityCalculator();
 				IBuildObject config = fInfo;
@@ -855,7 +935,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 				}
 			}
 		}
-		// A tool option summary page does not list individual options 
+		// A tool option summary page does not list individual options
 		// so never should have the box
 		return false;
 	}
@@ -864,9 +944,9 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 	 * The items shown in an enumerated option may depend on other option values.
 	 * Whenever an option changes, check and update the valid enum values in
 	 * the combo fieldeditor.
-	 * 
+	 *
 	 * See also https://bugs.eclipse.org/bugs/show_bug.cgi?id=154053
-	 * 
+	 *
 	 * @param fieldEditor enumerated combo fieldeditor
 	 * @param opt         enumerated option type to update
 	 * @param holder      the option holder
@@ -892,7 +972,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 
 		Vector<String> enumValidList = new Vector<String>();
 		for (int i = 0; i < enumNames.length; ++i) {
-			if (opt.getValueHandler().isEnumValueAppropriate(config, 
+			if (opt.getValueHandler().isEnumValueAppropriate(config,
 					opt.getOptionHolder(), opt, opt.getValueHandlerExtraArgument(), enumNames[i])) {
 				if ( selectedEnumName.equals(enumNames[i]) ) {
 					// the currently selected enum is part of the new item list, no need to select a new value.
@@ -924,8 +1004,9 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 		((BuildOptionComboFieldEditor)fieldEditor).setOptions(enumValidNames);
 		fieldEditor.load();
 	}
-	
+
 	private final Listener tipSetListener = new Listener() {
+		@Override
 		public void handleEvent(Event event) {
 			Object data = event.widget.getData();
 			if (data!=null && buildPropPage!=null) {
@@ -934,10 +1015,10 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			}
 		}
 	};
-	
+
 	/**
-	 * 
-	 * 
+	 *
+	 *
 	 *
 	 */
 	class TriStateBooleanFieldEditor extends BooleanFieldEditor {
@@ -947,7 +1028,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 		protected int current = 0;
 		public TriStateBooleanFieldEditor(String name, String labelText, String tooltip, Composite parent, String contextId, IHoldsOptions[] ho, int curr) {
 			super(name, labelText, parent);
-			holders = ho; 
+			holders = ho;
 			current = curr;
 			button = getChangeControl(parent);
 			if (displayFixedTip && isToolTipBoxNeeded()) {
@@ -959,7 +1040,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			if (!contextId.equals(AbstractPage.EMPTY_STR)) {
 				PlatformUI.getWorkbench().getHelpSystem().setHelp(button, contextId);
 			}
-			
+
 		}
 		@Override
 		protected void valueChanged(boolean oldValue, boolean newValue) {
@@ -978,7 +1059,7 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 					for (int i=0; i<holders.length; i++) {
 						op = holders[i].getOptionBySuperClassId(id);
 						try {
-							if (op != null) 
+							if (op != null)
 								vals[op.getBooleanValue() ? 1 : 0]++;
 						} catch (BuildException e) {}
 					}
@@ -996,11 +1077,279 @@ public class BuildOptionSettingsUI extends AbstractToolSettingUI {
 			}
 			super.doLoad(); // default case
 		}
-		
+
 		void set3(boolean state) {
 			enable3 = state;
 		}
 	}
-	
 
+	/**
+	 * @since 8.2
+	 */
+	public static class TreeSelectionDialog extends TitleAreaDialog {
+		private final ITreeRoot treeRoot;
+		private ITreeOption selected;
+		private final String name;
+		private String contextId;
+		private String baseMessage = ""; //$NON-NLS-1$
+		private TreeViewer viewer;
+
+		public TreeSelectionDialog(Shell parentShell, ITreeRoot root, String name, String contextId) {
+			super(parentShell);
+			treeRoot = root;
+			setShellStyle(getShellStyle() | SWT.RESIZE);
+			if (root.getIcon() != null) {
+				Image img = createImage(root.getIcon());
+				if (img != null) {
+					setTitleImage(img);
+				}
+			}
+			this.name = name;
+			this.contextId = contextId;
+			if (contextId != null && contextId.length() > 0) {
+				setHelpAvailable(true);
+			}
+		}
+
+		@Override
+		protected Control createDialogArea(Composite parent) {
+			if (contextId != null && contextId.length() > 0) {
+				PlatformUI.getWorkbench().getHelpSystem().setHelp(parent, contextId);
+			}
+
+			Composite control = new Composite(parent, SWT.NULL);
+			GridData gd= new GridData(GridData.FILL_BOTH);
+			GridLayout topLayout = new GridLayout();
+			topLayout.numColumns = 1;
+			control.setLayout(topLayout);
+			control.setLayoutData(gd);
+
+			PatternFilter filter = new PatternFilter();
+			filter.setIncludeLeadingWildcard(true);
+			FilteredTree tree = new FilteredTree(control,
+					SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER,
+					filter, true);
+			viewer = tree.getViewer();
+			viewer.setContentProvider(new ITreeContentProvider() {
+
+				@Override
+				public void dispose() {
+				}
+
+				@Override
+				public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
+				}
+
+				@Override
+				public Object[] getElements(Object inputElement) {
+					return getChildren(inputElement);
+				}
+
+				@Override
+				public Object[] getChildren(Object parentElement) {
+					if (parentElement instanceof ITreeOption) {
+						ITreeOption[] children = ((ITreeOption)parentElement).getChildren();
+
+						// Not entirely sure whether this method is allowed to return null,
+						// but let's play safe.
+						if (children == null)
+							return null;
+
+						List<ITreeOption> childrenList = new ArrayList<ITreeOption>(Arrays.asList(children));
+
+						// Check if any of the children has empty name
+						List<ITreeOption> toRemove = null;
+						for (ITreeOption child : children) {
+							if (child.getName() == null || child.getName().trim().length() == 0) {
+								if (toRemove == null) {
+									toRemove = new ArrayList<ITreeOption>();
+								}
+								toRemove.add(child);
+							}
+						}
+						if (toRemove != null) {
+							childrenList.removeAll(toRemove);
+						}
+
+						// Sort the children.
+						Collections.sort(childrenList, new Comparator<ITreeOption>() {
+							@Override
+							public int compare(ITreeOption arg0, ITreeOption arg1) {
+								if (arg0.getOrder() == arg1.getOrder()) {
+									return arg0.getName().compareToIgnoreCase(arg1.getName());
+								} else {
+									return arg0.getOrder() - arg1.getOrder();
+								}
+							}
+						});
+
+						return childrenList.toArray(new ITreeOption[0]);
+					}
+					return null;
+				}
+
+				@Override
+				public Object getParent(Object element) {
+					if (element instanceof ITreeOption) {
+						return ((ITreeOption)element).getParent();
+					}
+					return null;
+				}
+
+				@Override
+				public boolean hasChildren(Object element) {
+					Object[] children = getChildren(element);
+					return children != null && children.length > 0;
+				}
+
+			});
+
+			viewer.setLabelProvider(new LabelProvider() {
+
+				@Override
+				public String getText(Object element) {
+					if (element instanceof ITreeOption) {
+						return ((ITreeOption)element).getName();
+					}
+					return super.getText(element);
+				}
+
+				@Override
+				public Image getImage(Object element) {
+					if (element instanceof ITreeOption) {
+						String icon = ((ITreeOption)element).getIcon();
+						return createImage(icon);
+					}
+					return super.getImage(element);
+				}
+			});
+
+			viewer.addSelectionChangedListener(new ISelectionChangedListener() {
+
+				@Override
+				public void selectionChanged(SelectionChangedEvent event) {
+					ISelection selection = event.getSelection();
+					if (selection instanceof IStructuredSelection) {
+						Object selectedObj = ((IStructuredSelection)selection).getFirstElement();
+						if (selectedObj instanceof ITreeOption) {
+							selected = (ITreeOption) selectedObj;
+
+							updateOKButton(selected);
+
+							// Adjust Message
+							String description = selected.getDescription();
+							if (description == null) {
+								ITreeOption node = selected;
+								description = ""; //$NON-NLS-1$
+								String sep = ": "; //$NON-NLS-1$
+								while (node != null && node.getParent() != null) { // ignore root
+									description = sep + node.getName() + description;
+									node = node.getParent();
+								}
+								description = description.substring(sep.length()); // remove the first separator.
+							}
+							setMessage(baseMessage + description);
+						}
+					}
+				}
+			});
+
+			viewer.addDoubleClickListener(new IDoubleClickListener() {
+
+				@Override
+				public void doubleClick(DoubleClickEvent event) {
+					ISelection selection = event.getSelection();
+					if (!selection.isEmpty() && selection instanceof IStructuredSelection && ((IStructuredSelection)selection).size() == 1) {
+						Object selectedNode = ((IStructuredSelection)selection).getFirstElement();
+						if (selectedNode instanceof ITreeOption) {
+							if (updateOKButton((ITreeOption)selectedNode)) {
+								TreeSelectionDialog.this.okPressed();
+							} else { // if doubleclick is not on selectable item, expand/collapse
+								viewer.setExpandedState(selectedNode,!viewer.getExpandedState(selectedNode));
+							}
+						}
+					}
+				}
+			});
+
+			viewer.setInput(treeRoot);
+
+			String msg = "Select " + name; //$NON-NLS-1$
+			getShell().setText(msg);
+			setTitle(msg);
+			if (treeRoot.getDescription() != null) {
+				baseMessage = treeRoot.getDescription();
+				setMessage(baseMessage);
+				baseMessage += "\nCurrent Selection: "; //$NON-NLS-1$
+			} else {
+				setMessage(msg);
+			}
+
+			return control;
+		}
+		
+		@Override
+		public void create() {
+			super.create();
+			// Need to update selection after the dialog has been created
+			// so that we trigger the listener and correctly update the label
+			// and buttons
+			setUISelection();
+		}
+
+		public ITreeOption getSelection() {
+			return selected;
+		}
+		
+		/**
+		 * @since 8.2
+		 */
+		public void setSelection(ITreeOption option) {
+			if (treeRoot == getRoot(option)) { // only work in the same tree
+				selected = option;
+				setUISelection();
+			}
+		}
+
+		private void setUISelection() {
+			if (viewer != null && selected != null) viewer.setSelection(new StructuredSelection(selected), true);
+		}
+		
+		private static ITreeRoot getRoot(ITreeOption option) {
+			if (option != null) {
+				ITreeOption parent = option.getParent();
+				while (parent != null) {
+					option = parent;
+					parent = option.getParent();
+				}
+				return option instanceof ITreeRoot? (ITreeRoot) option : null;
+			}
+			return null;
+		}
+
+		private Image createImage(String icon) {
+			if (icon != null) {
+				URL url = null;
+				try {
+					url = FileLocator.find(new URL(icon));
+				} catch (Exception e) {
+				}
+				if (url != null) {
+					ImageDescriptor desc = ImageDescriptor.createFromURL(url);
+					return desc.createImage();
+				}
+			}
+			return null;
+		}
+
+		private boolean updateOKButton(ITreeOption selection) {
+			// Check if Valid selection (only allow selecting leaf nodes)
+			if (treeRoot.isSelectLeafsOnly()) {
+				boolean enableOK = !selection.isContainer();
+				getButton(IDialogConstants.OK_ID).setEnabled(enableOK);
+				return enableOK;
+			}
+			return false;
+		}
+	}
 }

@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
  *******************************************************************************/ 
 package org.eclipse.cdt.core.parser.tests.scanner;
 
@@ -37,10 +37,10 @@ import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorUndefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTProblem;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
-import org.eclipse.cdt.core.dom.ast.IBinding;
-import org.eclipse.cdt.core.dom.ast.IMacroBinding;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit.IDependencyTree;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit.IDependencyTree.IASTInclusionNode;
+import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.IMacroBinding;
 import org.eclipse.cdt.core.testplugin.CTestPlugin;
 import org.eclipse.cdt.core.testplugin.util.BaseTestCase;
 import org.eclipse.cdt.core.testplugin.util.TestSourceReader;
@@ -49,8 +49,8 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTranslationUnit;
 import org.eclipse.cdt.internal.core.parser.scanner.CharArray;
 import org.eclipse.cdt.internal.core.parser.scanner.ILocationCtx;
 import org.eclipse.cdt.internal.core.parser.scanner.ImageLocationInfo;
-import org.eclipse.cdt.internal.core.parser.scanner.LocationMap;
 import org.eclipse.cdt.internal.core.parser.scanner.Lexer.LexerOptions;
+import org.eclipse.cdt.internal.core.parser.scanner.LocationMap;
 
 public class LocationMapTests extends BaseTestCase {
 	public class Loc implements IASTFileLocation {
@@ -62,23 +62,33 @@ public class LocationMapTests extends BaseTestCase {
 			fOffset= offset;
 			fEndOffset= endOffset;
 		}
+		@Override
 		public int getEndingLineNumber() {
 			return 0;
 		}
+		@Override
 		public String getFileName() {
 			return fFile;
 		}
+		@Override
 		public int getNodeLength() {
 			return fEndOffset-fOffset;
 		}
+		@Override
 		public int getNodeOffset() {
 			return fOffset;
 		}
+		@Override
 		public int getStartingLineNumber() {
 			return 0;
 		}
+		@Override
 		public IASTFileLocation asFileLocation() {
 			return this;
+		}
+		@Override
+		public IASTPreprocessorIncludeStatement getContextInclusionStatement() {
+			return null;
 		}
 	}
 
@@ -336,8 +346,8 @@ public class LocationMapTests extends BaseTestCase {
 
 	public void testIncludes() {
 		init(DIGITS);
-		fLocationMap.encounterPoundInclude(0, 0, 0, 0, "n1".toCharArray(), null, true, false, false);
-		fLocationMap.encounterPoundInclude(0, 1, 3, 16, "n2".toCharArray(), "f2", false , true, false);
+		fLocationMap.encounterPoundInclude(0, 0, 0, 0, "n1".toCharArray(), null, true, false, false, null);
+		fLocationMap.encounterPoundInclude(0, 1, 3, 16, "n2".toCharArray(), "f2", false , true, false, null);
 		IASTPreprocessorIncludeStatement[] includes= fLocationMap.getIncludeDirectives();
 		assertEquals(2, includes.length);
 		checkInclude(includes[0], "", "", "n1", "", true, false, FN, 0, 0, 1, 0, 0);
@@ -467,9 +477,14 @@ public class LocationMapTests extends BaseTestCase {
 		fLocationMap.encounterPoundDefine(3, 13, 33, 63, 103, true, macro3);
 		IASTName name1= fLocationMap.encounterImplicitMacroExpansion(macro1, null);
 		IASTName name2= fLocationMap.encounterImplicitMacroExpansion(macro2, null);
-		fLocationMap.pushMacroExpansion(110, 115, 125, 30, macro3, new IASTName[]{name1, name2}, new ImageLocationInfo[0]);
-		fLocationMap.encounteredComment(12, 23, false);
-		checkComment(fLocationMap.getComments()[0], new String(LONGDIGITS, 110, 15), false, FN, 110, 15, 2, 2);
+		ILocationCtx me = fLocationMap.pushMacroExpansion(110, 115, 125, 30, macro3, new IASTName[]{name1, name2}, new ImageLocationInfo[0]);
+		// Comment in expansion
+		fLocationMap.encounteredComment(116, 120, false);
+		// Comment right after expansion, reported before expansion completes.
+		fLocationMap.encounteredComment(125, 140, false);
+		fLocationMap.popContext(me);
+		checkComment(fLocationMap.getComments()[0], new String(LONGDIGITS, 116, 4), false, FN, 116, 4, 2, 2);
+		checkComment(fLocationMap.getComments()[1], new String(LONGDIGITS, 125, 15), false, FN, 125, 15, 2, 2);
 		
 		IASTName[] refs= fLocationMap.getReferences(macro3);
 		assertEquals(1, refs.length);
@@ -495,7 +510,6 @@ public class LocationMapTests extends BaseTestCase {
 		// number: [0,6)[26,30)
 		ILocationCtx pre2= fLocationMap.pushPreInclusion(new CharArray("a1a2a3a4a5"), 0, true);
 		assertEquals(FN, fLocationMap.getCurrentFilePath());
-		fLocationMap.encounteredComment(0,2,true);
 		// number: [6,15)[25,26)
 		ILocationCtx i1= fLocationMap.pushInclusion(0, 2, 4, 6, new CharArray("b1b2b3b4b5"), "pre1", "pre1".toCharArray(), false, false, false);
 		assertEquals("pre1", fLocationMap.getCurrentFilePath());
@@ -523,11 +537,10 @@ public class LocationMapTests extends BaseTestCase {
 		
 		
 		IASTComment[] comments= fLocationMap.getComments();
-		checkComment(comments[0], "", true, FN, 0, 0, 1, 1);
-		checkComment(comments[1], "b2", true, "pre1", 2, 2, 1, 1);
-		checkComment(comments[2], "c2c3", true, "pre11", 2, 4, 1, 1);
-		checkComment(comments[3], "b3", false, "pre1", 4, 2, 1, 1);		
-		checkComment(comments[4], "d1", true, "pre2", 0, 2, 1, 1);
+		checkComment(comments[0], "b2", true, "pre1", 2, 2, 1, 1);
+		checkComment(comments[1], "c2c3", true, "pre11", 2, 4, 1, 1);
+		checkComment(comments[2], "b3", false, "pre1", 4, 2, 1, 1);		
+		checkComment(comments[3], "d1", true, "pre2", 0, 2, 1, 1);
 
 		checkLocation(fLocationMap.getMappedFileLocation(0, 6), FN, 0, 0, 1, 1);
 		checkLocation(fLocationMap.getMappedFileLocation(6, 9), "pre1", 0, 9, 1, 1);

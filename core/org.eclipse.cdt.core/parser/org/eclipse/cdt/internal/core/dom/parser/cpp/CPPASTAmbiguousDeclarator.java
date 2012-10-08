@@ -1,16 +1,18 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 IBM Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2012 IBM Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - Initial API and implementation
+ *     Markus Schorn - Initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
+import org.eclipse.cdt.core.dom.ast.IASTAttribute;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTInitializer;
 import org.eclipse.cdt.core.dom.ast.IASTName;
@@ -29,15 +31,14 @@ import org.eclipse.core.runtime.Assert;
  * <br>
  * Example: void f(int (D));  // is D a type?
  */
-public class CPPASTAmbiguousDeclarator extends ASTAmbiguousNode implements IASTAmbiguousDeclarator, ICPPASTDeclarator {
-
+public class CPPASTAmbiguousDeclarator extends ASTAmbiguousNode
+		implements IASTAmbiguousDeclarator, ICPPASTDeclarator {
     private IASTDeclarator[] dtors = new IASTDeclarator[2];
-    private int dtorPos=-1;
+    private int dtorPos= -1;
 	private IASTInitializer fInitializer;
-
     
     public CPPASTAmbiguousDeclarator(IASTDeclarator... decls) {
-		for(IASTDeclarator d : decls) {
+		for (IASTDeclarator d : decls) {
 			if (d != null) {
 				addDeclarator(d);
 			}
@@ -63,25 +64,29 @@ public class CPPASTAmbiguousDeclarator extends ASTAmbiguousNode implements IASTA
     	}
 	}
 
+	@Override
 	public IASTDeclarator copy() {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public IASTDeclarator copy(CopyStyle style) {
 		throw new UnsupportedOperationException();
 	}
     
+	@Override
 	public void addDeclarator(IASTDeclarator d) {
         assertNotFrozen();
     	if (d != null) {
-    		dtors = (IASTDeclarator[]) ArrayUtil.append(IASTDeclarator.class, dtors, ++dtorPos, d);
+    		dtors = ArrayUtil.appendAt(IASTDeclarator.class, dtors, ++dtorPos, d);
     		d.setParent(this);
 			d.setPropertyInParent(SUBDECLARATOR);
     	}
     }
 
-    public IASTDeclarator[] getDeclarators() {
-    	dtors = (IASTDeclarator[]) ArrayUtil.removeNullsAfter(IASTDeclarator.class, dtors, dtorPos ); 
+    @Override
+	public IASTDeclarator[] getDeclarators() {
+    	dtors = ArrayUtil.trimAt(IASTDeclarator.class, dtors, dtorPos); 
         return dtors;
     }
 
@@ -90,50 +95,72 @@ public class CPPASTAmbiguousDeclarator extends ASTAmbiguousNode implements IASTA
         return getDeclarators();
     }
 
+	@Override
 	public IASTInitializer getInitializer() {
 		return fInitializer;
 	}
 
+	@Override
 	public IASTName getName() {
 		return dtors[0].getName();
 	}
 
+	@Override
 	public IASTDeclarator getNestedDeclarator() {
 		return dtors[0].getNestedDeclarator();
 	}
 
+	@Override
 	public IASTPointerOperator[] getPointerOperators() {
 		return dtors[0].getPointerOperators();
 	}
 	
-	public int getRoleForName(IASTName name) {
-		return dtors[0].getRoleForName(name);
-	}
-
+	@Override
 	public void addPointerOperator(IASTPointerOperator operator) {
         assertNotFrozen();
 		Assert.isLegal(false);
 	}
 
+	@Override
+	public IASTAttribute[] getAttributes() {
+		return dtors[0].getAttributes();
+	}
+
+	@Override
+	public void addAttribute(IASTAttribute attribute) {
+        assertNotFrozen();
+		Assert.isLegal(false);
+	}
+
+	@Override
+	public int getRoleForName(IASTName name) {
+		return dtors[0].getRoleForName(name);
+	}
+
+	@Override
 	public void setInitializer(IASTInitializer initializer) {
 		// store the initializer until the ambiguity is resolved
 		fInitializer= initializer;
 	}
 
+	@Override
 	public void setName(IASTName name) {
         assertNotFrozen();
 		Assert.isLegal(false);
 	}
 
+	@Override
 	public void setNestedDeclarator(IASTDeclarator nested) {
         assertNotFrozen();
 		Assert.isLegal(false);
 	}
 
+	@Override
 	public boolean declaresParameterPack() {
 		return false;
 	}
 
+	@Override
 	public void setDeclaresParameterPack(boolean val) {
         assertNotFrozen();
 		Assert.isLegal(false);

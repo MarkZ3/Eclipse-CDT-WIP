@@ -12,22 +12,16 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.internal.ui; 
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.eclipse.cdt.dsf.ui.viewmodel.datamodel.IDMVMContext;
-import org.eclipse.debug.ui.IDebugUIConstants;
+import org.eclipse.debug.ui.DebugUITools;
+import org.eclipse.debug.ui.contexts.DebugContextEvent;
+import org.eclipse.debug.ui.contexts.IDebugContextListener;
+import org.eclipse.debug.ui.contexts.IDebugContextService;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.ui.IPageListener;
-import org.eclipse.ui.IPartListener2;
-import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.IWindowListener;
 import org.eclipse.ui.IWorkbench;
-import org.eclipse.ui.IWorkbenchPage;
-import org.eclipse.ui.IWorkbenchPart;
-import org.eclipse.ui.IWorkbenchPartReference;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
  
@@ -39,7 +33,7 @@ import org.eclipse.ui.PlatformUI;
  * "Move To Line" and "Add Watch Expression" actions
  * visible in editors only if there is a running debug session. 
  */
-public class EvaluationContextManager implements IWindowListener, IPageListener, ISelectionListener, IPartListener2 {
+public class EvaluationContextManager implements IWindowListener, IDebugContextListener {
 
     // Avoid referencing the cdt.debug.ui plugin for this constnat so that the 
     // cdt.debug.ui is not automatically activated
@@ -51,23 +45,27 @@ public class EvaluationContextManager implements IWindowListener, IPageListener,
 
 	protected static EvaluationContextManager fgManager;
 
-	private Map<IWorkbenchPage,IDMVMContext> fContextsByPage = null;
-
 	protected EvaluationContextManager() {
 	}
 
 	public static void startup() {
 		Runnable r = new Runnable() {
 
+			@Override
 			public void run() {
 				if ( fgManager == null ) {
-					fgManager = new EvaluationContextManager();
+					// FindBugs reported that it is unsafe to set s_resources
+					// before we finish to initialize the object, because of
+					// multi-threading.  This is why we use a temporary variable.
+					EvaluationContextManager manager = new EvaluationContextManager();
 					IWorkbench workbench = PlatformUI.getWorkbench();
 					IWorkbenchWindow[] windows = workbench.getWorkbenchWindows();
 					for( int i = 0; i < windows.length; i++ ) {
-						fgManager.windowOpened( windows[i] );
+						manager.windowOpened( windows[i] );
 					}
-					workbench.addWindowListener( fgManager );
+					workbench.addWindowListener( manager );
+					
+					fgManager = manager;
 				}
 			}
 		};
@@ -80,158 +78,66 @@ public class EvaluationContextManager implements IWindowListener, IPageListener,
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IWindowListener#windowActivated(org.eclipse.ui.IWorkbenchWindow)
 	 */
+	@Override
 	public void windowActivated( IWorkbenchWindow window ) {
-		windowOpened( window );
+	    IDebugContextService service = DebugUITools.getDebugContextManager().getContextService(window);
+        service.addDebugContextListener(this);
+        selectionChanged( service.getActiveContext() );
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IWindowListener#windowDeactivated(org.eclipse.ui.IWorkbenchWindow)
 	 */
+	@Override
 	public void windowDeactivated( IWorkbenchWindow window ) {
+        DebugUITools.getDebugContextManager().getContextService(window).removeDebugContextListener(this);
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IWindowListener#windowClosed(org.eclipse.ui.IWorkbenchWindow)
 	 */
+	@Override
 	public void windowClosed( IWorkbenchWindow window ) {
-		window.removePageListener( this );
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IWindowListener#windowOpened(org.eclipse.ui.IWorkbenchWindow)
 	 */
+	@Override
 	public void windowOpened( IWorkbenchWindow window ) {
-		IWorkbenchPage[] pages = window.getPages();
-		for( int i = 0; i < pages.length; i++ ) {
-			window.addPageListener( this );
-			pageOpened( pages[i] );
-		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPageListener#pageActivated(org.eclipse.ui.IWorkbenchPage)
-	 */
-	public void pageActivated( IWorkbenchPage page ) {
-		pageOpened( page );
+	@Override
+	public void debugContextChanged(DebugContextEvent event) {
+	    selectionChanged(event.getContext());
 	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPageListener#pageClosed(org.eclipse.ui.IWorkbenchPage)
-	 */
-	public void pageClosed( IWorkbenchPage page ) {
-		page.removeSelectionListener( IDebugUIConstants.ID_DEBUG_VIEW, this );
-		page.removePartListener( this );
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPageListener#pageOpened(org.eclipse.ui.IWorkbenchPage)
-	 */
-	public void pageOpened( IWorkbenchPage page ) {
-		page.addSelectionListener( IDebugUIConstants.ID_DEBUG_VIEW, this );
-		page.addPartListener( this );
-		IWorkbenchPartReference ref = page.getActivePartReference();
-		if ( ref != null ) {
-			partActivated( ref );
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.ISelectionListener#selectionChanged(org.eclipse.ui.IWorkbenchPart, org.eclipse.jface.viewers.ISelection)
-	 */
-	public void selectionChanged( IWorkbenchPart part, ISelection selection ) {
-		IWorkbenchPage page = part.getSite().getPage();
-		if ( selection instanceof IStructuredSelection ) {
-			IStructuredSelection ss = (IStructuredSelection)selection;
-			if ( ss.size() == 1 ) {
-				Object element = ss.getFirstElement();
-				if ( element instanceof IDMVMContext ) {
-					setContext( page, (IDMVMContext)element );
-					return;
-				}
-			}
-		}
-		// no context in the given view
-		removeContext( page );
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partActivated(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partActivated( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partBroughtToTop(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partBroughtToTop( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partClosed(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partClosed( IWorkbenchPartReference partRef ) {
-		if ( IDebugUIConstants.ID_DEBUG_VIEW.equals( partRef.getId() ) ) {
-			removeContext( partRef.getPage() );
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partDeactivated(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partDeactivated( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partOpened(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partOpened( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partHidden(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partHidden( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partVisible(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partVisible( IWorkbenchPartReference partRef ) {
-	}
-
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IPartListener2#partInputChanged(org.eclipse.ui.IWorkbenchPartReference)
-	 */
-	public void partInputChanged( IWorkbenchPartReference partRef ) {
+	
+	private void selectionChanged(ISelection selection ) {
+        if ( selection instanceof IStructuredSelection ) {
+            IStructuredSelection ss = (IStructuredSelection)selection;
+            if ( ss.size() == 1 ) {
+                Object element = ss.getFirstElement();
+                if ( element instanceof IDMVMContext ) {
+                    setContext( (IDMVMContext)element );
+                    return;
+                }
+            }
+        }
+        // no context in the given view
+        removeContext();
 	}
 
 	/**
-	 * Sets the evaluation context for the given page, and notes that
-	 * a valid execution context exists.
-	 * 
-	 * @param page
-	 * @param frame
+	 * Sets the evaluation context.
 	 */
-	private void setContext( IWorkbenchPage page, IDMVMContext target ) {
-		if ( fContextsByPage == null ) {
-			fContextsByPage = new HashMap<IWorkbenchPage,IDMVMContext>();
-		}
-		fContextsByPage.put( page, target );
+	private void setContext( IDMVMContext target ) {
 		System.setProperty( DEBUGGER_ACTIVE, Boolean.TRUE.toString() );
 	}
 
 	/**
-	 * Removes an evaluation context for the given page, and determines if
-	 * any valid execution context remain.
-	 * 
-	 * @param page
+	 * Removes an evaluation context.
 	 */
-	private void removeContext( IWorkbenchPage page ) {
-		if ( fContextsByPage != null ) {
-			fContextsByPage.remove( page );
-			if ( fContextsByPage.isEmpty() ) {
-				System.setProperty( DEBUGGER_ACTIVE, Boolean.FALSE.toString() );
-			}
-		}
+	private void removeContext() {
+	    System.setProperty( DEBUGGER_ACTIVE, Boolean.FALSE.toString() );
 	}
 }

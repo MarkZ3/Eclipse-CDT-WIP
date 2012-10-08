@@ -34,9 +34,11 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
+import org.eclipse.cdt.internal.core.dom.parser.Value;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTExpressionList;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPSemantics;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 import org.eclipse.core.runtime.Assert;
 
 
@@ -49,6 +51,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
     private boolean isNewTypeId;
 	
     private IASTExpression[] cachedArraySizes;
+	private ICPPEvaluation fEvaluation;
     
     public CPPASTNewExpression() {
 	}
@@ -58,11 +61,13 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		setTypeId(typeId);
 		setInitializer(initializer);
 	}
-	
+
+	@Override
 	public CPPASTNewExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTNewExpression copy(CopyStyle style) {
 		CPPASTNewExpression copy = new CPPASTNewExpression();
 		copy.setIsGlobal(isGlobal);
@@ -83,20 +88,24 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		return copy;
 	}
 
+	@Override
 	public boolean isGlobal() {
         return isGlobal;
     }
 
-    public void setIsGlobal(boolean value) {
+    @Override
+	public void setIsGlobal(boolean value) {
         assertNotFrozen();
         isGlobal = value;
     }
 
-    public IASTInitializerClause[] getPlacementArguments() {
+    @Override
+	public IASTInitializerClause[] getPlacementArguments() {
     	return placement;
     }
     
-    public void setPlacementArguments(IASTInitializerClause[] args) {
+    @Override
+	public void setPlacementArguments(IASTInitializerClause[] args) {
         assertNotFrozen();
         placement = args;
         if (args != null) {
@@ -107,11 +116,13 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		}
     }
 
-    public IASTInitializer getInitializer() {
+    @Override
+	public IASTInitializer getInitializer() {
         return initializer;
     }
 
-    public void setInitializer(IASTInitializer expression) {
+    @Override
+	public void setInitializer(IASTInitializer expression) {
         assertNotFrozen();
         initializer = expression;
         if (expression != null) {
@@ -120,11 +131,13 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		}
     }
 
-    public IASTTypeId getTypeId() {
+    @Override
+	public IASTTypeId getTypeId() {
         return typeId;
     }
 
-    public void setTypeId(IASTTypeId typeId) {
+    @Override
+	public void setTypeId(IASTTypeId typeId) {
         assertNotFrozen();
         this.typeId = typeId;
         if (typeId != null) {
@@ -133,11 +146,13 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		}
     }
 
-    public boolean isNewTypeId() {
+    @Override
+	public boolean isNewTypeId() {
         return isNewTypeId;
     }
 
-    public void setIsNewTypeId(boolean value) {
+    @Override
+	public void setIsNewTypeId(boolean value) {
         assertNotFrozen();
         isNewTypeId = value;
     }
@@ -145,7 +160,8 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
     /**
      * @see org.eclipse.cdt.core.dom.ast.IASTImplicitNameOwner#getImplicitNames()
      */
-    public IASTImplicitName[] getImplicitNames() {
+    @Override
+	public IASTImplicitName[] getImplicitNames() {
     	if (implicitNames == null) {
 			ICPPFunction operatorFunction = CPPSemantics.findOverloadedOperator(this);
 			if (operatorFunction == null || operatorFunction instanceof CPPImplicitFunction) {
@@ -166,6 +182,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 	 * Returns true if this expression is allocating an array.
 	 * @since 5.1
 	 */
+	@Override
 	public boolean isArrayAllocation() {
 		IASTTypeId typeId= getTypeId();
 		if (typeId != null) {
@@ -216,6 +233,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
         return true;
     }
 
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (placement != null) {
 			for (int i = 0; i < placement.length; ++i) {
@@ -228,22 +246,34 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		}
 	}
     
-    public IType getExpressionType() {
-		IType t= CPPVisitor.createType(getTypeId());
-		if (t instanceof IArrayType) {
-			t= ((IArrayType) t).getType();
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEvaluation == null) {
+			IType t= CPPVisitor.createType(getTypeId());
+			if (t instanceof IArrayType) {
+				t= ((IArrayType) t).getType();
+			}
+			fEvaluation= new EvalFixed(new CPPPointerType(t), PRVALUE, Value.UNKNOWN);
 		}
-		return new CPPPointerType(t);
+		return fEvaluation;
+	}
+	
+    @Override
+	public IType getExpressionType() {
+    	return getEvaluation().getTypeOrFunctionSet(this);
     }
 
+	@Override
 	public boolean isLValue() {
 		return false;
 	}
 	
+	@Override
 	public ValueCategory getValueCategory() {
 		return PRVALUE;
 	}
 
+	@Override
 	@Deprecated
 	public IASTExpression[] getNewTypeIdArrayExpressions() {
 		if (cachedArraySizes == null) {
@@ -265,7 +295,8 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
 		return cachedArraySizes;
 	}
 
-    @Deprecated
+    @Override
+	@Deprecated
     public void addNewTypeIdArrayExpression(IASTExpression expression) {
         assertNotFrozen();
     	Assert.isNotNull(typeId);
@@ -286,6 +317,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
     	((IASTArrayDeclarator) dtor).addArrayModifier(mod);
     }
 
+	@Override
 	@Deprecated
     public IASTExpression getNewPlacement() {
     	if (placement == null || placement.length == 0)
@@ -307,6 +339,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
         return result;
     }
 	
+	@Override
 	@Deprecated
     public void setNewPlacement(IASTExpression expression) {
         assertNotFrozen();
@@ -319,6 +352,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
         }
     }
     
+	@Override
 	@Deprecated
     public IASTExpression getNewInitializer() {
         if (initializer == null || initializer instanceof IASTExpression) {
@@ -338,6 +372,7 @@ public class CPPASTNewExpression extends ASTNode implements ICPPASTNewExpression
         return null;
     }
 
+	@Override
 	@Deprecated
     public void setNewInitializer(IASTExpression expression) {
         assertNotFrozen();

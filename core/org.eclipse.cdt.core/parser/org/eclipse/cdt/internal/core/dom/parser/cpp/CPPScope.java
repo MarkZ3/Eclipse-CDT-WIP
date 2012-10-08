@@ -11,6 +11,7 @@
  *     Bryan Wilkinson (QNX)
  *     Andrew Ferguson (Symbian)
  *     Jens Elmenthaler - http://bugs.eclipse.org/173458 (camel case completion)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -37,10 +38,8 @@ import org.eclipse.cdt.core.index.IIndexFileSet;
 import org.eclipse.cdt.core.index.IndexFilter;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
 import org.eclipse.cdt.core.parser.util.CharArrayObjectMap;
-import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.core.parser.util.IContentAssistMatcher;
 import org.eclipse.cdt.core.parser.util.ObjectSet;
-import org.eclipse.cdt.internal.core.dom.parser.ASTInternal;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPSemantics;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
@@ -51,22 +50,23 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 
 /**
- * Base class for c++-scopes of the ast.
+ * Base class for c++-scopes of the AST.
  */
 abstract public class CPPScope implements ICPPASTInternalScope {
 	protected static final char[] CONSTRUCTOR_KEY = "!!!CTOR!!!".toCharArray(); //$NON-NLS-1$
 	private static final IProgressMonitor NPM = new NullProgressMonitor();
 	private static final ICPPNamespace UNINITIALIZED = new CPPNamespace.CPPNamespaceProblem(null, 0, null);
-	
-    private IASTNode physicalNode;
+
+    private final IASTNode physicalNode;
 	private boolean isCached = false;
-	protected CharArrayObjectMap bindings = null;
+	protected CharArrayObjectMap<Object> bindings;
 	private ICPPNamespace fIndexNamespace= UNINITIALIZED;
 
 	public static class CPPScopeProblem extends ProblemBinding implements ICPPScope {
         public CPPScopeProblem(IASTNode node, int id, char[] arg) {
             super(node, id, arg);
         }
+
         public CPPScopeProblem(IASTName name, int id) {
             super(name, id);
         }
@@ -76,39 +76,38 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 		this.physicalNode = physicalNode;
 	}
 
+	@Override
 	public IScope getParent() throws DOMException {
 		return CPPVisitor.getContainingNonTemplateScope(physicalNode);
 	}
 
+	@Override
 	public IASTNode getPhysicalNode() {
 		return physicalNode;
 	}
 
+	@Override
 	@SuppressWarnings({ "unchecked" })
 	public void addName(IASTName name) {
-		// don't add inactive names to the scope
+		// Don't add inactive names to the scope.
 		if (!name.isActive())
 			return;
-		
-		if (bindings == null)
-			bindings = new CharArrayObjectMap(1);
-		if (name instanceof ICPPASTQualifiedName) {
-			if (!(physicalNode instanceof ICPPASTCompositeTypeSpecifier) &&
-					!(physicalNode instanceof ICPPASTNamespaceDefinition)) {
-				return;
-			}
 
-			// name belongs to a different scope, don't add it here except it names this scope
-		    if (!canDenoteScopeMember((ICPPASTQualifiedName) name))
-		    	return;
-		} 
+		if (bindings == null)
+			bindings = new CharArrayObjectMap<Object>(1);
+		if (name instanceof ICPPASTQualifiedName &&
+				!(physicalNode instanceof ICPPASTCompositeTypeSpecifier) &&
+				!(physicalNode instanceof ICPPASTNamespaceDefinition)) {
+			return;
+		}
+
 		final char[] c= name.getLookupKey();
 		if (c.length == 0)
 			return;
 		Object o = bindings.get(c);
 		if (o != null) {
 		    if (o instanceof ObjectSet) {
-		    	((ObjectSet<Object>)o).put(name);
+		    	((ObjectSet<Object>) o).put(name);
 		    } else {
 		    	ObjectSet<Object> temp = new ObjectSet<Object>(2);
 		    	temp.put(o);
@@ -120,41 +119,21 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 		}
 	}
 
-	public boolean canDenoteScopeMember(ICPPASTQualifiedName name) {
-		IScope scope= this;
-		IASTName[] na= name.getNames();
-		try {
-			for (int i= na.length - 2; i >= 0; i--) {
-				if (scope == null) 
-					return false;
-				IName scopeName = scope.getScopeName();
-				if (scopeName == null)
-					return false;
-				
-				if (!CharArrayUtils.equals(scopeName.getSimpleID(), na[i].getSimpleID())) 
-					return false;
-				scope= scope.getParent();
-			}
-			if (!name.isFullyQualified() || scope == null) {
-				return true;
-			}
-			return ASTInternal.getPhysicalNodeOfScope(scope) instanceof IASTTranslationUnit;
-		} catch (DOMException e) {
-			return false;
-		}
-	}
-
+	@Override
 	public IBinding getBinding(IASTName name, boolean forceResolve, IIndexFileSet fileSet) {
-		IBinding binding= getBindingInAST(name, forceResolve);
+		final ScopeLookupData lookup = new ScopeLookupData(name, forceResolve, false);
+		lookup.setIgnorePointOfDeclaration(true);
+		IBinding[] bs= getBindingsInAST(lookup);
+		IBinding binding= CPPSemantics.resolveAmbiguities(name, bs);
 		if (binding == null && forceResolve) {
 			final IASTTranslationUnit tu = name.getTranslationUnit();
 			IIndex index = tu == null ? null : tu.getIndex();
 			if (index != null) {
 				final char[] nchars = name.getLookupKey();
-				// Try looking this up in the PDOM
+				// Try looking this up in the index.
 				if (physicalNode instanceof IASTTranslationUnit) {
 					try {
-						IBinding[] bindings= index.findBindings(nchars, 
+						IBinding[] bindings= index.findBindings(nchars,
 								IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE, NPM);
 						if (fileSet != null) {
 							bindings= fileSet.filterFileLocalBindings(bindings);
@@ -162,7 +141,7 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 						binding= CPPSemantics.resolveAmbiguities(name, bindings);
 			        	if (binding instanceof ICPPUsingDeclaration) {
 			        		binding= CPPSemantics.resolveAmbiguities(name,
-			        				((ICPPUsingDeclaration)binding).getDelegates());
+			        				((ICPPUsingDeclaration) binding).getDelegates());
 			        	}
 					} catch (CoreException e) {
 		        		CCorePlugin.log(e);
@@ -188,38 +167,39 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 				if (nsbinding != null) {
 					fIndexNamespace= (ICPPNamespace) index.adaptBinding(nsbinding);
 				}
-			} 	
+			}
 		}
 		return fIndexNamespace;
 	}
 
-	public IBinding getBindingInAST(IASTName name, boolean forceResolve) {
-		IBinding[] bs= getBindingsInAST(name, forceResolve, false, false);
-		return CPPSemantics.resolveAmbiguities(name, bs);
+	/**
+	 * @deprecated Use {@link #getBindings(ScopeLookupData)} instead
+	 */
+	@Deprecated
+	@Override
+	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
 	}
 
-	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
-		return getBindings(name, resolve, prefixLookup, fileSet, true);
-	}
-	
-	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet,
-			boolean checkPointOfDecl) {
-		IBinding[] result = getBindingsInAST(name, resolve, prefixLookup, checkPointOfDecl);
-		final IASTTranslationUnit tu = name.getTranslationUnit();
+	@Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
+		IBinding[] result = getBindingsInAST(lookup);
+		final IASTTranslationUnit tu = lookup.getTranslationUnit();
 		if (tu != null) {
 			IIndex index = tu.getIndex();
 			if (index != null) {
+				IIndexFileSet fileSet= lookup.getIncludedFiles();
 				if (physicalNode instanceof IASTTranslationUnit) {
 					try {
 						IndexFilter filter = IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE;
-						final char[] nchars = name.getLookupKey();
-						IBinding[] bindings = prefixLookup ?
+						final char[] nchars = lookup.getLookupKey();
+						IBinding[] bindings = lookup.isPrefixLookup() ?
 								index.findBindingsForContentAssist(nchars, true, filter, null) :
 								index.findBindings(nchars, filter, null);
 						if (fileSet != null) {
 							bindings= fileSet.filterFileLocalBindings(bindings);
 						}
-						result = (IBinding[]) ArrayUtil.addAll(IBinding.class, result, bindings);
+						result = ArrayUtil.addAll(IBinding.class, result, bindings);
 					} catch (CoreException e) {
 						CCorePlugin.log(e);
 					}
@@ -228,12 +208,9 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 					try {
 						IIndexBinding binding = index.findBinding(ns.getName());
 						if (binding instanceof ICPPNamespace) {
-							ICPPNamespaceScope indexNs = ((ICPPNamespace)binding).getNamespaceScope();
-							IBinding[] bindings = indexNs.getBindings(name, resolve, prefixLookup);
-							if (fileSet != null) {
-								bindings= fileSet.filterFileLocalBindings(bindings);
-							}
-							result = (IBinding[]) ArrayUtil.addAll(IBinding.class, result, bindings);
+							ICPPNamespaceScope indexNs = ((ICPPNamespace) binding).getNamespaceScope();
+							IBinding[] bindings = indexNs.getBindings(lookup);
+							result = ArrayUtil.addAll(IBinding.class, result, bindings);
 						}
 					} catch (CoreException e) {
 						CCorePlugin.log(e);
@@ -242,18 +219,17 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 			}
 		}
 
-		return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+		return ArrayUtil.trim(IBinding.class, result);
 	}
 
 
-	public IBinding[] getBindingsInAST(IASTName name, boolean forceResolve, boolean prefixLookup, 
-			boolean checkPointOfDecl) {
+	public IBinding[] getBindingsInAST(ScopeLookupData lookup) {
 		populateCache();
-	    final char[] c = name.getLookupKey();
+	    final char[] c = lookup.getLookupKey();
 	    IBinding[] result = null;
-	    
+
 	    Object obj = null;
-	    if (prefixLookup) {
+	    if (lookup.isPrefixLookup()) {
 	    	Object[] keys = bindings != null ? bindings.keyArray() : new Object[0];
 	    	ObjectSet<Object> all= new ObjectSet<Object>(16);
 	    	IContentAssistMatcher matcher = ContentAssistMatcherFactory.getInstance().createMatcher(c);
@@ -272,26 +248,26 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 	    } else {
 	    	obj = bindings != null ? bindings.get(c) : null;
 	    }
-	    
+
 	    if (obj != null) {
 	        if (obj instanceof ObjectSet<?>) {
 	        	ObjectSet<?> os= (ObjectSet<?>) obj;
         		for (int j = 0; j < os.size(); j++) {
-        			result= addCandidate(os.keyAt(j), name, forceResolve, checkPointOfDecl, result);
+        			result= addCandidate(os.keyAt(j), lookup, result);
         		}
 	        } else {
-	        	result = addCandidate(obj, name, forceResolve, checkPointOfDecl, result);
+	        	result = addCandidate(obj, lookup, result);
 	        }
 	    }
-	    return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+	    return ArrayUtil.trim(IBinding.class, result);
 	}
 
-	private IBinding[] addCandidate(Object candidate, IASTName name, boolean forceResolve, 
-			boolean checkPointOfDecl, IBinding[] result) {
-		if (checkPointOfDecl) {
-			IASTTranslationUnit tu= name.getTranslationUnit();
-			if (!CPPSemantics.declaredBefore(candidate, name, tu != null && tu.getIndex() != null)) {
-				if (!(this instanceof ICPPClassScope) || ! LookupData.checkWholeClassScope(name))
+	private IBinding[] addCandidate(Object candidate, ScopeLookupData lookup, IBinding[] result) {
+		final IASTNode point = lookup.getLookupPoint();
+		if (!lookup.isIgnorePointOfDeclaration()) {
+			IASTTranslationUnit tu= point.getTranslationUnit();
+			if (!CPPSemantics.declaredBefore(candidate, point, tu != null && tu.getIndex() != null)) {
+				if (!(this instanceof ICPPClassScope) || !LookupData.checkWholeClassScope(lookup.getLookupName()))
 					return result;
 			}
 		}
@@ -303,8 +279,8 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 			if (simpleName instanceof ICPPASTTemplateId) {
 				simpleName= ((ICPPASTTemplateId) simpleName).getTemplateName();
 			}
-			if (forceResolve && candName != name && simpleName != name) {
-				candName.resolvePreBinding(); // make sure to resolve the template-id
+			if (lookup.isResolve() && candName != point && simpleName != point) {
+				candName.resolvePreBinding();  // Make sure to resolve the template-id
 				binding = simpleName.resolvePreBinding();
 			} else {
 				binding = simpleName.getPreBinding();
@@ -313,9 +289,10 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 			binding= (IBinding) candidate;
 		}
 
-		return (IBinding[]) ArrayUtil.append(IBinding.class, result, binding);
+		return ArrayUtil.append(IBinding.class, result, binding);
 	}
-	
+
+	@Override
 	public final void populateCache() {
 		if (!isCached) {
 			CPPSemantics.populateCache(this);
@@ -323,17 +300,55 @@ abstract public class CPPScope implements ICPPASTInternalScope {
 		}
 	}
 
+	@Override
+	public void removeNestedFromCache(IASTNode container) {
+		if (bindings != null) {
+			removeFromMap(bindings, container);
+		}
+	}
+
+	private void removeFromMap(CharArrayObjectMap<Object> map, IASTNode container) {
+		for (int i = 0; i < map.size(); i++) {
+			Object o= map.getAt(i);
+			if (o instanceof IASTName) {
+				if (container.contains((IASTNode) o)) {
+					final char[] key = map.keyAt(i);
+					map.remove(key, 0, key.length);
+					i--;
+				}
+			} else if (o instanceof ObjectSet) {
+				@SuppressWarnings("unchecked")
+				final ObjectSet<Object> set = (ObjectSet<Object>) o;
+				removeFromSet(set, container);
+			}
+		}
+	}
+
+	private void removeFromSet(ObjectSet<Object> set, IASTNode container) {
+		for (int i = 0; i < set.size(); i++) {
+			Object o= set.keyAt(i);
+			if (o instanceof IASTName) {
+				if (container.contains((IASTNode) o)) {
+					set.remove(o);
+					i--;
+				}
+			}
+		}
+	}
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.dom.ast.IScope#find(java.lang.String)
 	 */
+	@Override
 	public IBinding[] find(String name) {
 	    return CPPSemantics.findBindings(this, name, false);
 	}
 
+	@Override
 	@SuppressWarnings({ "unchecked" })
     public void addBinding(IBinding binding) {
         if (bindings == null)
-            bindings = new CharArrayObjectMap(1);
+            bindings = new CharArrayObjectMap<Object>(1);
         char[] c = binding.getNameCharArray();
         if (c.length == 0) {
         	return;
@@ -341,7 +356,7 @@ abstract public class CPPScope implements ICPPASTInternalScope {
         Object o = bindings.get(c);
         if (o != null) {
             if (o instanceof ObjectSet) {
-                ((ObjectSet<Object>)o).put(binding);
+                ((ObjectSet<Object>) o).put(binding);
             } else {
                 ObjectSet<Object> set = new ObjectSet<Object>(2);
                 set.put(o);
@@ -353,14 +368,17 @@ abstract public class CPPScope implements ICPPASTInternalScope {
         }
     }
 
+	@Override
 	public final IBinding getBinding(IASTName name, boolean resolve) {
 		return getBinding(name, resolve, IIndexFileSet.EMPTY);
 	}
 
+	@Override
 	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix) {
-		return getBindings(name, resolve, prefix, IIndexFileSet.EMPTY, true);
+		return getBindings(new ScopeLookupData(name, resolve, prefix));
 	}
 
+	@Override
 	public IName getScopeName() {
 		return null;
 	}

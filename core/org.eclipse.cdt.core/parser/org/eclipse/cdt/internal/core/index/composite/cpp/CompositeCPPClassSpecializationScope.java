@@ -8,11 +8,14 @@
  * Contributors:
  *     Andrew Ferguson (Symbian) - Initial implementation
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.index.composite.cpp;
 
+import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.EScopeKind;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPBase;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassSpecialization;
@@ -39,18 +42,22 @@ public class CompositeCPPClassSpecializationScope extends CompositeScope impleme
 		return (ICPPClassSpecialization) cf.getCompositeBinding(rbinding);
 	}
 
+	@Override
 	public ICPPClassType getOriginalClassType() {
 		return specialization().getSpecializedBinding();
 	}
 
+	@Override
 	public EScopeKind getKind() {
 		return EScopeKind.eClassType;
 	}
 
+	@Override
 	public ICPPClassSpecialization getClassType() {
 		return (ICPPClassSpecialization) cf.getCompositeBinding(rbinding);
 	}
 
+	@Override
 	public IIndexBinding getScopeBinding() {
 		return (IIndexBinding) getClassType();
 	}
@@ -61,54 +68,81 @@ public class CompositeCPPClassSpecializationScope extends CompositeScope impleme
 		}
 	}
 
+	@Override
 	public ICPPMethod[] getImplicitMethods() {
-		createDelegate();
-		return fDelegate.getImplicitMethods();
+		CCorePlugin.log(new Exception("Unsafe method call. Instantiation of dependent expressions may not work.")); //$NON-NLS-1$
+		return getImplicitMethods(null);
 	}
 
+	@Override
+	public ICPPMethod[] getImplicitMethods(IASTNode point) {
+		createDelegate();
+		return fDelegate.getImplicitMethods(point);
+	}
+
+	@Override
 	public IBinding[] find(String name) {
 		createDelegate();
 		return fDelegate.find(name);
 	}
 
+	@Override
 	public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet acceptLocalBindings) {
 		createDelegate();
 		return fDelegate.getBinding(name, resolve, acceptLocalBindings);
 	}
 
+	@Deprecated	@Override 
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup,
 			IIndexFileSet acceptLocalBindings) {
-		createDelegate();
-		return fDelegate.getBindings(name, resolve, prefixLookup, acceptLocalBindings);
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
 	}
 
+	@Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
+		createDelegate();
+		return fDelegate.getBindings(lookup);
+	}
+
+	@Override
 	public ICPPConstructor[] getConstructors() {
-		createDelegate();
-		return fDelegate.getConstructors();
+		CCorePlugin.log(new Exception("Unsafe method call. Instantiation of dependent expressions may not work.")); //$NON-NLS-1$
+		return getConstructors(null);
 	}
 
-	public ICPPMethod[] getDeclaredMethods() {
+	@Override
+	public ICPPConstructor[] getConstructors(IASTNode point) {
 		createDelegate();
-		return fDelegate.getDeclaredMethods();
+		return fDelegate.getConstructors(point);
 	}
 
-	public ICPPBase[] getBases() {
+	@Override
+	public ICPPMethod[] getDeclaredMethods(IASTNode point) {
 		createDelegate();
-		return fDelegate.getBases();
+		return fDelegate.getDeclaredMethods(point);
 	}
 
-	public ICPPField[] getDeclaredFields() {
+	@Override
+	public ICPPBase[] getBases(IASTNode point) {
 		createDelegate();
-		return fDelegate.getDeclaredFields();
+		return fDelegate.getBases(point);
 	}
 
-	public IBinding[] getFriends() {
+	@Override
+	public ICPPField[] getDeclaredFields(IASTNode point) {
 		createDelegate();
-		return fDelegate.getFriends();
+		return fDelegate.getDeclaredFields(point);
 	}
 
-	public ICPPClassType[] getNestedClasses() {
+	@Override
+	public IBinding[] getFriends(IASTNode point) {
 		createDelegate();
-		return fDelegate.getNestedClasses();
+		return fDelegate.getFriends(point);
+	}
+
+	@Override
+	public ICPPClassType[] getNestedClasses(IASTNode point) {
+		createDelegate();
+		return fDelegate.getNestedClasses(point);
 	}
 }

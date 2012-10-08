@@ -17,8 +17,6 @@ package org.eclipse.cdt.core.model.tests;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
-import junit.framework.TestCase;
-
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMManager;
 import org.eclipse.cdt.core.model.CModelException;
@@ -27,6 +25,7 @@ import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.core.testplugin.CProjectHelper;
 import org.eclipse.cdt.core.testplugin.CTestPlugin;
+import org.eclipse.cdt.core.testplugin.util.BaseTestCase;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -36,7 +35,7 @@ import org.eclipse.core.runtime.Path;
  * @author bnicolle
  *
  */
-public abstract class IntegratedCModelTest extends TestCase {
+public abstract class IntegratedCModelTest extends BaseTestCase {
 
 	private ICProject fCProject;
 	private IFile sourceFile;
@@ -68,6 +67,7 @@ public abstract class IntegratedCModelTest extends TestCase {
 	 */
 	abstract public String getSourcefileResource();
 
+	@Override
 	public void setUp() throws Exception {
 		monitor = new NullProgressMonitor();
 		fCProject= CProjectHelper.createCCProject("TestProject1", "bin", IPDOMManager.ID_FAST_INDEXER);
@@ -83,9 +83,10 @@ public abstract class IntegratedCModelTest extends TestCase {
 				e.printStackTrace();
 			}
 		}
-		CCorePlugin.getIndexManager().joinIndexer(2000, new NullProgressMonitor());
+		waitForIndexer(fCProject);
 	}
 
+	@Override
 	protected void tearDown() {
 		CProjectHelper.delete(fCProject);
 	}	

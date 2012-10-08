@@ -12,6 +12,9 @@ package org.eclipse.cdt.tests.dsf.gdb.tests.tests_6_6;
 
 import org.eclipse.cdt.dsf.mi.service.command.commands.Suite_Sessionless_Tests;
 import org.eclipse.cdt.tests.dsf.gdb.framework.BaseRemoteSuite;
+import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
+import org.eclipse.cdt.tests.dsf.gdb.tests.ITestConstants;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -31,15 +34,22 @@ import org.junit.runners.Suite;
 	MIRunControlTest_6_6.class,
 	MIRunControlTargetAvailableTest_6_6.class,
 	MIExpressionsTest_6_6.class,
+	GDBPatternMatchingExpressionsTest_6_6.class,
 	MIMemoryTest_6_6.class,
 	MIBreakpointsTest_6_6.class,
 	MICatchpointsTest_6_6.class,
 	MIDisassemblyTest_6_6.class,
 	GDBProcessesTest_6_6.class,
 	OperationsWhileTargetIsRunningTest_6_6.class,
-	Suite_Sessionless_Tests.class
+	CommandTimeoutTest_6_6.class,
+	Suite_Sessionless_Tests.class,
 	/* Add your test class here */
 })
 
 public class Suite_Remote_6_6 extends BaseRemoteSuite {
+	@BeforeClass
+	public static void beforeClassMethod() {
+		BaseTestCase.setGdbProgramNamesLaunchAttributes(ITestConstants.SUFFIX_GDB_6_6);
+		BaseTestCase.ignoreIfGDBMissing();
+	}
 }

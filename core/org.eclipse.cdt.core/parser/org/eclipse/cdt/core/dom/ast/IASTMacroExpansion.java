@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     IBM - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -16,10 +16,8 @@ package org.eclipse.cdt.core.dom.ast;
  */
 @Deprecated
 public interface IASTMacroExpansion extends IASTNodeLocation {
-
 	/**
 	 * The macro definition used for the expansion
-	 * 
 	 */
 	public IASTPreprocessorMacroDefinition getMacroDefinition();
 
@@ -34,6 +32,7 @@ public interface IASTMacroExpansion extends IASTNodeLocation {
 	 * nodes within the same macro-expansion. However, it does not serve as an offset
 	 * into a file.
 	 */
+	@Override
 	public int getNodeOffset();
 
 	/**
@@ -41,6 +40,7 @@ public interface IASTMacroExpansion extends IASTNodeLocation {
 	 * with others from within the same macro-expansion. However, the length does not neccessarily
 	 * relate to a length in terms of characters.
 	 */
+	@Override
 	public int getNodeLength();
 
 	/**

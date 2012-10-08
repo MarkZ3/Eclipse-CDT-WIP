@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -24,16 +24,15 @@ import org.eclipse.cdt.internal.core.dom.parser.IASTInternalEnumerationSpecifier
  */
 public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		implements IASTInternalEnumerationSpecifier, ICPPASTEnumerationSpecifier {
-
 	private boolean fIsScoped;
 	private boolean fIsOpaque;
 	private IASTName fName;
 	private ICPPASTDeclSpecifier fBaseType;
 
-	private IASTEnumerator[] fItems = null;
-	private int fItemPos=-1;
+	private IASTEnumerator[] fItems;
+	private int fItemPos= -1;
 
-	private boolean fValuesComputed= false;
+	private boolean fValuesComputed;
 	private CPPEnumScope fScope;
 
 	public CPPASTEnumerationSpecifier() {
@@ -45,23 +44,24 @@ public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		setBaseType(baseType);
 	}
 	
+	@Override
 	public CPPASTEnumerationSpecifier copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTEnumerationSpecifier copy(CopyStyle style) {
-		CPPASTEnumerationSpecifier copy = new CPPASTEnumerationSpecifier(fIsScoped, fName == null
-				? null : fName.copy(style), fBaseType == null ? null : fBaseType.copy(style));
+		CPPASTEnumerationSpecifier copy =
+				new CPPASTEnumerationSpecifier(fIsScoped, fName == null ? null : fName.copy(style),
+						fBaseType == null ? null : fBaseType.copy(style));
 		copy.fIsOpaque = fIsOpaque;
-		for (IASTEnumerator enumerator : getEnumerators())
+		for (IASTEnumerator enumerator : getEnumerators()) {
 			copy.addEnumerator(enumerator == null ? null : enumerator.copy(style));
-		copyBaseDeclSpec(copy);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
 		}
-		return copy;
+		return super.copy(copy, style);
 	}
 	
+	@Override
 	public boolean startValueComputation() {
 		if (fValuesComputed)
 			return false;
@@ -70,23 +70,26 @@ public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		return true;
 	}
 
+	@Override
 	public void addEnumerator(IASTEnumerator enumerator) {
         assertNotFrozen();
 		if (enumerator != null) {
 			enumerator.setParent(this);
 			enumerator.setPropertyInParent(ENUMERATOR);
-			fItems = (IASTEnumerator[]) ArrayUtil.append( IASTEnumerator.class, fItems, ++fItemPos, enumerator );
+			fItems = ArrayUtil.appendAt( IASTEnumerator.class, fItems, ++fItemPos, enumerator );
 		}
 	}
 
+	@Override
 	public IASTEnumerator[] getEnumerators() {
 		if (fItems == null)
 			return IASTEnumerator.EMPTY_ENUMERATOR_ARRAY;
 		
-		fItems = (IASTEnumerator[]) ArrayUtil.removeNullsAfter(IASTEnumerator.class, fItems, fItemPos);
+		fItems = ArrayUtil.trimAt(IASTEnumerator.class, fItems, fItemPos);
 		return fItems;
 	}
 
+	@Override
 	public void setName(IASTName name) {
         assertNotFrozen();
 		fName = name;
@@ -96,6 +99,7 @@ public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		}
 	}
 
+	@Override
 	public IASTName getName() {
 		return fName;
 	}
@@ -130,21 +134,25 @@ public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		return true;
 	}
 
+	@Override
 	public int getRoleForName(IASTName n) {
 		if (fName == n)
 			return isOpaque() ? r_declaration : r_definition;
 		return r_unclear;
 	}
 
+	@Override
 	public void setIsScoped(boolean isScoped) {
 		assertNotFrozen();
 		fIsScoped= isScoped;
 	}
 
+	@Override
 	public boolean isScoped() {
 		return fIsScoped;
 	}
 
+	@Override
 	public void setBaseType(ICPPASTDeclSpecifier baseType) {
 		assertNotFrozen();
 		fBaseType= baseType;
@@ -154,19 +162,23 @@ public class CPPASTEnumerationSpecifier extends CPPASTBaseDeclSpecifier
 		}
 	}
 
+	@Override
 	public ICPPASTDeclSpecifier getBaseType() {
 		return fBaseType;
 	}
 
+	@Override
 	public void setIsOpaque(boolean isOpaque) {
 		assertNotFrozen();
 		fIsOpaque= isOpaque;
 	}
 
+	@Override
 	public boolean isOpaque() {
 		return fIsOpaque;
 	}
 
+	@Override
 	public ICPPScope getScope() {
 		if (isOpaque())
 			return null;

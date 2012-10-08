@@ -12,37 +12,55 @@
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.PRVALUE;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.prvalueType;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTExpressionStatement;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
-import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
 import org.eclipse.cdt.core.dom.ast.gnu.IGNUASTCompoundStatementExpression;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
-import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalCompound;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 
 /**
  * Gnu-extension: ({ ... })
  */
-public class CPPASTCompoundStatementExpression extends ASTNode implements IGNUASTCompoundStatementExpression {
+public class CPPASTCompoundStatementExpression extends ASTNode implements IGNUASTCompoundStatementExpression, ICPPASTExpression {
 	
     private IASTCompoundStatement statement;
-
+    private ICPPEvaluation fEval;
     
     public CPPASTCompoundStatementExpression() {
+	}
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEval == null) {
+			IASTCompoundStatement compound = getCompoundStatement();
+			IASTStatement[] statements = compound.getStatements();
+			if (statements.length > 0) {
+				IASTStatement st = statements[statements.length - 1];
+				if (st instanceof IASTExpressionStatement) {
+					fEval= new EvalCompound(((ICPPASTExpression) ((IASTExpressionStatement) st).getExpression()).getEvaluation());
+				}
+			}
+			if (fEval == null)
+				fEval= EvalFixed.INCOMPLETE;
+		}
+		return fEval;
 	}
 
 	public CPPASTCompoundStatementExpression(IASTCompoundStatement statement) {
 		setCompoundStatement(statement);
 	}
 
+	@Override
 	public CPPASTCompoundStatementExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTCompoundStatementExpression copy(CopyStyle style) {
 		CPPASTCompoundStatementExpression copy = new CPPASTCompoundStatementExpression();
 		copy.setCompoundStatement(statement == null ? null : statement.copy(style));
@@ -53,11 +71,13 @@ public class CPPASTCompoundStatementExpression extends ASTNode implements IGNUAS
 		return copy;
 	}
 
+	@Override
 	public IASTCompoundStatement getCompoundStatement() {
         return statement;
     }
 
-    public void setCompoundStatement(IASTCompoundStatement statement) {
+    @Override
+	public void setCompoundStatement(IASTCompoundStatement statement) {
         assertNotFrozen();
         this.statement = statement;
         if (statement != null) {
@@ -88,21 +108,17 @@ public class CPPASTCompoundStatementExpression extends ASTNode implements IGNUAS
         return true;
     }
     
-    public IType getExpressionType() {
-		IASTCompoundStatement compound = getCompoundStatement();
-		IASTStatement[] statements = compound.getStatements();
-		if (statements.length > 0) {
-			IASTStatement st = statements[statements.length - 1];
-			if (st instanceof IASTExpressionStatement)
-				return prvalueType(((IASTExpressionStatement) st).getExpression().getExpressionType());
-		}
-		return new ProblemType(ISemanticProblem.TYPE_UNKNOWN_FOR_EXPRESSION);
+    @Override
+	public IType getExpressionType() {
+    	return getEvaluation().getTypeOrFunctionSet(this);
 	}
     
+	@Override
 	public boolean isLValue() {
 		return false;
 	}
 
+	@Override
 	public ValueCategory getValueCategory() {
 		return PRVALUE;
 	}

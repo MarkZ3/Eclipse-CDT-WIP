@@ -16,9 +16,9 @@ import org.eclipse.cdt.core.settings.model.ICSettingEntry;
 /**
  * A storage where stored data is organized by "kind".
  * In most cases kind is one of {@link ICLanguageSettingEntry}, i.e. include path, macro etc.
- * 
+ *
  * @param <T> - stored type
- * 
+ *
  * @see ICSettingEntry#INCLUDE_PATH
  * @see ICSettingEntry#INCLUDE_FILE
  * @see ICSettingEntry#MACRO
@@ -41,8 +41,8 @@ public class KindBasedStore<T> implements Cloneable {
 	private static final int INDEX_SOURCE_PATH = 6;
 	private static final int INDEX_OUPUT_PATH = 7;
 	private static final int ALL_STORAGE_SIZE = 8;
-	
-	public static final int ORED_LANG_ENTRY_KINDS = 
+
+	public static final int ORED_LANG_ENTRY_KINDS =
 		ICLanguageSettingEntry.INCLUDE_PATH
 		| ICLanguageSettingEntry.INCLUDE_FILE
 		| ICLanguageSettingEntry.MACRO
@@ -50,7 +50,7 @@ public class KindBasedStore<T> implements Cloneable {
 		| ICLanguageSettingEntry.LIBRARY_PATH
 		| ICLanguageSettingEntry.LIBRARY_FILE;
 
-	public static final int ORED_ALL_ENTRY_KINDS = 
+	public static final int ORED_ALL_ENTRY_KINDS =
 		ICLanguageSettingEntry.INCLUDE_PATH
 		| ICLanguageSettingEntry.INCLUDE_FILE
 		| ICLanguageSettingEntry.MACRO
@@ -59,7 +59,7 @@ public class KindBasedStore<T> implements Cloneable {
 		| ICLanguageSettingEntry.LIBRARY_FILE
 		| ICLanguageSettingEntry.SOURCE_PATH
 		| ICLanguageSettingEntry.OUTPUT_PATH;
-	
+
 	private static final int LANG_ENTRY_KINDS[] = new int[]{
 		ICLanguageSettingEntry.INCLUDE_PATH,
 		ICLanguageSettingEntry.INCLUDE_FILE,
@@ -81,7 +81,7 @@ public class KindBasedStore<T> implements Cloneable {
 	};
 
 //	private static final int INEXISTENT_INDEX = -1;
-	
+
 	private Object[] fEntryStorage;
 
 	public KindBasedStore(){
@@ -97,17 +97,17 @@ public class KindBasedStore<T> implements Cloneable {
 
 	private int kindToIndex(int kind){
 		switch (kind){
-		case ICLanguageSettingEntry.INCLUDE_PATH:
+		case ICSettingEntry.INCLUDE_PATH:
 			return INDEX_INCLUDE_PATH;
-		case ICLanguageSettingEntry.INCLUDE_FILE:
+		case ICSettingEntry.INCLUDE_FILE:
 			return INDEX_INCLUDE_FILE;
-		case ICLanguageSettingEntry.MACRO:
+		case ICSettingEntry.MACRO:
 			return INDEX_MACRO;
-		case ICLanguageSettingEntry.MACRO_FILE:
+		case ICSettingEntry.MACRO_FILE:
 			return INDEX_MACRO_FILE;
-		case ICLanguageSettingEntry.LIBRARY_PATH:
+		case ICSettingEntry.LIBRARY_PATH:
 			return INDEX_LIBRARY_PATH;
-		case ICLanguageSettingEntry.LIBRARY_FILE:
+		case ICSettingEntry.LIBRARY_FILE:
 			return INDEX_LIBRARY_FILE;
 		case ICSettingEntry.SOURCE_PATH:
 			if(INDEX_SOURCE_PATH < fEntryStorage.length)
@@ -132,17 +132,17 @@ public class KindBasedStore<T> implements Cloneable {
 	private int indexToKind(int index){
 		switch (index){
 		case INDEX_INCLUDE_PATH:
-			return ICLanguageSettingEntry.INCLUDE_PATH;
+			return ICSettingEntry.INCLUDE_PATH;
 		case INDEX_INCLUDE_FILE:
-			return ICLanguageSettingEntry.INCLUDE_FILE;
+			return ICSettingEntry.INCLUDE_FILE;
 		case INDEX_MACRO:
-			return ICLanguageSettingEntry.MACRO;
+			return ICSettingEntry.MACRO;
 		case INDEX_MACRO_FILE:
-			return ICLanguageSettingEntry.MACRO_FILE;
+			return ICSettingEntry.MACRO_FILE;
 		case INDEX_LIBRARY_PATH:
-			return ICLanguageSettingEntry.LIBRARY_PATH;
+			return ICSettingEntry.LIBRARY_PATH;
 		case INDEX_LIBRARY_FILE:
-			return ICLanguageSettingEntry.LIBRARY_FILE;
+			return ICSettingEntry.LIBRARY_FILE;
 		case INDEX_SOURCE_PATH:
 			return ICSettingEntry.SOURCE_PATH;
 		case INDEX_OUPUT_PATH:
@@ -162,11 +162,11 @@ public class KindBasedStore<T> implements Cloneable {
 		fEntryStorage[index] = object;
 		return old;
 	}
-	
+
 	private class KindBasedInfo implements IKindBasedInfo<T> {
 		int fIdex;
 		int fKind;
-		
+
 		KindBasedInfo(int num, boolean isKind){
 			if(isKind){
 				fIdex = kindToIndex(num);
@@ -176,26 +176,29 @@ public class KindBasedStore<T> implements Cloneable {
 				fKind = indexToKind(num);
 			}
 		}
-	
+
+		@Override
 		public T getInfo() {
 			@SuppressWarnings("unchecked")
 			T info = (T)fEntryStorage[fIdex];
 			return info;
 		}
 
+		@Override
 		public int getKind() {
 			return fKind;
 		}
 
+		@Override
 		public T setInfo(T newInfo) {
 			@SuppressWarnings("unchecked")
 			T old = (T)fEntryStorage[fIdex];
 			fEntryStorage[fIdex] = newInfo;
 			return old;
 		}
-		
+
 	}
-	
+
 	public IKindBasedInfo<T>[] getContents(){
 		@SuppressWarnings("unchecked")
 		IKindBasedInfo<T> infos[] = new IKindBasedInfo[fEntryStorage.length];
@@ -204,11 +207,11 @@ public class KindBasedStore<T> implements Cloneable {
 		}
 		return infos;
 	}
-	
+
 	public IKindBasedInfo<T> getInfo(int kind){
 		return new KindBasedInfo(kind, true);
 	}
-	
+
 	public void clear(){
 		for(int i = 0; i < fEntryStorage.length; i++){
 			fEntryStorage[i] = null;
@@ -226,6 +229,6 @@ public class KindBasedStore<T> implements Cloneable {
 		}
 		return null;
 	}
-	
-	
+
+
 }

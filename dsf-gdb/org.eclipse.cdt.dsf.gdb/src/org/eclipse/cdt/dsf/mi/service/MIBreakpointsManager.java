@@ -41,7 +41,7 @@ import org.eclipse.cdt.debug.internal.core.breakpoints.BreakpointProblems;
 import org.eclipse.cdt.dsf.concurrent.CountingRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.ThreadSafe;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
@@ -54,6 +54,7 @@ import org.eclipse.cdt.dsf.debug.service.IDsfBreakpointExtension;
 import org.eclipse.cdt.dsf.debug.service.IRunControl;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.IContainerDMContext;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.IExecutionDMContext;
+import org.eclipse.cdt.dsf.debug.service.IRunControl.ISuspendedDMEvent;
 import org.eclipse.cdt.dsf.debug.service.ISourceLookup;
 import org.eclipse.cdt.dsf.debug.service.ISourceLookup.ISourceLookupDMContext;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandControl;
@@ -65,6 +66,7 @@ import org.eclipse.cdt.dsf.mi.service.MIBreakpoints.BreakpointUpdatedEvent;
 import org.eclipse.cdt.dsf.mi.service.MIBreakpoints.MIBreakpointDMContext;
 import org.eclipse.cdt.dsf.mi.service.MIRunControl.SuspendedEvent;
 import org.eclipse.cdt.dsf.mi.service.breakpoint.actions.BreakpointActionAdapter;
+import org.eclipse.cdt.dsf.mi.service.command.events.IMIDMEvent;
 import org.eclipse.cdt.dsf.mi.service.command.events.MIBreakpointHitEvent;
 import org.eclipse.cdt.dsf.mi.service.command.events.MIWatchpointScopeEvent;
 import org.eclipse.cdt.dsf.mi.service.command.events.MIWatchpointTriggerEvent;
@@ -229,7 +231,7 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
     @Override
     public void initialize(final RequestMonitor rm) {
         super.initialize(
-            new RequestMonitor(ImmediateExecutor.getInstance(), rm) {
+            new ImmediateRequestMonitor(rm) {
                 @Override
                 protected void handleSuccess() {
                     doInitialize(rm);
@@ -365,7 +367,8 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
             protected IStatus run(IProgressMonitor monitor) {
                 // Submit the runnable to plant the breakpoints on dispatch thread.
                 getExecutor().submit(new Runnable() {
-                    public void run() {
+                	@Override
+                	public void run() {
                         installInitialBreakpoints(dmc, rm);
                     }
                 });
@@ -399,7 +402,6 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
             IBreakpoint[] breakpoints = DebugPlugin.getDefault().getBreakpointManager().getBreakpoints(fDebugModelId);
             for (IBreakpoint breakpoint : breakpoints) {
                 if (supportsBreakpoint(breakpoint)) {
-                    @SuppressWarnings("unchecked")
                     Map<String, Object> attributes = breakpoint.getMarker().getAttributes();
                     attributes.put(ATTR_DEBUGGER_PATH, NULL_STRING);
                     attributes.put(ATTR_THREAD_FILTER, extractThreads(dmc, (ICBreakpoint) breakpoint));
@@ -429,8 +431,8 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
                 	// Even if the breakpoint is disabled when we start, the target filter 
                 	// can be accessed by the user through the breakpoint properties UI, so
                 	// we must set it right now.
-                	// This is the reason we don't do this in 'installBreakpoint', which is not
-                	// called right away if the breakpoint is disabled.
+                	// This is the reason we don't do this in 'installBreakpoint', which used to not
+                	// be called right away if the breakpoint was disabled (this is no longer the case).
                 	try {
                 		IContainerDMContext containerDmc = DMContexts.getAncestorOfType(dmc, IContainerDMContext.class);
                 		IDsfBreakpointExtension filterExt = getFilterExtension(breakpoint);
@@ -442,14 +444,9 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
 					} catch (CoreException e) {
 					}
                 	
-                	// Install only if the breakpoint is enabled at startup (Bug261082)
-                    // Note that Tracepoints are not affected by "skip-all"
-                	boolean bpEnabled = attributes.get(ICBreakpoint.ENABLED).equals(true) &&
-					                    (breakpoint instanceof ICTracepoint || fBreakpointManager.isEnabled());
-                	if (bpEnabled)
-                		installBreakpoint(dmc, breakpoint, attributes, countingRm);
-                	else
-                		countingRm.done();
+                	// Must install breakpoints right away, even if disabled, so that
+                	// we can find out if they apply to this target (Bug 389070)
+               		installBreakpoint(dmc, breakpoint, attributes, countingRm);
                 }
             });
         }
@@ -644,6 +641,8 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
             // Convert the breakpoint attributes for the back-end
             attributes.put(ATTR_THREAD_ID, thread);
             Map<String,Object> targetAttributes = convertToTargetBreakpoint(breakpoint, attributes);
+        	// Must install breakpoint right away, even if disabled, so that
+        	// we can find out if it applies to this target (Bug 389070)
             fBreakpoints.insertBreakpoint(dmc, targetAttributes, drm);
         }
     }
@@ -853,15 +852,11 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
             return;
         }
 
-        // Check if the breakpoint is installed: it might not have been if it wasn't enabled at startup (Bug261082)
-        // Or the installation might have failed; in this case, we still try to install it again because
+        // Check if the breakpoint is installed:
+        // the installation might have failed; in this case, we try to install it again because
         // some attribute might have changed which will make the install succeed.
         if (!breakpointIDs.containsKey(breakpoint) && !targetBPs.containsValue(breakpoint)) {
-        	// Install only if the breakpoint is enabled
-            // Note that Tracepoints are not affected by "skip-all"
-        	boolean bpEnabled = attributes.get(ICBreakpoint.ENABLED).equals(true) && 
-        						(breakpoint instanceof ICTracepoint || fBreakpointManager.isEnabled());
-        	if (!filtered && bpEnabled) {
+        	if (!filtered) {
                 attributes.put(ATTR_DEBUGGER_PATH, NULL_STRING);
                 attributes.put(ATTR_THREAD_FILTER, extractThreads(dmc, breakpoint));
                 attributes.put(ATTR_THREAD_ID, NULL_STRING);
@@ -1108,6 +1103,7 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
     /* (non-Javadoc)
      * @see org.eclipse.debug.core.IBreakpointManagerListener#breakpointManagerEnablementChanged(boolean)
      */
+	@Override
     public void breakpointManagerEnablementChanged(boolean enabled) {
 
         // Only modify enabled breakpoints
@@ -1136,15 +1132,16 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
      * @see org.eclipse.debug.core.IBreakpointListener#breakpointAdded(org.eclipse.debug.core.model.IBreakpoint)
      */
     @ThreadSafe
+	@Override
     public void breakpointAdded(final IBreakpoint breakpoint) {
 
         if (supportsBreakpoint(breakpoint)) {
             try {
                 // Retrieve the breakpoint attributes
-                @SuppressWarnings("unchecked")
                 final Map<String, Object> attrs = breakpoint.getMarker().getAttributes();
 
                 getExecutor().execute(new DsfRunnable() {
+                	@Override
                     public void run() {
                         final CountingRequestMonitor countingRm = new CountingRequestMonitor(getExecutor(), null) {
                             @Override
@@ -1199,13 +1196,13 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
     /* (non-Javadoc)
      * @see org.eclipse.debug.core.IBreakpointListener#breakpointChanged(org.eclipse.debug.core.model.IBreakpoint, org.eclipse.core.resources.IMarkerDelta)
      */
+	@Override
     public void breakpointChanged(final IBreakpoint breakpoint, final IMarkerDelta delta) {
 
         if (supportsBreakpoint(breakpoint)) {
 
             try {
                 // Retrieve the breakpoint attributes
-                @SuppressWarnings("unchecked")
                 final Map<String, Object> attrs = breakpoint.getMarker().getAttributes();
                 // Tracepoints are not affected by "skip-all"
                 if (!(breakpoint instanceof ICTracepoint) && !fBreakpointManager.isEnabled()) {
@@ -1214,6 +1211,7 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
 
                 // Modify the breakpoint in all the target contexts
                 getExecutor().execute( new DsfRunnable() {
+                	@Override
                     public void run() {
 
                         // If the breakpoint is currently being updated, queue the request and exit
@@ -1269,11 +1267,13 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
     /* (non-Javadoc)
      * @see org.eclipse.debug.core.IBreakpointListener#breakpointRemoved(org.eclipse.debug.core.model.IBreakpoint, org.eclipse.core.resources.IMarkerDelta)
      */
+	@Override
     public void breakpointRemoved(final IBreakpoint breakpoint, IMarkerDelta delta) {
 
         if (supportsBreakpoint(breakpoint)) {
             try {
                 getExecutor().execute(new DsfRunnable() {
+                	@Override
                     public void run() {
                         CountingRequestMonitor countingRm = new CountingRequestMonitor(getExecutor(), null) {
                             @Override
@@ -1335,21 +1335,34 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
     // Breakpoint actions
     //-------------------------------------------------------------------------
 
+	/** @since 4.2 */
 	@DsfServiceEventHandler 
+    public void eventDispatched(ISuspendedDMEvent e) {
+		assert e instanceof IMIDMEvent;
+		if (e instanceof IMIDMEvent) {
+			Object miEvent = ((IMIDMEvent)e).getMIEvent();
+
+			if (miEvent instanceof MIBreakpointHitEvent) {
+				// This covers catchpoints, too
+				MIBreakpointHitEvent evt = (MIBreakpointHitEvent)miEvent;
+				performBreakpointAction(evt.getDMContext(), evt.getNumber());
+				return;
+			}
+
+			if (miEvent instanceof MIWatchpointTriggerEvent) {
+				MIWatchpointTriggerEvent evt = (MIWatchpointTriggerEvent)miEvent;
+				performBreakpointAction(evt.getDMContext(), evt.getNumber());
+				return;
+			}
+		}
+	}
+	
+	/**
+	 * @deprecated Replaced by the generic {@link #eventDispatched(ISuspendedDMEvent)}
+	 */
+	@Deprecated
+	@DsfServiceEventHandler
     public void eventDispatched(SuspendedEvent e) {
-
-		if (e.getMIEvent() instanceof MIBreakpointHitEvent) {
-			// This covers catchpoints, too 
-			MIBreakpointHitEvent evt = (MIBreakpointHitEvent) e.getMIEvent();
-	        performBreakpointAction(evt.getDMContext(), evt.getNumber());
-	        return;
-		}
-
-		if (e.getMIEvent() instanceof MIWatchpointTriggerEvent) {
-			MIWatchpointTriggerEvent evt = (MIWatchpointTriggerEvent) e.getMIEvent();
-	        performBreakpointAction(evt.getDMContext(), evt.getNumber());
-	        return;
-		}
 	}
 
     private void performBreakpointAction(final IDMContext context, int number) {
@@ -1447,26 +1460,56 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
      */
     private void clearBreakpointStatus(final ICBreakpoint[] bps, final IBreakpointsTargetDMContext ctx)
     {
+        IWorkspaceRunnable wr = new IWorkspaceRunnable() {
+        	@Override
+            public void run(IProgressMonitor monitor) throws CoreException {
+            	// For every platform breakpoint that has at least one target breakpoint installed
+            	// we must decrement the install count, for every target breakpoint.
+            	// Note that we cannot simply call resetInstallCount() because another
+            	// launch may be using the same platform breakpoint.
+            	Map<ICBreakpoint, Vector<IBreakpointDMContext>> breakpoints = fBreakpointIDs.get(ctx);
+            	for (ICBreakpoint breakpoint : breakpoints.keySet()) {
+            		Vector<IBreakpointDMContext> targetBps = breakpoints.get(breakpoint);
+            		for (IBreakpointDMContext targetBp : targetBps) {
+                        decrementInstallCount(targetBp, breakpoint, new RequestMonitor(getExecutor(), null));
+            		}
+                }
+            }
+        };
+
+        // Create the scheduling rule to clear all bp planted.
+        ISchedulingRule rule = null;
+        List<ISchedulingRule> markerRules = new ArrayList<ISchedulingRule>();
+        for (ICBreakpoint bp : bps) {
+            IMarker marker = bp.getMarker();
+            if (marker != null) {
+                ISchedulingRule markerRule =
+                    ResourcesPlugin.getWorkspace().getRuleFactory().markerRule(
+                            marker.getResource());
+                if (markerRule == null) {
+                    markerRules = null;
+                    break;
+                } else {
+                    markerRules.add(markerRule);
+                }
+            }
+        }
+        if (markerRules != null) {
+            rule = MultiRule.combine(markerRules.toArray(new ISchedulingRule[markerRules.size()]));
+        }
+
+        try {
+        	// Will run the workspace runnable on the current thread, which
+        	// is the DSF executor.
+            ResourcesPlugin.getWorkspace().run(wr, rule, 0, null);
+        } catch (CoreException e) {
+        	GdbPlugin.getDefault().getLog().log(e.getStatus());
+        }
+
         new Job("Clear Breakpoints Status") { //$NON-NLS-1$
             @Override
             protected IStatus run(IProgressMonitor monitor) {
-                IWorkspaceRunnable wr = new IWorkspaceRunnable() {
-                    public void run(IProgressMonitor monitor) throws CoreException {
-                    	// For every platform breakpoint that has at least one target breakpoint installed
-                    	// we must decrement the install count, for every target breakpoint.
-                    	// Note that we cannot simply call resetInstallCount() because another
-                    	// launch may be using the same platform breakpoint.
-                    	Map<ICBreakpoint, Vector<IBreakpointDMContext>> breakpoints = fBreakpointIDs.get(ctx);
-                    	for (ICBreakpoint breakpoint : breakpoints.keySet()) {
-                    		Vector<IBreakpointDMContext> targetBps = breakpoints.get(breakpoint);
-                    		for (IBreakpointDMContext targetBp : targetBps) {
-                                decrementInstallCount(targetBp, breakpoint, new RequestMonitor(getExecutor(), null));
-                    		}
-                        }
-                    }
-                };
-
-                // First clear any problem markers
+                // Clear any problem markers
                 for (IMarker marker : fBreakpointMarkerProblems.values()) {
                 	if (marker != null) {
                 		try {
@@ -1477,32 +1520,6 @@ public class MIBreakpointsManager extends AbstractDsfService implements IBreakpo
                 }
                 fBreakpointMarkerProblems.clear();
                 
-                // Create the scheduling rule to clear all bp planted.
-                ISchedulingRule rule = null;
-                List<ISchedulingRule> markerRules = new ArrayList<ISchedulingRule>();
-                for (ICBreakpoint bp : bps) {
-                    IMarker marker = bp.getMarker();
-                    if (marker != null) {
-                        ISchedulingRule markerRule =
-                            ResourcesPlugin.getWorkspace().getRuleFactory().markerRule(
-                                    marker.getResource());
-                        if (markerRule == null) {
-                            markerRules = null;
-                            break;
-                        } else {
-                            markerRules.add(markerRule);
-                        }
-                    }
-                }
-                if (markerRules != null) {
-                    rule = MultiRule.combine(markerRules.toArray(new ISchedulingRule[markerRules.size()]));
-                }
-
-                try {
-                    ResourcesPlugin.getWorkspace().run(wr, rule, 0, null);
-                } catch (CoreException e) {
-                    return e.getStatus();
-                }
                 return Status.OK_STATUS;
             }
         }.schedule();

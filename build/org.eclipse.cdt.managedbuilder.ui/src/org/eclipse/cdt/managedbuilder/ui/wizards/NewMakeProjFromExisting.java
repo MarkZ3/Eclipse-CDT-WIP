@@ -15,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import org.eclipse.cdt.core.CCProjectNature;
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.model.CoreModel;
+import org.eclipse.cdt.core.settings.model.ICConfigurationDescription;
 import org.eclipse.cdt.core.settings.model.ICProjectDescription;
 import org.eclipse.cdt.core.settings.model.ICProjectDescriptionManager;
 import org.eclipse.cdt.core.settings.model.extension.CConfigurationData;
@@ -25,6 +26,7 @@ import org.eclipse.cdt.managedbuilder.internal.core.Configuration;
 import org.eclipse.cdt.managedbuilder.internal.core.ManagedBuildInfo;
 import org.eclipse.cdt.managedbuilder.internal.core.ManagedProject;
 import org.eclipse.cdt.managedbuilder.internal.core.ToolChain;
+import org.eclipse.cdt.managedbuilder.internal.dataprovider.ConfigurationDataProvider;
 import org.eclipse.cdt.managedbuilder.internal.ui.Messages;
 import org.eclipse.cdt.managedbuilder.ui.properties.ManagedBuilderUIPlugin;
 import org.eclipse.core.resources.IProject;
@@ -51,9 +53,10 @@ import org.eclipse.ui.actions.WorkspaceModifyOperation;
 public class NewMakeProjFromExisting extends Wizard implements IImportWizard, INewWizard {
 
 	NewMakeProjFromExistingPage page;
-	
+
+	@Override
 	public void init(IWorkbench workbench, IStructuredSelection selection) {
-		setWindowTitle(Messages.NewMakeProjFromExisting_0);
+		setWindowTitle(Messages.NewMakeProjFromExisting_wizard_title);
 	}
 
 	@Override
@@ -68,33 +71,33 @@ public class NewMakeProjFromExisting extends Wizard implements IImportWizard, IN
 		final String locationStr = page.getLocation();
 		final boolean isCPP = page.isCPP();
 		final IToolChain toolChain = page.getToolChain();
-		
+
 		IRunnableWithProgress op = new WorkspaceModifyOperation() {
 			@Override
 			protected void execute(IProgressMonitor monitor) throws CoreException, InvocationTargetException,
 					InterruptedException {
 				monitor.beginTask(Messages.NewMakeProjFromExisting_1, 10);
-				
+
 				// Create Project
 				try {
 					IWorkspace workspace = ResourcesPlugin.getWorkspace();
 					IProject project = workspace.getRoot().getProject(projectName);
-					
+
 					// TODO handle the case where a .project file was already there
-					
+
 					IProjectDescription description = workspace.newProjectDescription(projectName);
 					IPath defaultLocation = workspace.getRoot().getLocation().append(projectName);
 					Path location = new Path(locationStr);
 					if (!location.isEmpty() && !location.equals(defaultLocation)) {
 						description.setLocation(location);
 					}
-					
+
 					CCorePlugin.getDefault().createCDTProject(description, project, monitor);
-					
+
 					// Optionally C++ natures
 					if (isCPP)
 						CCProjectNature.addCCNature(project, new SubProgressMonitor(monitor, 1));
-					
+
 					// Set up build information
 					ICProjectDescriptionManager pdMgr = CoreModel.getDefault().getProjectDescriptionManager();
 					ICProjectDescription projDesc = pdMgr.createProjectDescription(project, false);
@@ -102,16 +105,19 @@ public class NewMakeProjFromExisting extends Wizard implements IImportWizard, IN
 					ManagedProject mProj = new ManagedProject(projDesc);
 					info.setManagedProject(mProj);
 					monitor.worked(1);
-					
+
 					CfgHolder cfgHolder = new CfgHolder(toolChain, null);
 					String s = toolChain == null ? "0" : ((ToolChain)toolChain).getId(); //$NON-NLS-1$
 					Configuration config = new Configuration(mProj, (ToolChain)toolChain, ManagedBuildManager.calculateChildId(s, null), cfgHolder.getName());
 					IBuilder builder = config.getEditableBuilder();
 					builder.setManagedBuildOn(false);
 					CConfigurationData data = config.getConfigurationData();
-					projDesc.createConfiguration(ManagedBuildManager.CFG_DATA_PROVIDER_ID, data);
+					ICConfigurationDescription cfgDes = projDesc.createConfiguration(ManagedBuildManager.CFG_DATA_PROVIDER_ID, data);
+
+					ConfigurationDataProvider.setDefaultLanguageSettingsProviders(project, config, cfgDes);
+
 					monitor.worked(1);
-					
+
 					pdMgr.setProjectDescription(project, projDesc);
 				} catch (Throwable e) {
 					ManagedBuilderUIPlugin.log(e);
@@ -119,7 +125,7 @@ public class NewMakeProjFromExisting extends Wizard implements IImportWizard, IN
 				monitor.done();
 			}
 		};
-			
+
 		try {
 			getContainer().run(true, true, op);
 		} catch (InvocationTargetException e) {

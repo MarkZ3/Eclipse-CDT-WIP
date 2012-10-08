@@ -1,14 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Google and others. All rights reserved. This program and
+ * Copyright (c) 2008, 2012 Google and others. All rights reserved. This program and
  * the accompanying materials are made available under the terms of the Eclipse
  * Public License v1.0 which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *     Google - initial API and implementation
+ *     Tom Ball (Google) - Initial API and implementation
  *     Sergey Prigogin (Google)
  *******************************************************************************/
-
 package org.eclipse.cdt.internal.ui.refactoring.extractlocalvariable;
 
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
@@ -47,6 +45,7 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNode.CopyStyle;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
+import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IASTUnaryExpression;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.INodeFactory;
@@ -55,6 +54,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionCallExpression;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.cdt.core.dom.rewrite.DeclarationGenerator;
+import org.eclipse.cdt.core.model.ICElement;
 import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.PreferenceConstants;
@@ -65,12 +65,13 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTIdExpression;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTLiteralExpression;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPFunction;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 import org.eclipse.cdt.internal.ui.refactoring.CRefactoring;
-import org.eclipse.cdt.internal.ui.refactoring.CRefactoringDescription;
+import org.eclipse.cdt.internal.ui.refactoring.CRefactoringDescriptor;
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
-import org.eclipse.cdt.internal.ui.refactoring.NameNVisibilityInformation;
 import org.eclipse.cdt.internal.ui.refactoring.NodeContainer;
+import org.eclipse.cdt.internal.ui.refactoring.VariableNameInformation;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.SelectionHelper;
 import org.eclipse.cdt.internal.ui.util.NameComposer;
@@ -85,83 +86,68 @@ import org.eclipse.cdt.internal.ui.util.NameComposer;
 public class ExtractLocalVariableRefactoring extends CRefactoring {
 	public static final String ID =
 			"org.eclipse.cdt.internal.ui.refactoring.extractlocalvariable.ExtractLocalVariableRefactoring"; //$NON-NLS-1$
-	
+
 	private IASTExpression target;
-	private final NameNVisibilityInformation info;
+	private final VariableNameInformation info;
 	private NodeContainer container;
 
-	public ExtractLocalVariableRefactoring(IFile file, ISelection selection, NameNVisibilityInformation info,
-			ICProject project) {
-		super(file, selection, null, project);
-		this.info = info;
+	public ExtractLocalVariableRefactoring(ICElement element, ISelection selection, ICProject project) {
+		super(element, selection, project);
+		info = new VariableNameInformation();
 		name = Messages.ExtractLocalVariable;
 	}
 
 	@Override
 	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
 			throws CoreException, OperationCanceledException {
-		SubMonitor sm = SubMonitor.convert(pm, 9);
-		try {
-			lockIndex();
-			try {
-				RefactoringStatus status = super.checkInitialConditions(sm.newChild(6));
-				if (status.hasError()) {
-					return status;
-				}
+		SubMonitor sm = SubMonitor.convert(pm, 10);
 
-				container = findAllExpressions();
-				if (container.size() < 1) {
-					initStatus.addFatalError(Messages.ExpressionMustBeSelected);
-					return initStatus;
-				}
-
-				sm.worked(1);
-				if (isProgressMonitorCanceld(sm, initStatus))
-					return initStatus;
-
-				boolean oneMarked = region != null && isOneMarked(container.getNodesToWrite(), region);
-				if (!oneMarked) {
-					if (target == null) {
-						initStatus.addFatalError(Messages.NoExpressionSelected);
-					} else {
-						initStatus.addFatalError(Messages.TooManyExpressionsSelected);
-					}
-					return initStatus;
-				}
-				sm.worked(1);
-
-				if (isProgressMonitorCanceld(sm, initStatus))
-					return initStatus;
-
-				container.findAllNames();
-				sm.worked(1);
-
-				container.getAllAfterUsedNames();
-				info.addNamesToUsedNames(findAllDeclaredNames());
-				sm.worked(1);
-
-				NodeHelper.findMethodContext(container.getNodesToWrite().get(0), getIndex());
-				sm.worked(1);
-
-				info.setName(guessTempName());
-				sm.done();
-			} finally {
-				unlockIndex();
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+		RefactoringStatus status = super.checkInitialConditions(sm.newChild(6));
+		if (status.hasError()) {
+			return status;
 		}
+
+		container = findAllExpressions(pm);
+		if (container.isEmpty()) {
+			initStatus.addFatalError(Messages.ExpressionMustBeSelected);
+			return initStatus;
+		}
+
+		sm.worked(1);
+		if (isProgressMonitorCanceled(sm, initStatus))
+			return initStatus;
+
+		boolean oneMarked = selectedRegion != null && isOneMarked(container.getNodesToWrite(), selectedRegion);
+		if (!oneMarked) {
+			initStatus.addFatalError(target == null ?
+					Messages.NoExpressionSelected : Messages.TooManyExpressionsSelected);
+			return initStatus;
+		}
+		sm.worked(1);
+
+		if (isProgressMonitorCanceled(sm, initStatus))
+			return initStatus;
+
+		info.addNamesToUsedNames(findAllDeclaredNames());
+		sm.worked(1);
+
+		NodeHelper.findMethodContext(container.getNodesToWrite().get(0), refactoringContext, sm);
+		sm.worked(1);
+
+		info.setName(guessTempName());
+		sm.done();
+
 		return initStatus;
 	}
 
 	private ArrayList<String> findAllDeclaredNames() {
 		ArrayList<String> names = new ArrayList<String>();
-		IASTFunctionDefinition funcDef = NodeHelper.findFunctionDefinitionInAncestors(target);
+		IASTFunctionDefinition funcDef = CPPVisitor.findAncestorWithType(target, IASTFunctionDefinition.class);
 		ICPPASTCompositeTypeSpecifier comTypeSpec = getCompositeTypeSpecifier(funcDef);
 		if (comTypeSpec != null) {
-			for (IASTDeclaration dec : comTypeSpec.getMembers()) {
-				if (dec instanceof IASTSimpleDeclaration) {
-					IASTSimpleDeclaration simpDec = (IASTSimpleDeclaration) dec;
+			for (IASTDeclaration decl : comTypeSpec.getMembers()) {
+				if (decl instanceof IASTSimpleDeclaration) {
+					IASTSimpleDeclaration simpDec = (IASTSimpleDeclaration) decl;
 					for (IASTDeclarator decor : simpDec.getDeclarators()) {
 						names.add(decor.getName().getRawSignature());
 					}
@@ -193,9 +179,8 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 		for (IASTNode node : selectedNodes) {
 			if (node instanceof IASTExpression) {
 				IASTExpression expression = (IASTExpression) node;
-				boolean isInSameFileSelection =
-						SelectionHelper.isInSameFileSelection(textSelection, expression, file);
-				if (isInSameFileSelection && isExpressionInSelection(expression, textSelection)) {
+				if (expression.isPartOfTranslationUnitFile() &&
+						isExpressionInSelection(expression, textSelection)) {
 					if (target == null) {
 						target = expression;
 						oneMarked = true;
@@ -208,13 +193,13 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 		return oneMarked;
 	}
 
-	private boolean isExpressionInSelection(IASTExpression expression, Region selection) {
+	private static boolean isExpressionInSelection(IASTExpression expression, Region selection) {
 		IASTFileLocation location = expression.getFileLocation();
-		int e1 = location.getNodeOffset();
-		int e2 = location.getNodeOffset() + location.getNodeLength();
-		int s1 = selection.getOffset();
-		int s2 = selection.getOffset() + selection.getLength();
-		return e1 >= s1 && e2 <= s2;
+		int expressionStart = location.getNodeOffset();
+		int expressionEnd = expressionStart + location.getNodeLength();
+		int selectionStart = selection.getOffset();
+		int selectionEnd = selectionStart + selection.getLength();
+		return expressionStart >= selectionStart && expressionEnd <= selectionEnd;
 	}
 
 	private boolean isTargetChild(IASTExpression child) {
@@ -230,53 +215,53 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 		return false;
 	}
 
-	private NodeContainer findAllExpressions() {
+	private NodeContainer findAllExpressions(IProgressMonitor pm)
+			throws OperationCanceledException, CoreException {
 		final NodeContainer container = new NodeContainer();
 
-		ast.accept(new ASTVisitor() {
-			{
-				shouldVisitExpressions = true;
-			}
-
-			@Override
-			public int visit(IASTExpression expression) {
-				if (SelectionHelper.isSelectedFile(region, expression, file)) {
-					container.add(expression);
-					return PROCESS_SKIP;
+		IASTTranslationUnit ast = getAST(tu, pm);
+		if (ast != null) {
+			ast.accept(new ASTVisitor() {
+				{
+					shouldVisitExpressions = true;
 				}
-				return super.visit(expression);
-			}
-		});
+
+				@Override
+				public int visit(IASTExpression expression) {
+					if (isNodeInsideSelection(expression)) {
+						container.add(expression);
+						return PROCESS_SKIP;
+					}
+					return super.visit(expression);
+				}
+			});
+		}
 
 		return container;
+	}
+
+	private boolean isNodeInsideSelection(IASTNode node) {
+		return node.isPartOfTranslationUnitFile() && SelectionHelper.isNodeInsideRegion(node, selectedRegion);
 	}
 
 	@Override
 	protected void collectModifications(IProgressMonitor pm, ModificationCollector collector)
 			throws CoreException, OperationCanceledException {
-		try {
-			lockIndex();
-			try {
-				String variableName = info.getName();
-				TextEditGroup editGroup = new TextEditGroup(Messages.CreateLocalVariable);
+		String variableName = info.getName();
+		TextEditGroup editGroup = new TextEditGroup(Messages.CreateLocalVariable);
 
-				// Define temporary variable declaration and insert it
-				IASTStatement declInsertPoint = getParentStatement(target);
-				IASTDeclarationStatement declaration = getVariableNodes(variableName);
-				declaration.setParent(declInsertPoint.getParent());
-				ASTRewrite rewriter = collector.rewriterForTranslationUnit(ast);
-				rewriter.insertBefore(declInsertPoint.getParent(), declInsertPoint, declaration, editGroup);
+		// Define temporary variable declaration and insert it
+		IASTStatement declInsertPoint = getParentStatement(target);
+		IASTTranslationUnit ast = getAST(tu, pm);
+		IASTDeclarationStatement declaration = getVariableNodes(ast, variableName);
+		declaration.setParent(declInsertPoint.getParent());
+		ASTRewrite rewriter = collector.rewriterForTranslationUnit(ast);
+		rewriter.insertBefore(declInsertPoint.getParent(), declInsertPoint, declaration, editGroup);
 
-				// Replace target with reference to temporary variable
-				CPPASTIdExpression idExpression =
-						new CPPASTIdExpression(new CPPASTName(variableName.toCharArray()));
-				rewriter.replace(target, idExpression, editGroup);
-			} finally {
-				unlockIndex();
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
+		// Replace target with reference to temporary variable
+		CPPASTIdExpression idExpression =
+				new CPPASTIdExpression(new CPPASTName(variableName.toCharArray()));
+		rewriter.replace(target, idExpression, editGroup);
 	}
 
 	private IASTStatement getParentStatement(IASTNode node) {
@@ -288,13 +273,13 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 		return null;
 	}
 
-	private IASTDeclarationStatement getVariableNodes(String newName) {
-		INodeFactory factory = this.ast.getASTNodeFactory();
-		
+	private IASTDeclarationStatement getVariableNodes(IASTTranslationUnit ast, String newName) {
+		INodeFactory factory = ast.getASTNodeFactory();
+
 		IASTSimpleDeclaration simple = factory.newSimpleDeclaration(null);
 
 		DeclarationGenerator generator = DeclarationGenerator.create(factory);
-		
+
 		IASTDeclSpecifier declSpec = generator.createDeclSpecFromType(target.getExpressionType());
 		declSpec.setStorageClass(IASTDeclSpecifier.sc_unspecified);
 		simple.setDeclSpecifier(declSpec);
@@ -347,10 +332,10 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 	public String[] guessTempNames() {
 		final List<String> guessedTempNames = new ArrayList<String>();
 		final List<String> usedNames = new ArrayList<String>();
-		IASTFunctionDefinition funcDef = NodeHelper.findFunctionDefinitionInAncestors(target);
+		IASTFunctionDefinition funcDef = CPPVisitor.findAncestorWithType(target, IASTFunctionDefinition.class);
 		final IScope scope;
 		if (funcDef != null && funcDef.getBody() instanceof IASTCompoundStatement) {
-			IASTCompoundStatement body = (IASTCompoundStatement)funcDef.getBody();
+			IASTCompoundStatement body = (IASTCompoundStatement) funcDef.getBody();
 			scope = body.getScope();
 		} else {
 			scope = null;
@@ -386,14 +371,13 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 							}
 						}
 					}
-					
+
 					if (expression instanceof CPPASTLiteralExpression) {
 						CPPASTLiteralExpression literal = (CPPASTLiteralExpression) expression;
 						String name = null;
-						char[] value = literal.getValue();
 						switch (literal.getKind()) {
 				          case IASTLiteralExpression.lk_char_constant:
-				              name = Character.toString(value[0]);
+				              name = "c"; //$NON-NLS-1$
 				              break;
 				          case IASTLiteralExpression.lk_float_constant:
 				              name = "f"; //$NON-NLS-1$
@@ -431,7 +415,7 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 			    			PreferenceConstants.NAME_STYLE_VARIABLE_SUFFIX, "", null); //$NON-NLS-1$
 			    	NameComposer composer = new NameComposer(capitalization, wordDelimiter, prefix, suffix);
 			    	name = composer.compose(name);
-					
+
 					if (name.length() > 0) {
 						if (nameAvailable(name, guessedTempNames, scope)) {
 							guessedTempNames.add(name);
@@ -440,7 +424,6 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 						}
 					}
 				}
-
 			});
 		}
 		if (guessedTempNames.isEmpty()) {
@@ -493,7 +476,7 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 			IBinding[] bindings = scope.find(name);
 			return bindings == null || bindings.length == 0;
 		}
-		return true; // no name references found
+		return true; // No name references found
 	}
 
 	private String makeTempName(List<String> usedNames, IScope scope) {
@@ -512,16 +495,20 @@ public class ExtractLocalVariableRefactoring extends CRefactoring {
 	@Override
 	protected RefactoringDescriptor getRefactoringDescriptor() {
 		Map<String, String> arguments = getArgumentMap();
-		RefactoringDescriptor desc = new ExtractLocalVariableRefactoringDescription(project.getProject().getName(),
+		RefactoringDescriptor desc = new ExtractLocalVariableRefactoringDescriptor(project.getProject().getName(),
 				"Extract Local Variable Refactoring", "Extract " + target.getRawSignature(), arguments);  //$NON-NLS-1$//$NON-NLS-2$
 		return desc;
 	}
 
 	private Map<String, String> getArgumentMap() {
 		Map<String, String> arguments = new HashMap<String, String>();
-		arguments.put(CRefactoringDescription.FILE_NAME, file.getLocationURI().toString());
-		arguments.put(CRefactoringDescription.SELECTION, region.getOffset() + "," + region.getLength()); //$NON-NLS-1$
-		arguments.put(ExtractLocalVariableRefactoringDescription.NAME, info.getName());
+		arguments.put(CRefactoringDescriptor.FILE_NAME, tu.getLocationURI().toString());
+		arguments.put(CRefactoringDescriptor.SELECTION, selectedRegion.getOffset() + "," + selectedRegion.getLength()); //$NON-NLS-1$
+		arguments.put(ExtractLocalVariableRefactoringDescriptor.NAME, info.getName());
 		return arguments;
+	}
+
+	public VariableNameInformation getRefactoringInfo() {
+		return info;
 	}
 }

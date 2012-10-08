@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -44,6 +44,7 @@ import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.index.IIndex;
 import org.eclipse.cdt.core.index.IIndexBinding;
 import org.eclipse.cdt.core.index.IIndexMacro;
+import org.eclipse.cdt.core.index.IIndexManager;
 import org.eclipse.cdt.core.index.IndexFilter;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ICElement;
@@ -95,6 +96,7 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 				final Shell shell= getShell();
 				if (shell != null && !shell.isDisposed()) {
 					Runnable update= new Runnable() {
+						@Override
 						public void run() {
 							if (!shell.isDisposed() && !monitor.isCanceled()) {
 								setListElements(elements);
@@ -127,6 +129,7 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 			final Shell shell= getShell();
 			if (shell != null && !shell.isDisposed()) {
 				Runnable update= new Runnable() {
+					@Override
 					public void run() {
 						if (!shell.isDisposed() && fDone) {
 							fMonitor.done();
@@ -142,6 +145,7 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 			final Shell shell= getShell();
 			if (shell != null && !shell.isDisposed()) {
 				Runnable update= new Runnable() {
+					@Override
 					public void run() {
 						if (!shell.isDisposed() && !fDone) {
 							fMonitor.beginTask(OpenTypeMessages.ElementSelectionDialog_UpdateElementsJob_inProgress, IProgressMonitor.UNKNOWN);
@@ -153,9 +157,11 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 	}
 
 	private static final ISchedulingRule SINGLE_INSTANCE_RULE = new ISchedulingRule() {
+		@Override
 		public boolean contains(ISchedulingRule rule) {
 			return rule == this;
 		}
+		@Override
 		public boolean isConflicting(ISchedulingRule rule) {
 			return rule == this;
 		}};
@@ -296,7 +302,7 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 				}
 			};
 			try {
-				IIndex index = CCorePlugin.getIndexManager().getIndex(CoreModel.getDefault().getCModel().getCProjects());
+				IIndex index = CCorePlugin.getIndexManager().getIndex(CoreModel.getDefault().getCModel().getCProjects(), IIndexManager.ADD_EXTENSION_FRAGMENTS_NAVIGATION);
 				index.acquireReadLock();
 				try {
 					IIndexBinding[] bindings= index.findBindingsForPrefix(prefix, false, filter, monitor);
@@ -330,11 +336,6 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 		return types.toArray(new ITypeInfo[types.size()]);
 	}
 
-	@Override
-	protected final void setListElements(Object[] elements) {
-		super.setListElements(elements);
-	}
-
 	/**
 	 * @deprecated Unsupported
 	 */
@@ -344,6 +345,14 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 		throw new UnsupportedOperationException();
 	}
 
+	/* (non-Javadoc)
+	 * @see org.eclipse.ui.dialogs.AbstractElementListSelectionDialog#handleElementsChanged()
+	 */
+	@Override
+	protected void handleElementsChanged() {
+		updateOkState();
+	}
+	
 	@Override
 	protected void handleEmptyList() {
 		updateOkState();
@@ -353,7 +362,8 @@ public class ElementSelectionDialog extends TypeSelectionDialog {
 	protected Text createFilterText(Composite parent) {
 		final Text result = super.createFilterText(parent);
 		Listener listener = new Listener() {
-            public void handleEvent(Event e) {
+            @Override
+			public void handleEvent(Event e) {
                 scheduleUpdate(result.getText());
             }
         };

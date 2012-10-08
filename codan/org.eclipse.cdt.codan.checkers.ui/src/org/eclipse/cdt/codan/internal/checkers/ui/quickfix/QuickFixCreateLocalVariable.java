@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Tomasz Wesolowski - initial API and implementation
+ *     Tomasz Wesolowski - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
@@ -28,18 +28,13 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.ltk.core.refactoring.Change;
 
 public class QuickFixCreateLocalVariable extends AbstractAstRewriteQuickFix {
+	@Override
 	public String getLabel() {
 		return Messages.QuickFixCreateLocalVariable_0;
 	}
 
-	/**
-	 * 
-	 * @param ast
-	 * @param astName
-	 * @param r
-	 */
+	@Override
 	public void modifyAST(IIndex index, IMarker marker) {
-		CxxAstUtils utils = CxxAstUtils.getInstance();
 		IASTTranslationUnit ast;
 		try {
 			ITranslationUnit tu = getTranslationUnitViaEditor(marker);
@@ -59,9 +54,9 @@ public class QuickFixCreateLocalVariable extends AbstractAstRewriteQuickFix {
 		}
 		ASTRewrite r = ASTRewrite.create(ast);
 		INodeFactory factory = ast.getASTNodeFactory();
-		IASTDeclaration declaration = utils.createDeclaration(astName, factory, index);
+		IASTDeclaration declaration = CxxAstUtils.createDeclaration(astName, factory, index);
 		IASTDeclarationStatement newStatement = factory.newDeclarationStatement(declaration);
-		IASTNode targetStatement = utils.getEnclosingStatement(astName);
+		IASTNode targetStatement = CxxAstUtils.getEnclosingStatement(astName);
 		if (targetStatement == null) {
 			return;
 		}

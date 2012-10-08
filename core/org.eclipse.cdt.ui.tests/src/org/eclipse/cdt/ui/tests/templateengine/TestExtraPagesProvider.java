@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * Andrew Ferguson (Symbian) - Initial API and implementation
+ *     Andrew Ferguson (Symbian) - Initial API and implementation
  *******************************************************************************/
 
 package org.eclipse.cdt.ui.tests.templateengine;
@@ -32,6 +32,7 @@ import org.eclipse.cdt.ui.templateengine.IWizardDataPage;
 public class TestExtraPagesProvider implements IPagesAfterTemplateSelectionProvider {
 	IWizardDataPage[] pages;
 	
+	@Override
 	public IWizardDataPage[] createAdditionalPages(IWorkbenchWizard wizard,
 			IWorkbench workbench, IStructuredSelection selection) {
 		pages= new IWizardDataPage[3];
@@ -41,6 +42,7 @@ public class TestExtraPagesProvider implements IPagesAfterTemplateSelectionProvi
 		return pages;
 	}
 
+	@Override
 	public IWizardDataPage[] getCreatedPages(IWorkbenchWizard wizard) {
 		return pages;
 	}
@@ -49,7 +51,7 @@ public class TestExtraPagesProvider implements IPagesAfterTemplateSelectionProvi
 	 * An example implementation of {@link IWizardDataPage} for test purposes.
 	 */
 	static class MyPage extends AbstractWizardDataPage implements IWizardDataPage {
-		String labelText , dataKey, dataValue;
+		String labelText, dataKey, dataValue;
 		
 		public MyPage(String labelText, String dataKey, String dataValue) {
 			super("CustomTestPageName", "Title", null);
@@ -59,10 +61,12 @@ public class TestExtraPagesProvider implements IPagesAfterTemplateSelectionProvi
 			this.dataValue= dataValue;
 		}
 		
-		public Map getPageData() {
+		@Override
+		public Map<String, String> getPageData() {
 			return Collections.singletonMap(dataKey, dataValue);
 		}
 
+		@Override
 		public void createControl(Composite parent) {
 			Label l= new Label(parent, SWT.NONE);
 			l.setText(labelText);

@@ -12,7 +12,6 @@ package org.eclipse.cdt.debug.ui.breakpointactions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
-import com.ibm.icu.text.MessageFormat;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -31,21 +30,46 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.ui.DebugUITools;
+import org.eclipse.ui.progress.WorkbenchJob;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.ibm.icu.text.MessageFormat;
+
 public class ExternalToolAction extends AbstractBreakpointAction {
 
 	private String externalToolName = ""; //$NON-NLS-1$
 
-	public IStatus execute(IBreakpoint breakpoint, IAdaptable context, IProgressMonitor monitor) {
+    @Override
+    public IStatus execute(final IBreakpoint breakpoint, final IAdaptable context, final IProgressMonitor monitor) {
+        Job uiJob = new WorkbenchJob("ExternalToolAction") { //$NON-NLS-1$
+            {
+                setPriority(INTERACTIVE);
+            }
+            
+            @Override
+            public IStatus runInUIThread(IProgressMonitor monitor) {
+                return executeInUIThread(breakpoint, context, monitor);
+            }
+        };
+        uiJob.schedule();
+        try {
+            uiJob.join();
+        } catch (InterruptedException e) {
+            return Status.CANCEL_STATUS;
+        }
+        return uiJob.getResult();
+    }	
+	
+	private IStatus executeInUIThread(IBreakpoint breakpoint, IAdaptable context, IProgressMonitor monitor) {
 		IStatus errorStatus = null;
 		ILaunchManager lcm = DebugPlugin.getDefault().getLaunchManager();
 		try {
@@ -79,6 +103,7 @@ public class ExternalToolAction extends AbstractBreakpointAction {
 		return Status.OK_STATUS;
 	}
 
+	@Override
 	public String getDefaultName() {
 		return "Untitled External Tool Action"; //$NON-NLS-1$
 	}
@@ -91,10 +116,12 @@ public class ExternalToolAction extends AbstractBreakpointAction {
 		this.externalToolName = launchConfigName;
 	}
 
+	@Override
 	public String getIdentifier() {
 		return "org.eclipse.cdt.debug.ui.breakpointactions.ExternalToolAction"; //$NON-NLS-1$
 	}
 
+	@Override
 	public String getMemento() {
 		String executeData = ""; //$NON-NLS-1$
 		if (externalToolName != null) {
@@ -129,14 +156,17 @@ public class ExternalToolAction extends AbstractBreakpointAction {
 		return executeData;
 	}
 
+	@Override
 	public String getSummary() {
 		return MessageFormat.format(Messages.getString("ExternalToolAction.Summary"), new Object[] { externalToolName }); //$NON-NLS-1$
 	}
 
+	@Override
 	public String getTypeName() {
 		return Messages.getString("ExternalToolAction.TypeName"); //$NON-NLS-1$
 	}
 
+	@Override
 	public void initializeFromMemento(String data) {
 		Element root = null;
 		DocumentBuilder parser;

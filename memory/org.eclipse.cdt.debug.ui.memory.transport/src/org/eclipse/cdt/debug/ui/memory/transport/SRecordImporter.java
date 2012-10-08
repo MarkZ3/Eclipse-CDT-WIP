@@ -28,6 +28,8 @@ import org.eclipse.debug.core.model.IMemoryBlock;
 import org.eclipse.debug.core.model.IMemoryBlockExtension;
 import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.KeyEvent;
+import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionEvent;
@@ -130,7 +132,17 @@ public class SRecordImporter implements IMemoryImporter {
 			public void widgetDefaultSelected(SelectionEvent e) {}
 
 			public void widgetSelected(SelectionEvent e) {
-				validate();
+				try
+				{
+					fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_BLACK));
+					getStartAddress();
+					validate();
+				}
+				catch(Exception ex)
+				{
+					fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_RED));
+					fParentDialog.setValid(false);
+				}
 			}
 		});
 		
@@ -189,27 +201,38 @@ public class SRecordImporter implements IMemoryImporter {
 			
 		});
 		
-		fStartText.addModifyListener(new ModifyListener() {
-			public void modifyText(ModifyEvent e) {
-				boolean valid = true;
+		fStartText.addKeyListener(new KeyListener() {
+			public void keyReleased(KeyEvent e) {
 				try
 				{
-					getStartAddress();
+					boolean restoreToAddress = fComboRestoreToThisAddress.getSelection();
+					if ( restoreToAddress ) {
+						fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_BLACK));
+						getStartAddress();
+						validate();
+					}
+					else {
+						try
+						{
+							getStartAddress();
+							fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_BLACK));
+						}
+						catch(Exception ex)
+						{
+							fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_RED));
+						}
+					}
 				}
 				catch(Exception ex)
 				{
-					valid = false;
+					fStartText.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_RED));
+					validate();
 				}
-				
-				fStartText.setForeground(valid ? Display.getDefault().getSystemColor(SWT.COLOR_BLACK) : 
-					Display.getDefault().getSystemColor(SWT.COLOR_RED));
-				
-				//
-
-				validate();
 			}
 			
+			public void keyPressed(KeyEvent e) {}
 		});
+		
 		fFileText.addModifyListener(new ModifyListener() {
 			public void modifyText(ModifyEvent e) {
 				validate();
@@ -274,6 +297,11 @@ public class SRecordImporter implements IMemoryImporter {
 		boolean hex = text.startsWith("0x"); //$NON-NLS-1$
 		BigInteger startAddress = new BigInteger(hex ? text.substring(2) : text,
 			hex ? 16 : 10); 
+		
+
+		if ( startAddress.bitLength() > 32 ) {
+			throw(new NumberFormatException("Start Address is larger than 32 bits"));
+		}
 		
 		return startAddress;
 	}

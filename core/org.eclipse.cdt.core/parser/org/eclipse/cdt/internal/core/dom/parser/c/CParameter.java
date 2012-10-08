@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM Rational Software - Initial API and implementation 
- *    Markus Schorn (Wind River Systems)
+ *     IBM Rational Software - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
 
@@ -29,6 +29,7 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.IValue;
 import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
+import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.internal.core.dom.Linkage;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
 import org.eclipse.core.runtime.PlatformObject;
@@ -50,12 +51,7 @@ public class CParameter extends PlatformObject implements IParameter {
 		this.declarations = new IASTName[] { parameterName };
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IVariable#getType()
-	 */
-
+	@Override
 	public IType getType() {
 		if (type == null && declarations[0].getParent() instanceof IASTDeclarator)
 			type = CVisitor.createType((IASTDeclarator) declarations[0].getParent());
@@ -80,11 +76,7 @@ public class CParameter extends PlatformObject implements IParameter {
 		return null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IBinding#getName()
-	 */
+	@Override
 	public String getName() {
 		IASTName name = getPrimaryDeclaration();
 		if (name != null)
@@ -92,21 +84,21 @@ public class CParameter extends PlatformObject implements IParameter {
 		return CVisitor.EMPTY_STRING;
 	}
 
+	@Override
 	public char[] getNameCharArray() {
 		IASTName name = getPrimaryDeclaration();
 		if (name != null)
 			return name.toCharArray();
-		return CVisitor.EMPTY_CHAR_ARRAY;
+		return CharArrayUtils.EMPTY_CHAR_ARRAY;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IBinding#getScope()
-	 */
+	@Override
 	public IScope getScope() {
 		// IASTParameterDeclaration or IASTSimpleDeclaration
 		for (IASTName declaration : declarations) {
+			if (declaration == null)
+				break; // Skip nulls at the end of the declarations array
+
 			IASTNode parent = declaration.getParent();
 			if (parent instanceof ICASTKnRFunctionDeclarator) {
 				parent = parent.getParent();
@@ -127,45 +119,29 @@ public class CParameter extends PlatformObject implements IParameter {
 	}
 
 	/**
-	 * @param name
+	 * @param name the name from a parameter declaration
 	 */
 	public void addDeclaration(IASTName name) {
 		if (name != null && name.isActive())
-			declarations = (IASTName[]) ArrayUtil.append(IASTName.class, declarations, name);
+			declarations = ArrayUtil.append(IASTName.class, declarations, name);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IVariable#isStatic()
-	 */
+	@Override
 	public boolean isStatic() {
 		return false;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IVariable#isExtern()
-	 */
+	@Override
 	public boolean isExtern() {
 		return false;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IVariable#isAuto()
-	 */
+	@Override
 	public boolean isAuto() {
 		return hasStorageClass(IASTDeclSpecifier.sc_auto);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.core.dom.ast.IVariable#isRegister()
-	 */
+	@Override
 	public boolean isRegister() {
 		return hasStorageClass(IASTDeclSpecifier.sc_register);
 	}
@@ -191,10 +167,12 @@ public class CParameter extends PlatformObject implements IParameter {
 		return false;
 	}
 
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.C_LINKAGE;
 	}
 
+	@Override
 	public IBinding getOwner() {
 		if (declarations == null || declarations.length == 0)
 			return null;
@@ -202,7 +180,13 @@ public class CParameter extends PlatformObject implements IParameter {
 		return CVisitor.findEnclosingFunction(declarations[0]);
 	}
 
+	@Override
 	public IValue getInitialValue() {
 		return null;
+	}
+
+	@Override
+	public String toString() {
+		return getName();
 	}
 }

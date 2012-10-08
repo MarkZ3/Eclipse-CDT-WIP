@@ -209,6 +209,7 @@ public class THInformationControl extends AbstractInformationControl implements 
 		super.widgetDisposed(event);
 	}
 
+	@Override
 	public void onEvent(int event) {
 		if (!fDisposed) {
 			switch (event) {
@@ -227,9 +228,11 @@ public class THInformationControl extends AbstractInformationControl implements 
 		}
 	}
 
+	@Override
 	public void setMessage(String msg) {
 	}
 
+	@Override
 	public IWorkbenchSiteProgressService getProgressService() {
 		//return (IWorkbenchSiteProgressService) fWorkbenchPartSite.getAdapter(IWorkbenchSiteProgressService.class);
 		return null;

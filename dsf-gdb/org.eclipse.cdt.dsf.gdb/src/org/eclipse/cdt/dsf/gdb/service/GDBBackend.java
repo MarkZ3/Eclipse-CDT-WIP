@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 Wind River Systems, Nokia and others.
+ * Copyright (c) 2006, 2012 Wind River Systems, Nokia and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     Nokia              - initial API and implementation with some code moved from GDBControl.
  *     Wind River System
  *     Ericsson
+ *     Marc Khouzam (Ericsson) - Use the new IMIBackend2 interface (Bug 350837)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
@@ -30,7 +31,7 @@ import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence;
 import org.eclipse.cdt.dsf.gdb.IGDBLaunchConfigurationConstants;
@@ -39,6 +40,7 @@ import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
 import org.eclipse.cdt.dsf.gdb.launching.LaunchUtils;
 import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.IMIBackend;
+import org.eclipse.cdt.dsf.mi.service.IMIBackend2;
 import org.eclipse.cdt.dsf.mi.service.command.events.MIStoppedEvent;
 import org.eclipse.cdt.dsf.service.AbstractDsfService;
 import org.eclipse.cdt.dsf.service.DsfServiceEventHandler;
@@ -74,7 +76,7 @@ import org.osgi.framework.BundleContext;
  * 
  * @since 1.1
  */
-public class GDBBackend extends AbstractDsfService implements IGDBBackend {
+public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBackend2 {
 	
 	private final ILaunchConfiguration fLaunchConfiguration;
 	
@@ -130,7 +132,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 	
     @Override
     public void initialize(final RequestMonitor requestMonitor) {
-        super.initialize( new RequestMonitor(ImmediateExecutor.getInstance(), requestMonitor) {
+        super.initialize(new ImmediateRequestMonitor(requestMonitor) {
             @Override
             protected void handleSuccess() {
                 doInitialize(requestMonitor);
@@ -199,6 +201,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 		return gdbCommandLine.toString();
 	}
 
+	@Override
 	public String getGDBInitFile() throws CoreException {
 		if (fGDBInitFile == null) {
 			String defaultGdbInit = Platform.getPreferencesService().getString(GdbPlugin.PLUGIN_ID,
@@ -211,6 +214,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 		return fGDBInitFile;
 	}
 
+	@Override
 	public IPath getGDBWorkingDirectory() throws CoreException {
 		if (fGDBWorkingDirectory == null) {
 
@@ -268,6 +272,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
    		return fGDBWorkingDirectory;
 	}
 
+	@Override
 	public String getProgramArguments() throws CoreException {
 		if (fProgramArguments == null) {
 			fProgramArguments = fLaunchConfiguration.getAttribute(
@@ -282,11 +287,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 		return fProgramArguments;
 	}
 
+	@Override
 	public IPath getProgramPath() {
 		return fProgramPath;
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public List<String> getSharedLibraryPaths() throws CoreException {
 		if (fSharedLibPaths == null) {
 			fSharedLibPaths = fLaunchConfiguration.getAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_SOLIB_PATH, 
@@ -297,6 +304,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 	}
 
 	/** @since 3.0 */
+	@Override
 	public Properties getEnvironmentVariables() throws CoreException {
 		if (fEnvVariables == null) {
 			fEnvVariables = new Properties();
@@ -340,11 +348,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
 	}
 	
 	/** @since 3.0 */
+	@Override
 	public boolean getClearEnvironment() throws CoreException {
 		return !fLaunchConfiguration.getAttribute(ILaunchManager.ATTR_APPEND_ENVIRONMENT_VARIABLES, true);
 	}
 	
 	/** @since 3.0 */
+	@Override
 	public boolean getUpdateThreadListOnSuspend() throws CoreException {
 		return fLaunchConfiguration
 				.getAttribute(
@@ -372,18 +382,28 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
         return fProcess; 
     }
     
+	@Override
     public OutputStream getMIOutputStream() {
         return fProcess.getOutputStream();
     };
     
+	@Override
     public InputStream getMIInputStream() {
         return fProcess.getInputStream();
     };
-    
+
+	/** @since 4.1 */
+	@Override
+    public InputStream getMIErrorStream() {
+        return fProcess.getErrorStream();
+    };
+
+	@Override
     public String getId() {
         return fBackendId;
     }
 
+	@Override
     public void interrupt() {
         if (fProcess instanceof Spawner) {
             Spawner gdbSpawner = (Spawner) fProcess;
@@ -405,6 +425,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
     /**
 	 * @since 3.0
 	 */
+	@Override
     public void interruptAndWait(int timeout, RequestMonitor rm) {
         if (fProcess instanceof Spawner) {
             Spawner gdbSpawner = (Spawner) fProcess;
@@ -430,6 +451,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
     /**
 	 * @since 3.0
 	 */
+	@Override
     public void interruptInferiorAndWait(long pid, int timeout, RequestMonitor rm) {
         if (fProcess instanceof Spawner) {
             Spawner gdbSpawner = (Spawner) fProcess;
@@ -441,6 +463,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
         }
     }
 
+	@Override
     public void destroy() {
     	// Don't close the streams ourselves as it may be too early.
     	// Wait for the actual user of the streams to close it.
@@ -452,14 +475,17 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
     	}
     }
 
+	@Override
     public State getState() {
     	return fBackendState;
     }
     
+	@Override
     public int getExitCode() { 
         return fGDBExitValue;
     }
     
+	@Override
     public 	SessionType getSessionType() {
         if (fSessionType == null) {
         	fSessionType = LaunchUtils.getSessionType(fLaunchConfiguration);
@@ -467,6 +493,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
         return fSessionType;
     }
 
+	@Override
 	public boolean getIsAttachSession() {
         if (fAttach == null) {
         	fAttach = LaunchUtils.getIsAttach(fLaunchConfiguration);
@@ -523,6 +550,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
                     	// Need to do this on the executor for thread-safety
                     	getExecutor().submit(
                                 new DsfRunnable() {
+                                	@Override
                                     public void run() { fBackendState = State.STARTED; }
                                 });
                         // Don't send the backendStarted event yet.  We wait until we have registered this service
@@ -556,6 +584,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
             startGdbJob.schedule();
                 
             getExecutor().schedule(new Runnable() { 
+            	@Override
                 public void run() {
                     // Only process the event if we have not finished yet (hit the breakpoint).
                     if (!fGDBLaunchMonitor.fLaunched) {
@@ -593,6 +622,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
                 		// check if the killing of GDB worked.
 						getExecutor().submit(
 						        new DsfRunnable() {
+						        	@Override
 						            public void run() { 
 						            	destroy();
 						            	
@@ -644,6 +674,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
             fMonitorJob = new MonitorJob(
                 fProcess, 
                 new DsfRunnable() {
+                	@Override
                     public void run() {
                         requestMonitor.done();
                     }
@@ -666,6 +697,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
         public void initialize(final RequestMonitor requestMonitor) {
             register(
                 new String[]{ IMIBackend.class.getName(), 
+                		      IMIBackend2.class.getName(),
                               IGDBBackend.class.getName() }, 
                 new Hashtable<String,String>());
             
@@ -715,6 +747,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
                 	// Need to do this on the executor for thread-safety
                 	getExecutor().submit(
                             new DsfRunnable() {
+                            	@Override
                                 public void run() { 
                                 	destroy();
                                 	fBackendState = State.TERMINATED; 
@@ -789,6 +822,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend {
         protected IStatus run(IProgressMonitor monitor) {
         	getExecutor().submit(
                     new DsfRunnable() {
+                    	@Override
                         public void run() {
                         	fInterruptFailedJob = null;
                         	fRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, IDsfStatusConstants.REQUEST_FAILED, "Interrupt failed.", null)); //$NON-NLS-1$

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,7 +14,14 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp.semantics;
 
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.*;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.CONST;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.CONST_RESTRICT;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.CONST_VOLATILE;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.CONST_VOLATILE_RESTRICT;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.NONE;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.RESTRICT;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.VOLATILE;
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CVQualifier.VOLATILE_RESTRICT;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -55,25 +62,29 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPFunctionType;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPPointerToMemberType;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPQualifierType;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateArgument;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateTypeArgument;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.OverloadableOperator;
 
 /**
- *
+ * Collection of static methods operating on C++ bindings.
  */
 public class SemanticUtil {
 	private static final char[] OPERATOR_CHARS = Keywords.OPERATOR.toCharArray();
 	// Cache of overloadable operator names for fast lookup. Used by isConversionOperator.
 	private static final CharArraySet cas= new CharArraySet(OverloadableOperator.values().length);
-	
-	public static final int TDEF =    0x01;
-	public static final int REF =     0x02;
-	public static final int CVTYPE =  0x04;
-	public static final int ALLCVQ=   0x08;
-	public static final int PTR=      0x10;
-	public static final int MPTR=     0x20;
-	public static final int ARRAY=    0x40;
+
+	// Resolve typedefs.
+	public static final int TDEF =      0x01;
+	// Resolve typedefs, but only if necessary for a nested type transformation.
+	public static final int COND_TDEF = 0x02; 
+	public static final int REF =       0x04;
+	public static final int CVTYPE =    0x08;
+	public static final int ALLCVQ =    0x10;
+	public static final int PTR =       0x20;
+	public static final int MPTR =      0x40;
+	public static final int ARRAY =     0x80;
 	
 	static {
 		final int OPERATOR_SPC= OPERATOR_CHARS.length + 1;
@@ -90,12 +101,12 @@ public class SemanticUtil {
 	 * @param clazz
 	 * @return an array of conversion operators.
 	 */
-	public static final ICPPMethod[] getDeclaredConversionOperators(ICPPClassType clazz) throws DOMException {
+	public static final ICPPMethod[] getDeclaredConversionOperators(ICPPClassType clazz, IASTNode point) throws DOMException {
 		ICPPMethod[] methods= ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 		if (clazz instanceof ICPPDeferredClassInstance) {
 			clazz= (ICPPClassType) ((ICPPDeferredClassInstance) clazz).getTemplateDefinition();
 		}
-		ICPPMethod[] decs= clazz.getDeclaredMethods();
+		ICPPMethod[] decs= ClassTypeHelper.getDeclaredMethods(clazz, point);
 		if (decs != null) {
 			for (ICPPMethod method : decs) {
 				if (isConversionOperator(method)) {
@@ -113,11 +124,11 @@ public class SemanticUtil {
 	 * @param clazz
 	 * @return an array of conversion operators.
 	 */
-	public static ICPPMethod[] getConversionOperators(ICPPClassType clazz) throws DOMException {
+	public static ICPPMethod[] getConversionOperators(ICPPClassType clazz, IASTNode point) throws DOMException {
 		ICPPMethod[] methods= ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
-		ObjectSet<ICPPClassType> ancestry= inheritanceClosure(clazz);
+		ObjectSet<ICPPClassType> ancestry= inheritanceClosure(clazz, point);
 		for (int i = 0; i < ancestry.size(); i++) {
-			methods= ArrayUtil.addAll(methods, getDeclaredConversionOperators(ancestry.keyAt(i)));
+			methods= ArrayUtil.addAll(methods, getDeclaredConversionOperators(ancestry.keyAt(i), point));
 		}
 		return methods;
 	}
@@ -127,7 +138,7 @@ public class SemanticUtil {
 	 * @return the root and all its ancestor classes
 	 * @throws DOMException
 	 */
-	public static ObjectSet<ICPPClassType> inheritanceClosure(ICPPClassType root) throws DOMException {
+	public static ObjectSet<ICPPClassType> inheritanceClosure(ICPPClassType root, IASTNode point) throws DOMException {
 		ObjectSet<ICPPClassType> done= new ObjectSet<ICPPClassType>(2);
 		ObjectSet<ICPPClassType> current= new ObjectSet<ICPPClassType>(2);
 		current.put(root);
@@ -138,8 +149,8 @@ public class SemanticUtil {
 			for (int i = 0; i < current.size(); i++) {
 				ICPPClassType clazz= current.keyAt(i);				
 				done.put(clazz);
-				
-				for (ICPPBase base : clazz.getBases()) {
+
+				for (ICPPBase base : ClassTypeHelper.getBases(clazz, point)) {
 					IBinding binding= base.getBaseClass();
 					if (binding instanceof ICPPClassType && !(binding instanceof IProblemBinding)) {
 						ICPPClassType ct= (ICPPClassType) binding;
@@ -155,7 +166,7 @@ public class SemanticUtil {
 
 		return done;
 	}
-	
+
 	/**
 	 * @param method
 	 * @return true if the specified method is a conversion operator
@@ -221,17 +232,28 @@ public class SemanticUtil {
 	 */
 	public static IType getNestedType(IType type, int options) {
 		final boolean tdef= (options & TDEF) != 0;
+		final boolean cond_tdef= (options & COND_TDEF) != 0;
 		final boolean ptr= (options & PTR) != 0;
 		final boolean mptr= (options & MPTR) != 0;
 		final boolean allcvq= (options & ALLCVQ) != 0;
-		final boolean cvtype = (options & CVTYPE) != 0;
+		final boolean cvtype= (options & CVTYPE) != 0;
+
+		IType beforeTypedefs = null;
 
 		while (true) {
 			IType t= null;
-			if (type instanceof IPointerType) {
+			if (type instanceof ITypedef) {
+				if (tdef || cond_tdef) {
+					if (beforeTypedefs == null && cond_tdef) {
+						beforeTypedefs = type;
+					}
+					t= ((ITypedef) type).getType();
+				}
+			} else if (type instanceof IPointerType) {
 				final boolean isMbrPtr = type instanceof ICPPPointerToMemberType;
 				if ((ptr && !isMbrPtr) || (mptr && isMbrPtr)) {
 					t= ((IPointerType) type).getType();
+					beforeTypedefs = null;
 				} else if (allcvq) {
 					IPointerType pt= (IPointerType) type;
 					if (pt.isConst() || pt.isVolatile() || pt.isRestrict()) {
@@ -242,16 +264,14 @@ public class SemanticUtil {
 							return new CPPPointerType(pt.getType(), false, false, false);
 						}
 					}
-					return pt;
 				}
-			} else if (tdef && type instanceof ITypedef) {
-				t= ((ITypedef) type).getType();
 			} else if (type instanceof IQualifierType) {
 				final IQualifierType qt = (IQualifierType) type;
 				final IType qttgt = qt.getType();
 				if (allcvq || cvtype) {
 					t= qttgt;
-				} else if (tdef) {
+					beforeTypedefs = null;
+				} else if (tdef || cond_tdef) {
 					t= getNestedType(qttgt, options);
 					if (t == qttgt) 
 						return qt;
@@ -261,6 +281,7 @@ public class SemanticUtil {
 				final IArrayType atype= (IArrayType) type;
 				if ((options & ARRAY) != 0) {
 					t= atype.getType();
+					beforeTypedefs = null;
 				} else if (allcvq) {
 					IType nested= atype.getType();
 					IType newNested= getNestedType(nested, ALLCVQ);
@@ -272,8 +293,9 @@ public class SemanticUtil {
 				final ICPPReferenceType rt = (ICPPReferenceType) type;
 				if ((options & REF) != 0) {
 					t= rt.getType();
+					beforeTypedefs = null;
 				} else if (tdef) {
-					// a typedef within the reference type can influence whether the reference is lvalue or rvalue
+					// A typedef within the reference type can influence whether the reference is lvalue or rvalue
 					IType nested= rt.getType();
 					IType newNested = getNestedType(nested, TDEF);
 					if (nested == newNested) 
@@ -282,8 +304,12 @@ public class SemanticUtil {
 				}
 			}
 			// Pack expansion types are dependent types, there is no need to descend into those.
-			if (t == null)
+			if (t == null) {
+				if (beforeTypedefs != null) {
+					return beforeTypedefs;
+				}
 				return type;
+			}
 			
 			type= t;
 		}
@@ -354,7 +380,7 @@ public class SemanticUtil {
 		if (newNestedType == null)
 			return type;
 		
-		// bug 249085 make sure not to add unnecessary qualifications
+		// Bug 249085 make sure not to add unnecessary qualifications
 		if (type instanceof IQualifierType) {
 			IQualifierType qt= (IQualifierType) type;
 			return addQualifiers(newNestedType, qt.isConst(), qt.isVolatile(), false);
@@ -364,8 +390,56 @@ public class SemanticUtil {
 		type.setType(newNestedType);
 		return type;
 	}
-	
+
+	/**
+	 * Replaces the given type or its nested type with a typedef if that type is the same as
+	 * the type the typedef resolves to. 
+	 * 
+	 * @param type the type subject to substitution 
+	 * @param typedefType the type possibly containing the typedef as its nested type.
+	 * @return the given type with the nested type replaced by the typedef, or {@code null} if
+	 *	   the typedefType doesn't contain a typedef or the nested type doesn't match the typedef.
+	 */
+	public static IType substituteTypedef(IType type, IType typedefType) {
+		typedefType = getNestedType(typedefType, REF | ALLCVQ | PTR | ARRAY);
+		if (!(typedefType instanceof ITypedef))
+			return null;
+		IType nestedType = type;
+		while (!nestedType.isSameType(((ITypedef) typedefType).getType())) {
+			if (nestedType instanceof IQualifierType) {
+				nestedType = ((IQualifierType) nestedType).getType();
+			} else if (nestedType instanceof IPointerType) {
+				nestedType = ((IPointerType) nestedType).getType();
+			} else if (nestedType instanceof IArrayType) {
+				nestedType = ((IArrayType) nestedType).getType();
+			} else if (nestedType instanceof ICPPReferenceType) {
+				nestedType = ((ICPPReferenceType) nestedType).getType();
+			} else {
+				return null;
+			}
+		}
+
+		IType result = null;
+		ITypeContainer containerType = null;
+		for (IType t = type; ; t = containerType.getType()) {
+			IType newType = t == nestedType ? typedefType : (IType) t.clone();
+			if (result == null)
+				result = newType;
+			if (containerType != null) {
+				containerType.setType(newType);
+			}
+			if (t == nestedType)
+				return result;
+			if (!(t instanceof ITypeContainer))
+				return null;
+			containerType = (ITypeContainer) t;
+		}
+	}
+
 	public static IType mapToAST(IType type, IASTNode node) {
+		if (node == null)
+			return type;
+		
 		if (type instanceof IFunctionType) {
 			final ICPPFunctionType ft = (ICPPFunctionType) type;
 			final IType r = ft.getReturnType();
@@ -389,7 +463,7 @@ public class SemanticUtil {
 		} else if (type instanceof ICPPClassType && type instanceof IIndexBinding) {
 			IASTTranslationUnit tu = node.getTranslationUnit();
 			if (tu instanceof CPPASTTranslationUnit) {
-				return ((CPPASTTranslationUnit) tu).mapToAST((ICPPClassType) type);
+				return ((CPPASTTranslationUnit) tu).mapToAST((ICPPClassType) type, node);
 			}
 		}
 		return type;
@@ -441,7 +515,7 @@ public class SemanticUtil {
 			final IType type= arg.getTypeValue();
 			final IType newType= getSimplifiedType(type);
 			if (newType != type) {
-				return new CPPTemplateArgument(newType);
+				return new CPPTemplateTypeArgument(newType);
 			}
 		}
 		return arg;
@@ -552,11 +626,11 @@ public class SemanticUtil {
 	 * @return the number of edges in the inheritance graph, or -1 if the specified classes have
 	 * no inheritance relation
 	 */
-	public static final int calculateInheritanceDepth(IType type, IType baseClass) {
-		return calculateInheritanceDepth(CPPSemantics.MAX_INHERITANCE_DEPTH, new HashSet<Object>(), type, baseClass);
+	public static final int calculateInheritanceDepth(IType type, IType baseClass, IASTNode point) {
+		return calculateInheritanceDepth(CPPSemantics.MAX_INHERITANCE_DEPTH, new HashSet<Object>(), type, baseClass, point);
 	}
 	
-	private static final int calculateInheritanceDepth(int maxdepth, Set<Object> hashSet, IType type, IType baseClass) {
+	private static final int calculateInheritanceDepth(int maxdepth, Set<Object> hashSet, IType type, IType baseClass, IASTNode point) {
 		if (type == baseClass || type.isSameType(baseClass)) {
 			return 0;
 		}
@@ -567,7 +641,7 @@ public class SemanticUtil {
 				clazz= (ICPPClassType) ((ICPPDeferredClassInstance) clazz).getSpecializedBinding();
 			}
 			
-			for (ICPPBase cppBase : clazz.getBases()) {
+			for (ICPPBase cppBase : ClassTypeHelper.getBases(clazz, point)) {
 				IBinding base= cppBase.getBaseClass();
 				if (base instanceof IType && hashSet.add(base)) {
 					IType tbase= (IType) base;
@@ -578,7 +652,7 @@ public class SemanticUtil {
 					}
 	
 					if (tbase instanceof ICPPClassType) {
-						int n= calculateInheritanceDepth(maxdepth - 1, hashSet, tbase, baseClass);
+						int n= calculateInheritanceDepth(maxdepth - 1, hashSet, tbase, baseClass, point);
 						if (n > 0)
 							return n + 1;
 					}

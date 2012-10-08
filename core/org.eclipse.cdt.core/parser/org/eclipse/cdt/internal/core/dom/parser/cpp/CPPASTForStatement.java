@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     John Camelon (IBM) - Initial API and implementation
  *     Emanuel Graf IFS - Bug 198269
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -19,14 +20,15 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTForStatement;
-import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * For statement in C++
  */
-public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, IASTAmbiguityParent {
-    private IScope scope = null;
+public class CPPASTForStatement extends ASTAttributeOwner
+		implements ICPPASTForStatement, IASTAmbiguityParent {
+    private IScope scope;
     
     private IASTStatement  init;
     private IASTExpression condition;
@@ -53,10 +55,12 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
     	setBody(body);
 	}
 
-    public CPPASTForStatement copy() {
+    @Override
+	public CPPASTForStatement copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
     
+	@Override
 	public CPPASTForStatement copy(CopyStyle style) {
 		CPPASTForStatement copy = new CPPASTForStatement();
 		copy.setInitializerStatement(init == null ? null : init.copy(style));
@@ -65,18 +69,16 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		copy.setIterationExpression(iterationExpression == null ?
 				null : iterationExpression.copy(style));
 		copy.setBody(body == null ? null : body.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
+	@Override
 	public IASTExpression getConditionExpression() {
         return condition;
     }
 
-    public void setConditionExpression(IASTExpression condition) {
+    @Override
+	public void setConditionExpression(IASTExpression condition) {
         assertNotFrozen();
         this.condition = condition;
         if (condition != null) {
@@ -86,11 +88,13 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
     }
 
-    public IASTExpression getIterationExpression() {
+    @Override
+	public IASTExpression getIterationExpression() {
         return iterationExpression;
     }
 
-    public void setIterationExpression(IASTExpression iterator) {
+    @Override
+	public void setIterationExpression(IASTExpression iterator) {
         assertNotFrozen();
         this.iterationExpression = iterator;
         if (iterator != null) {
@@ -99,11 +103,13 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
     }
 
-    public IASTStatement getBody() {
+    @Override
+	public IASTStatement getBody() {
         return body;
     }
 
-    public void setBody(IASTStatement statement) {
+    @Override
+	public void setBody(IASTStatement statement) {
         assertNotFrozen();
         body = statement;
         if (statement != null) {
@@ -112,7 +118,8 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
     }
 
-    public IScope getScope() {
+    @Override
+	public IScope getScope() {
         if (scope == null)
             scope = new CPPBlockScope(this);
         return scope;
@@ -127,6 +134,8 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 	            default: break;
 	        }
 		}
+
+        if (!acceptByAttributes(action)) return false;
         if (init != null && !init.accept(action)) return false;
         if (condition != null && !condition.accept(action)) return false;
         if (condDeclaration != null && !condDeclaration.accept(action)) return false;
@@ -143,6 +152,7 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
         return true;
     }
     
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (body == child) {
 			other.setPropertyInParent(child.getPropertyInParent());
@@ -165,11 +175,13 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
 	}
 
-    public IASTStatement getInitializerStatement() {
+    @Override
+	public IASTStatement getInitializerStatement() {
         return init;
     }
 
-    public void setInitializerStatement(IASTStatement statement) {
+    @Override
+	public void setInitializerStatement(IASTStatement statement) {
         assertNotFrozen();
         init = statement;
         if (statement != null) {
@@ -178,7 +190,8 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
     }
 
-    public void setConditionDeclaration(IASTDeclaration d) {
+    @Override
+	public void setConditionDeclaration(IASTDeclaration d) {
         assertNotFrozen();
         condDeclaration = d;
         if (d != null) {
@@ -188,7 +201,8 @@ public class CPPASTForStatement extends ASTNode implements ICPPASTForStatement, 
 		}
     }
 
-    public IASTDeclaration getConditionDeclaration() {
+    @Override
+	public IASTDeclaration getConditionDeclaration() {
         return condDeclaration;
     }
 }

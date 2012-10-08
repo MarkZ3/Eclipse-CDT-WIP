@@ -21,15 +21,13 @@ import org.eclipse.cdt.internal.ui.refactoring.CRefactoringContribution;
  * @author Emanuel Graf IFS
  */
 public class ExtractLocalVariableRefactoringContribution extends CRefactoringContribution {
-
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public RefactoringDescriptor createDescriptor(String id, String project, String description,
 			String comment, Map arguments, int flags) throws IllegalArgumentException {
 		if (id.equals(ExtractLocalVariableRefactoring.ID)) {
-			return new ExtractLocalVariableRefactoringDescription(project, description, comment, arguments);
-		} else {
-			return null;
+			return new ExtractLocalVariableRefactoringDescriptor(project, description, comment, arguments);
 		}
+		return null;
 	}
 }

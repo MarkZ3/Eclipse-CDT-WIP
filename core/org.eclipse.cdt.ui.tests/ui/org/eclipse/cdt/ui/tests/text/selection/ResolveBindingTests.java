@@ -16,6 +16,7 @@ import junit.framework.Test;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
 
@@ -50,15 +51,17 @@ public class ResolveBindingTests extends BaseUITestCase  {
 		return suite(ResolveBindingTests.class);
 	}
 
+	@Override
 	protected void setUp() throws Exception {
 		super.setUp();
 		fCProject= CProjectHelper.createCCProject("ResolveBindingTests", "bin", IPDOMManager.ID_FAST_INDEXER);
 		fIndex= CCorePlugin.getIndexManager().getIndex(fCProject);
 	}
 		
+	@Override
 	protected void tearDown() throws Exception {
 		if (fCProject != null) {
-			fCProject.getProject().delete(IProject.FORCE | IProject.ALWAYS_DELETE_PROJECT_CONTENT, new NullProgressMonitor());
+			fCProject.getProject().delete(IResource.FORCE | IResource.ALWAYS_DELETE_PROJECT_CONTENT, new NullProgressMonitor());
 		}
 		super.tearDown();
 	}
@@ -105,7 +108,7 @@ public class ResolveBindingTests extends BaseUITestCase  {
 	public void testNamespaceVarBinding() throws Exception {
 		String content = readTaggedComment("namespace-var-test");
 		IFile file= createFile(fCProject.getProject(), "nsvar.cpp", content);
-		waitForIndexer(fIndex, file, WAIT_FOR_INDEXER);
+		waitUntilFileIsIndexed(fIndex, file);
 		
 		IIndex index= CCorePlugin.getIndexManager().getIndex(fCProject);
 		index.acquireReadLock();
@@ -129,7 +132,7 @@ public class ResolveBindingTests extends BaseUITestCase  {
 	public void testNamespaceVarBinding_156519() throws Exception {
 		String content = readTaggedComment("namespace-var-test");
 		IFile file= createFile(fCProject.getProject(), "nsvar.cpp", content);
-		waitForIndexer(fIndex, file, WAIT_FOR_INDEXER);
+		waitUntilFileIsIndexed(fIndex, file);
 		
 		IIndex index= CCorePlugin.getIndexManager().getIndex(fCProject);
 		index.acquireReadLock();
@@ -170,7 +173,7 @@ public class ResolveBindingTests extends BaseUITestCase  {
 		IFile hfile= createFile(fCProject.getProject(), "testMethods.h", content);
 		content = readTaggedComment("testMethods.cpp");
 		IFile cppfile= createFile(fCProject.getProject(), "testMethods.cpp", content);
-		waitForIndexer(fIndex, hfile, WAIT_FOR_INDEXER);
+		waitUntilFileIsIndexed(fIndex, hfile);
 		
 		IIndex index= CCorePlugin.getIndexManager().getIndex(fCProject);
 		index.acquireReadLock();

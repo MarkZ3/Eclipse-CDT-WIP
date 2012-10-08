@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM Rational Software) - Initial API and implementation
+ *     John Camelon (IBM Rational Software) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -17,7 +17,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTUnaryExpression extends IASTExpression {
-
 	/**
 	 * Prefix increment.
 	 * <code>op_prefixIncr</code> ++exp
@@ -32,7 +31,7 @@ public interface IASTUnaryExpression extends IASTExpression {
 
 	/**
 	 * Operator plus.
-	 * <code>op_plus</code> ==> + exp
+	 * <code>op_plus</code> ==> +exp
 	 */
 	public static final int op_plus = 2;
 
@@ -107,16 +106,22 @@ public interface IASTUnaryExpression extends IASTExpression {
 	public static final int op_typeof = 14;
 
 	/**
-	 * for gnu parsers, only. <code>op_alignOf</code> is used for __alignOf( unaryExpression ) type
+	 * For gnu parsers, only. <code>op_alignOf</code> is used for __alignOf( unaryExpression ) type
 	 * expressions.
 	 */
 	public static final int op_alignOf = 15;
 
 	/**
-	 * For c++, only: 'sizeof...(parameterPack)'
+	 * For c++, only: 'sizeof... ( parameterPack )'
 	 * @since 5.2
 	 */
 	public static final int op_sizeofParameterPack = 16;
+
+	/**
+	 * For c++, only: noexcept ( expression )
+	 * @since 5.5
+	 */
+	public static final int op_noexcept = 17;
 
 	/**
 	 * <code>op_last</code> is made available for subclasses.
@@ -143,7 +148,8 @@ public interface IASTUnaryExpression extends IASTExpression {
 	 * <code>OPERAND</code> represents the relationship between an <code>IASTUnaryExpression</code> and
 	 * it's nested <code>IASTExpression</code>.
 	 */
-	public static final ASTNodeProperty OPERAND = new ASTNodeProperty("IASTUnaryExpression.OPERAND - IASTExpression (operand) for IASTUnaryExpression"); //$NON-NLS-1$
+	public static final ASTNodeProperty OPERAND =
+			new ASTNodeProperty("IASTUnaryExpression.OPERAND - IASTExpression (operand) for IASTUnaryExpression"); //$NON-NLS-1$
 
 	/**
 	 * Get the operand.
@@ -162,10 +168,12 @@ public interface IASTUnaryExpression extends IASTExpression {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTUnaryExpression copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTUnaryExpression copy(CopyStyle style);
 }

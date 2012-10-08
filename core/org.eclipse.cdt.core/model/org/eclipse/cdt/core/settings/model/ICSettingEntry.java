@@ -11,7 +11,17 @@
 package org.eclipse.cdt.core.settings.model;
 
 import org.eclipse.cdt.core.model.IIncludeEntry;
+import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 
+/**
+ * An interface representing setting entries.
+ *
+ * @noextend This interface is not intended to be extended by clients.
+ * @noimplement This interface is not intended to be implemented by clients.
+ *
+ * Any class implementing this interface should be immutable so the setting
+ * entries could be safely pooled by {@link CDataUtil#getPooledEntry(ICSettingEntry)}.
+ */
 public interface ICSettingEntry {
 	/**
 	 * Flag {@code BUILTIN} indicates settings built in a tool (compiler) itself.
@@ -45,6 +55,22 @@ public interface ICSettingEntry {
 	 * have been expanded to their values.
 	 */
 	int RESOLVED = 1 << 4;
+
+	/**
+	 * Flag {@code UNDEFINED} indicates that the entry should not be defined.
+	 * It's main purpose to provide the means to negate entries defined elsewhere.
+	 *
+	 * @since 5.4
+	 */
+	int UNDEFINED = 1 << 5;
+
+	/**
+	 * Flag {@code FRAMEWORKS_MAC} applies for path entries. Such a path entry will be treated
+	 * in a special way to imitate resolving paths by Apple's version of gcc, see bug 69529.
+	 *
+	 * @since 5.4
+	 */
+	int FRAMEWORKS_MAC = 1 << 6;
 
 	int INCLUDE_PATH = 1;
 	int INCLUDE_FILE = 1 << 1;

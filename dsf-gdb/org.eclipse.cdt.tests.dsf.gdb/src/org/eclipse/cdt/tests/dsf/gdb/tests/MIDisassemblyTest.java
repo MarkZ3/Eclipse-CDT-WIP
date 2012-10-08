@@ -40,10 +40,6 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.cdt.utils.Addr64;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -78,21 +74,14 @@ public class MIDisassemblyTest extends BaseTestCase {
     // Housekeeping stuff
     // ========================================================================
 
-    @BeforeClass
-    public static void testSuiteInitialization() {
-        // Select the binary to run the tests against
-        setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "data/launch/bin/MemoryTestApp.exe");
-    }
-
-    @AfterClass
-    public static void testSuiteCleanup() {
-    }
-
-    @Before
-    public void testCaseInitialization() throws Exception {
+    @Override
+	public void doBeforeTest() throws Exception {
+		super.doBeforeTest();
+		
         fSession = getGDBLaunch().getSession();
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                // Get a reference to the memory service
                 fServicesTracker = new DsfServicesTracker(TestsPlugin.getBundleContext(), fSession.getId());
                 assert(fServicesTracker != null);
@@ -112,8 +101,18 @@ public class MIDisassemblyTest extends BaseTestCase {
 
     }
 
-    @After
-    public void testCaseCleanup() {
+    @Override
+    protected void setLaunchAttributes() {
+    	super.setLaunchAttributes();
+    	
+    	// Select the binary to run the tests against
+    	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "data/launch/bin/MemoryTestApp.exe");
+    }
+    
+	@Override
+	public void doAfterTest() throws Exception {
+		super.doAfterTest();
+		
         fExpressionService = null;
         fDisassembly = null;
         fServicesTracker.dispose();
@@ -160,7 +159,8 @@ public class MIDisassemblyTest extends BaseTestCase {
 
         // Evaluate the expression (asynchronously)
         fSession.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fExpressionService.getFormattedExpressionValue(formattedValueDMC, drm);
             }
         });
@@ -211,7 +211,8 @@ public class MIDisassemblyTest extends BaseTestCase {
 
         // Issue the get memory request
         fSession.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fDisassembly.getInstructions(dmc, startAddress, endAddress, drm);
             }
         });
@@ -252,7 +253,8 @@ public class MIDisassemblyTest extends BaseTestCase {
 
         // Issue the get memory request
         fSession.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fDisassembly.getInstructions(dmc, function, linenum, count, drm);
             }
         });
@@ -292,7 +294,8 @@ public class MIDisassemblyTest extends BaseTestCase {
 
         // Issue the get memory request
         fSession.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fDisassembly.getMixedInstructions(dmc, startAddress, endAddress, drm);
             }
         });
@@ -333,7 +336,8 @@ public class MIDisassemblyTest extends BaseTestCase {
 
         // Issue the get memory request
         fSession.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fDisassembly.getMixedInstructions(dmc, function, linenum, count, drm);
             }
         });

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2008 Wind River Systems, Inc. and others.
+ * Copyright (c) 2006, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,7 +26,6 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 import org.eclipse.cdt.core.CCorePlugin;
-import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.ICompositeType;
@@ -50,6 +49,9 @@ import org.eclipse.cdt.internal.ui.util.StatusLineHandler;
 import org.eclipse.cdt.internal.ui.viewsupport.IndexUI;
 
 public class TypeHierarchyUI {
+	private static final int INDEX_SEARCH_OPTION = IIndexManager.ADD_DEPENDENCIES
+			| IIndexManager.ADD_DEPENDENT | IIndexManager.ADD_EXTENSION_FRAGMENTS_TYPE_HIERARCHY;
+
 	public static THViewPart open(ICElement input, IWorkbenchWindow window) {
         if (!isValidInput(input)) {
         	return null;
@@ -118,6 +120,7 @@ public class TypeHierarchyUI {
 							final ICElement[] elems= findInput(project, editorInput, reg);
 							if (elems != null && elems.length == 2) {
 								display.asyncExec(new Runnable() {
+									@Override
 									public void run() {
 										openInViewPart(editor.getSite().getWorkbenchWindow(), elems[0], elems[1]);
 									}});
@@ -140,7 +143,7 @@ public class TypeHierarchyUI {
     
 	private static ICElement[] findInput(ICProject project, IEditorInput editorInput, IRegion sel) throws CoreException {
 		try {
-			IIndex index= CCorePlugin.getIndexManager().getIndex(project, IIndexManager.ADD_DEPENDENCIES | IIndexManager.ADD_DEPENDENT);
+			IIndex index= CCorePlugin.getIndexManager().getIndex(project, INDEX_SEARCH_OPTION);
 
 			index.acquireReadLock();
 			try {
@@ -179,7 +182,7 @@ public class TypeHierarchyUI {
 	private static ICElement[] findInput(ICElement member)  {
 		ICProject project= member.getCProject();
 		try {
-			IIndex index= CCorePlugin.getIndexManager().getIndex(project, IIndexManager.ADD_DEPENDENCIES | IIndexManager.ADD_DEPENDENT);
+			IIndex index= CCorePlugin.getIndexManager().getIndex(project, INDEX_SEARCH_OPTION);
 			index.acquireReadLock();
 			try {
 				IIndexName name= IndexUI.elementToName(index, member);
@@ -208,21 +211,15 @@ public class TypeHierarchyUI {
 	}
 
 	private static IBinding findTypeBinding(IBinding memberBinding) {
-		try {
-			if (memberBinding instanceof IEnumerator) {
-				IType type= ((IEnumerator) memberBinding).getType();
-				if (type instanceof IBinding) {
-					return (IBinding) type;
-				}
+		if (memberBinding instanceof IEnumerator) {
+			IType type= ((IEnumerator) memberBinding).getType();
+			if (type instanceof IBinding) {
+				return (IBinding) type;
 			}
-			else if (memberBinding instanceof ICPPMember) {
-				return ((ICPPMember) memberBinding).getClassOwner();
-			}
-			else if (memberBinding instanceof IField) {
-				return ((IField) memberBinding).getCompositeTypeOwner();
-			}
-		} catch (DOMException e) {
-			// don't log problem bindings
+		} else if (memberBinding instanceof ICPPMember) {
+			return ((ICPPMember) memberBinding).getClassOwner();
+		} else if (memberBinding instanceof IField) {
+			return ((IField) memberBinding).getCompositeTypeOwner();
 		}
 		return null;
 	}

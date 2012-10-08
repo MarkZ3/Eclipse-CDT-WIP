@@ -11,22 +11,24 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
-import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.LVALUE;
 import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.PRVALUE;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryTypeIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTTypeId;
-import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
-import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalBinaryTypeId;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 
-public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryTypeIdExpression {
+public class CPPASTBinaryTypeIdExpression extends ASTNode implements ICPPASTExpression, IASTBinaryTypeIdExpression {
     private Operator fOperator;
     private IASTTypeId fOperand1;
     private IASTTypeId fOperand2;
-
+    private ICPPEvaluation fEvaluation;
+    
     public CPPASTBinaryTypeIdExpression() {
 	}
 
@@ -36,14 +38,16 @@ public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryT
 		setOperand2(typeId2);
 	}
 
+	@Override
 	public CPPASTBinaryTypeIdExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CPPASTBinaryTypeIdExpression copy(CopyStyle style) {
 		CPPASTBinaryTypeIdExpression copy = new CPPASTBinaryTypeIdExpression(fOperator, 
-				fOperand1 == null ? null : fOperand1.copy(),
-				fOperand2 == null ? null : fOperand2.copy());
+				fOperand1 == null ? null : fOperand1.copy(style),
+				fOperand2 == null ? null : fOperand2.copy(style));
 		copy.setOffsetAndLength(this);
 		if (style == CopyStyle.withLocations) {
 			copy.setCopyLocation(this);
@@ -51,16 +55,19 @@ public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryT
 		return copy;
 	}
 
+	@Override
 	public Operator getOperator() {
         return fOperator;
     }
 
-    public void setOperator(Operator value) {
+    @Override
+	public void setOperator(Operator value) {
         assertNotFrozen();
         fOperator = value;
     }
 
-    public void setOperand1(IASTTypeId typeId) {
+    @Override
+	public void setOperand1(IASTTypeId typeId) {
     	assertNotFrozen();
        	fOperand1 = typeId;
        	if (typeId != null) {
@@ -69,7 +76,8 @@ public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryT
        	} 
     }
 
-    public void setOperand2(IASTTypeId typeId) {
+    @Override
+	public void setOperand2(IASTTypeId typeId) {
     	assertNotFrozen();
        	fOperand2 = typeId;
        	if (typeId != null) {
@@ -78,11 +86,13 @@ public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryT
        	} 
     }
 
-    public IASTTypeId getOperand1() {
+    @Override
+	public IASTTypeId getOperand1() {
     	return fOperand1;
     }
 
-    public IASTTypeId getOperand2() {
+    @Override
+	public IASTTypeId getOperand2() {
     	return fOperand2;
     }
 
@@ -107,19 +117,36 @@ public class CPPASTBinaryTypeIdExpression extends ASTNode implements IASTBinaryT
         return true;
     }
     
-	public IType getExpressionType() {
-		switch (getOperator()) {
-		case __is_base_of:
-			return CPPBasicType.BOOLEAN;
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEvaluation == null) {
+			if (fOperand1 == null || fOperand2 == null) {
+				fEvaluation= EvalFixed.INCOMPLETE;
+			} else {
+				IType t1= CPPVisitor.createType(fOperand1);
+				IType t2= CPPVisitor.createType(fOperand1);
+				if (t1 == null || t2 == null) {
+					fEvaluation= EvalFixed.INCOMPLETE;
+				} else {
+					fEvaluation= new EvalBinaryTypeId(fOperator, t1, t2);
+				}
+			}
 		}
-		return new ProblemType(ISemanticProblem.TYPE_UNKNOWN_FOR_EXPRESSION);
+		return fEvaluation;
+	}
+
+	@Override
+	public IType getExpressionType() {
+		return getEvaluation().getTypeOrFunctionSet(this);
 	}
 	
+	@Override
 	public boolean isLValue() {
 		return false;
 	}
 
+	@Override
 	public ValueCategory getValueCategory() {
-		return isLValue() ? LVALUE : PRVALUE;
+		return PRVALUE;
 	}
 }

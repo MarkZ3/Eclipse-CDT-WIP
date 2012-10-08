@@ -7,7 +7,7 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- * Institute for Software - initial API and implementation
+ *     Institute for Software - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.parser.tests.rewrite;
 
@@ -18,7 +18,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Vector;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,10 +33,8 @@ import org.osgi.framework.Bundle;
 
 /**
  * @author Emanuel Graf
- *
  */
-public class RewriteTester extends TestSuite{
-	
+public class RewriteTester extends TestSuite {
 	enum MatcherState{skip, inTest, inSource, inExpectedResult}
 	
 	private static final String classRegexp = "//#(.*)\\s*(\\w*)*$"; //$NON-NLS-1$
@@ -44,7 +42,7 @@ public class RewriteTester extends TestSuite{
 	private static final String fileRegexp = "//@(.*)\\s*(\\w*)*$"; //$NON-NLS-1$
 	private static final String resultRegexp = "//=.*$"; //$NON-NLS-1$
 	
-	public static Test suite(String name, String file)throws Exception {
+	public static Test suite(String name, String file) throws Exception {
 		BufferedReader in = createReader(file);
 
 		ArrayList<RewriteBaseTest> testCases = createTests(in);
@@ -60,9 +58,8 @@ public class RewriteTester extends TestSuite{
 	}
 	
 	private static ArrayList<RewriteBaseTest> createTests(BufferedReader inputReader) throws Exception {
-		
 		String line;
-		Vector<TestSourceFile> files = new Vector<TestSourceFile>();
+		List<TestSourceFile> files = new ArrayList<TestSourceFile>();
 		TestSourceFile actFile = null;
 		MatcherState matcherState = MatcherState.skip;
 		ArrayList<RewriteBaseTest> testCases = new ArrayList<RewriteBaseTest>();
@@ -70,13 +67,12 @@ public class RewriteTester extends TestSuite{
 		String className = null;
 		boolean bevorFirstTest = true;
 		
-		while ((line = inputReader.readLine()) != null){
-			
-			if(lineMatchesBeginOfTest(line)) {
-				if(!bevorFirstTest) {
+		while ((line = inputReader.readLine()) != null) {
+			if (lineMatchesBeginOfTest(line)) {
+				if (!bevorFirstTest) {
 					RewriteBaseTest test = createTestClass(className, testName, files);
 					testCases.add(test);
-					files = new Vector<TestSourceFile>();
+					files = new ArrayList<TestSourceFile>();
 					className = null;
 					testName = null;
 				}
@@ -84,27 +80,27 @@ public class RewriteTester extends TestSuite{
 				testName = getNameOfTest(line);
 				bevorFirstTest = false;
 				continue;
-			}	else if (lineMatchesBeginOfResult(line)) {
+			} else if (lineMatchesBeginOfResult(line)) {
 				matcherState = MatcherState.inExpectedResult;
 				continue;
-			}else if (lineMatchesFileName(line)) {
+			} else if (lineMatchesFileName(line)) {
 				matcherState = MatcherState.inSource;
 				actFile = new TestSourceFile(getFileName(line));
 				files.add(actFile);
 				continue;
-			}else if(lineMatchesClassName(line)) {
+			} else if (lineMatchesClassName(line)) {
 				className = getNameOfClass(line);
 				continue;
 			}
 			
-			switch(matcherState) {
+			switch (matcherState) {
 			case inSource:
-				if(actFile != null) {
+				if (actFile != null) {
 					actFile.addLineToSource(line);
 				}
 				break;
 			case inExpectedResult:
-				if(actFile != null) {
+				if (actFile != null) {
 					actFile.addLineToExpectedSource(line);
 				}
 				break;
@@ -117,24 +113,15 @@ public class RewriteTester extends TestSuite{
 		return testCases;
 	}
 	
-
-	
-	private static RewriteBaseTest createTestClass(String className, String testName, Vector<TestSourceFile> files) throws Exception {
-		
-		
+	private static RewriteBaseTest createTestClass(String className, String testName,
+			List<TestSourceFile> files) throws Exception {
 		try {
 			Class<?> refClass = Class.forName(className);
-			Class<?> paratypes[] = new Class[2];
-			paratypes[0] = testName.getClass();
-			paratypes[1] = files.getClass();
-			Constructor<?> ct = refClass.getConstructor(paratypes);
-			Object arglist[] = new Object[2];
-			arglist[0] = testName;
-			arglist[1] = files;
-			RewriteBaseTest test = (RewriteBaseTest) ct.newInstance(arglist);
+			Constructor<?> ct = refClass.getConstructor(new Class[] { String.class, List.class });
+			RewriteBaseTest test = (RewriteBaseTest) ct.newInstance(new Object[] { testName, files });
 			for (TestSourceFile file : files) {
 				TextSelection sel = file.getSelection();
-				if(sel != null) {
+				if (sel != null) {
 					test.setFileWithSelection(file.getName());
 					test.setSelection(sel);
 					break;
@@ -142,7 +129,8 @@ public class RewriteTester extends TestSuite{
 			}
 			return test;
 		} catch (ClassNotFoundException e) {
-			throw new Exception("Unknown TestClass: " + e.getMessage() + ". Make sure the test's sourcefile specifies a valid test class."); 
+			throw new Exception("Unknown TestClass: " + e.getMessage() +
+					". Make sure the test's sourcefile specifies a valid test class."); 
 		} catch (SecurityException e) {
 			throw new Exception("Security Exception during Test creation", e); 
 		} catch (NoSuchMethodException e) {
@@ -160,18 +148,16 @@ public class RewriteTester extends TestSuite{
 
 	private static String getFileName(String line) {
 		Matcher matcherBeginOfTest = createMatcherFromString(fileRegexp, line);
-		if(matcherBeginOfTest.find())
+		if (matcherBeginOfTest.find())
 			return matcherBeginOfTest.group(1);
-		else
-			return null;
+		return null;
 	}
 
 	private static String getNameOfClass(String line) {
 		Matcher matcherBeginOfTest = createMatcherFromString(classRegexp, line);
-		if(matcherBeginOfTest.find())
+		if (matcherBeginOfTest.find())
 			return matcherBeginOfTest.group(1);
-		else
-			return null;
+		return null;
 	}
 
 	private static boolean lineMatchesBeginOfTest(String line) {
@@ -192,10 +178,9 @@ public class RewriteTester extends TestSuite{
 	
 	private static String getNameOfTest(String line) {
 		Matcher matcherBeginOfTest = createMatcherFromString(testRegexp, line);
-		if(matcherBeginOfTest.find())
+		if (matcherBeginOfTest.find())
 			return matcherBeginOfTest.group(1);
-		else
-			return "Not Named"; 
+		return "Not Named";
 	}
 	
 	private static boolean lineMatchesBeginOfResult(String line) {
@@ -205,7 +190,7 @@ public class RewriteTester extends TestSuite{
 	private static TestSuite createSuite(ArrayList<RewriteBaseTest> testCases, String name) {
 		TestSuite suite = new TestSuite(name);
 		Iterator<RewriteBaseTest> it = testCases.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			RewriteBaseTest subject =it.next();
 			suite.addTest(subject);
 		}

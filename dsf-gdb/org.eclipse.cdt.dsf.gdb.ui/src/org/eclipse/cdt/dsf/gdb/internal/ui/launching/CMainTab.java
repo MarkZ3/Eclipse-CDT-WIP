@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2010  QNX Software Systems and others.
+ * Copyright (c) 2008, 2012  QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,8 +10,13 @@
  *     Ken Ryall (Nokia) - bug 178731
  *     Ericsson - Support for tracepoint post-mortem debugging
  *     IBM Corporation
+ *     Marc Khouzam (Ericsson) - Support setting the path in which the core file 
+ *                               dialog should start (Bug 362039)
+ *     Anton Gorenkov
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.launching;
+
+import java.io.File;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.model.IBinary;
@@ -30,6 +35,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.DebugUITools;
@@ -107,6 +113,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#createControl(org.eclipse.swt.widgets.Composite)
 	 */
+    @Override
 	public void createControl(Composite parent) {
 		Composite comp = new Composite(parent, SWT.NONE);
 		setControl(comp);
@@ -133,7 +140,6 @@ public class CMainTab extends CAbstractMainTab {
 	protected void createExeFileGroup(Composite parent, int colSpan) {
 		Composite mainComp = new Composite(parent, SWT.NONE);
 		GridLayout mainLayout = new GridLayout();
-		mainLayout.numColumns = 3;
 		mainLayout.marginHeight = 0;
 		mainLayout.marginWidth = 0;
 		mainComp.setLayout(mainLayout);
@@ -143,18 +149,28 @@ public class CMainTab extends CAbstractMainTab {
 		fProgLabel = new Label(mainComp, SWT.NONE);
 		fProgLabel.setText(LaunchMessages.getString("CMainTab.C/C++_Application")); //$NON-NLS-1$
 		gd = new GridData();
-		gd.horizontalSpan = 3;
 		fProgLabel.setLayoutData(gd);
 		fProgText = new Text(mainComp, SWT.SINGLE | SWT.BORDER);
 		gd = new GridData(GridData.FILL_HORIZONTAL);
 		fProgText.setLayoutData(gd);
 		fProgText.addModifyListener(new ModifyListener() {
+            @Override
 			public void modifyText(ModifyEvent evt) {
 				updateLaunchConfigurationDialog();
 			}
 		});
 
-		fSearchButton = createPushButton(mainComp, LaunchMessages.getString("CMainTab.Search..."), null); //$NON-NLS-1$
+		Composite buttonComp = new Composite(mainComp, SWT.NONE);
+		GridLayout layout = new GridLayout(3, false);
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		buttonComp.setLayout(layout);
+		gd = new GridData(GridData.HORIZONTAL_ALIGN_END);
+		buttonComp.setLayoutData(gd);
+		buttonComp.setFont(parent.getFont());
+
+		createVariablesButton(buttonComp, LaunchMessages.getString("CMainTab.Variables"), fProgText); //$NON-NLS-1$
+		fSearchButton = createPushButton(buttonComp, LaunchMessages.getString("CMainTab.Search..."), null); //$NON-NLS-1$
 		fSearchButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent evt) {
@@ -164,7 +180,7 @@ public class CMainTab extends CAbstractMainTab {
 		});
 
 		Button browseForBinaryButton;
-		browseForBinaryButton = createPushButton(mainComp, LaunchMessages.getString("Launch.common.Browse_2"), null); //$NON-NLS-1$
+		browseForBinaryButton = createPushButton(buttonComp, LaunchMessages.getString("Launch.common.Browse_2"), null); //$NON-NLS-1$
 		browseForBinaryButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent evt) {
@@ -208,6 +224,7 @@ public class CMainTab extends CAbstractMainTab {
 		gd = new GridData(GridData.FILL_HORIZONTAL);
 		fCoreText.setLayoutData(gd);
 		fCoreText.addModifyListener(new ModifyListener() {
+            @Override
 			public void modifyText(ModifyEvent evt) {
 				updateLaunchConfigurationDialog();
 			}
@@ -237,11 +254,13 @@ public class CMainTab extends CAbstractMainTab {
 		});
 		
 		fCoreTypeCombo.addSelectionListener(new SelectionListener() {
+            @Override
 			public void widgetSelected(SelectionEvent e) {
 				updateCoreFileLabel();
 				updateLaunchConfigurationDialog();
 			}
 
+            @Override
 			public void widgetDefaultSelected(SelectionEvent e) {
 			}
 		});
@@ -268,6 +287,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#initializeFrom(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+    @Override
 	public void initializeFrom(ILaunchConfiguration config) {
 		filterPlatform = getPlatform(config);
 		updateProjectFromConfig(config);
@@ -433,6 +453,11 @@ public class CMainTab extends CAbstractMainTab {
 
 		if (!fDontCheckProgram) {
 			String programName = fProgText.getText().trim();
+       		try {
+				programName = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programName);
+			} catch (CoreException e) {
+				// Silently ignore substitution failure (for consistency with "Arguments" and "Work directory" fields)
+			}
 			if (programName.length() == 0) {
 				setErrorMessage(LaunchMessages.getString("CMainTab.Program_not_specified")); //$NON-NLS-1$
 				return false;
@@ -445,8 +470,13 @@ public class CMainTab extends CAbstractMainTab {
 			if (exePath.isAbsolute()) {
 				// For absolute paths, we don't need a project, we can debug the binary directly
 				// as long as it exists
-				if (!exePath.toFile().exists()) {
+				File executable = exePath.toFile();
+				if (!executable.exists()) {
 					setErrorMessage(LaunchMessages.getString("CMainTab.Program_does_not_exist")); //$NON-NLS-1$
+					return false;
+				}
+				if (!executable.isFile()) {
+					setErrorMessage(LaunchMessages.getString("CMainTab.Selection_must_be_file")); //$NON-NLS-1$
 					return false;
 				}
 			} else {
@@ -479,15 +509,25 @@ public class CMainTab extends CAbstractMainTab {
 			String coreName = fCoreText.getText().trim();
 			// We accept an empty string.  This should trigger a prompt to the user
 			// This allows to re-use the launch, with a different core file.
+			// We also accept an absolute or workspace-relative path, including variables.
+			// This allows the user to indicate in which directory the prompt will start (Bug 362039)
 			if (!coreName.equals(EMPTY_STRING)) {
-				if (coreName.equals(".") || coreName.equals("..")) { //$NON-NLS-1$ //$NON-NLS-2$
-					setErrorMessage(LaunchMessages.getString("CMainTab.File_does_not_exist")); //$NON-NLS-1$
+				try {
+					// Replace the variables
+					coreName = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(coreName, false);
+				} catch (CoreException e) {
+					setErrorMessage(e.getMessage());
 					return false;
 				}
-				IPath corePath = new Path(coreName);
-				if (!corePath.toFile().exists()) {
-					setErrorMessage(LaunchMessages.getString("CMainTab.File_does_not_exist")); //$NON-NLS-1$
-					return false;
+				
+				coreName = coreName.trim();
+				File filePath = new File(coreName);
+				if (!filePath.isDirectory()) {
+					IPath corePath = new Path(coreName);
+					if (!corePath.toFile().exists()) {
+						setErrorMessage(LaunchMessages.getString("CMainTab.File_does_not_exist")); //$NON-NLS-1$
+						return false;
+					}
 				}
 			}
 		}
@@ -500,6 +540,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#setDefaults(org.eclipse.debug.core.ILaunchConfigurationWorkingCopy)
 	 */
+    @Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		// We set empty attributes for project & program so that when one config is
 		// compared to another, the existence of empty attributes doesn't cause and
@@ -592,6 +633,7 @@ public class CMainTab extends CAbstractMainTab {
 	 * 
 	 * @see org.eclipse.debug.ui.ILaunchConfigurationTab#getName()
 	 */
+    @Override
 	public String getName() {
 		return LaunchMessages.getString("CMainTab.Main"); //$NON-NLS-1$
 	}

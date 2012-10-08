@@ -6,13 +6,12 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Andrew Ferguson (Symbian) - Initial implementation
- *    Markus Schorn (Wind River Systems)
+ *     Andrew Ferguson (Symbian) - Initial implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.index.composite.cpp;
 
 import org.eclipse.cdt.core.CCorePlugin;
-import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplate;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplatePartialSpecialization;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
@@ -20,7 +19,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateInstance;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPInstanceCache;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPTemplates;
@@ -36,7 +34,8 @@ public class CompositeCPPClassTemplate extends CompositeCPPClassType
 		super(cf, ct);
 	}
 	
-	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() throws DOMException {
+	@Override
+	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() {
 		try {
 			final CIndex cIndex = (CIndex) ((CPPCompositesFactory) cf).getContext();
 			IIndexFragmentBinding[] bindings = cIndex.findEquivalentBindings(rbinding);
@@ -49,47 +48,45 @@ public class CompositeCPPClassTemplate extends CompositeCPPClassType
 				System.arraycopy(ss, 0, preresult[i], 0, ss.length);
 			}
 
-			return (ICPPClassTemplatePartialSpecialization[]) ArrayUtil.addAll(
-					ICPPClassTemplatePartialSpecialization.class,
-					ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY, cf
-							.getCompositeBindings(preresult));
+			return ArrayUtil.addAll(
+					ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY,
+					cf.getCompositeBindings(preresult));
 		} catch (CoreException ce) {
 			CCorePlugin.log(ce);
 			return ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY;
 		}
 	}
 
+	@Override
 	public ICPPTemplateParameter[] getTemplateParameters() {
 		return TemplateInstanceUtil.convert(cf, ((ICPPClassTemplate) rbinding).getTemplateParameters());
 	}
 
+	@Override
 	public ICPPTemplateInstance getInstance(ICPPTemplateArgument[] arguments) {
 		return CompositeInstanceCache.getCache(cf, rbinding).getInstance(arguments);	
 	}
 
+	@Override
 	public void addInstance(ICPPTemplateArgument[] arguments, ICPPTemplateInstance instance) {
 		CompositeInstanceCache.getCache(cf, rbinding).addInstance(arguments, instance);	
 	}
 
+	@Override
 	public ICPPTemplateInstance[] getAllInstances() {
 		return CompositeInstanceCache.getCache(cf, rbinding).getAllInstances();
 	}
 	
-	public ICPPDeferredClassInstance asDeferredInstance() throws DOMException  {
+	@Override
+	public final ICPPDeferredClassInstance asDeferredInstance() {
 		CompositeInstanceCache cache= CompositeInstanceCache.getCache(cf, rbinding);
 		synchronized (cache) {
 			ICPPDeferredClassInstance dci= cache.getDeferredInstance();
 			if (dci == null) {
-				dci= createDeferredInstance();
+				dci= CPPTemplates.createDeferredInstance(this);
 				cache.putDeferredInstance(dci);
 			}
 			return dci;
 		}
 	}
-
-	protected ICPPDeferredClassInstance createDeferredInstance() throws DOMException {
-		ICPPTemplateArgument[] args = CPPTemplates.templateParametersAsArguments(getTemplateParameters());
-		return new CPPDeferredClassInstance(this, args, getCompositeScope());
-	}
-
 }

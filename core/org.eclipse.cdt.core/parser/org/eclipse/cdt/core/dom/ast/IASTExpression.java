@@ -6,11 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Doug Schaefer (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
-
 
 /**
  * This is the root class of expressions.
@@ -28,7 +27,7 @@ public interface IASTExpression extends IASTInitializerClause {
 		 */
 		LVALUE,
 		/**
-		 * Expiring value as introduced by c++ 0x.
+		 * Expiring value as introduced by c++11.
 		 */
 		XVALUE,
 		/**
@@ -42,6 +41,7 @@ public interface IASTExpression extends IASTInitializerClause {
 		public boolean isRValue() {
 			return this != LVALUE;
 		}
+
 		/**
 		 * A generalized lvalue is either an lvalue or an xvalue.
 		 */
@@ -53,7 +53,7 @@ public interface IASTExpression extends IASTInitializerClause {
 	/**
 	 * Empty expression array.
 	 */
-	public static final IASTExpression[] EMPTY_EXPRESSION_ARRAY = new IASTExpression[0];
+	public static final IASTExpression[] EMPTY_EXPRESSION_ARRAY = {};
 	
 	public IType getExpressionType();
 	
@@ -73,10 +73,12 @@ public interface IASTExpression extends IASTInitializerClause {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTExpression copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTExpression copy(CopyStyle style);
 }

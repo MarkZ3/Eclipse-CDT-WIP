@@ -16,6 +16,7 @@ import junit.framework.Test;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeItem;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMManager;
@@ -37,6 +38,7 @@ public class BasicIncludeBrowserTest extends IncludeBrowserBaseTest {
 	// // source
 	// #include "user.h"
 	// #include <system.h>
+	// #include "user.h"
 	
 	public void testSimpleInclusion() throws Exception {
 		TestScannerProvider.sIncludes= new String[] { getProject().getProject().getLocation().toOSString() };
@@ -46,13 +48,14 @@ public class BasicIncludeBrowserTest extends IncludeBrowserBaseTest {
 		IFile user= createFile(project, "user.h", "");
 		IFile system= createFile(project, "system.h", "");
 		IFile source= createFile(project, "source.cpp", contents[0].toString());
-		waitForIndexer(fIndex, source, INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, source);
 
 		openIncludeBrowser(source);
 		Tree tree = getIBTree();
-		checkTreeNode(tree, 0, "source.cpp");
+		TreeItem node = checkTreeNode(tree, 0, "source.cpp");
 		checkTreeNode(tree, 0, 0, "user.h");
 		checkTreeNode(tree, 0, 1, "system.h");
+		assertEquals(2, node.getItemCount());
 		
 		// The tree has to be reversed
 		openIncludeBrowser(user, true);
@@ -80,7 +83,7 @@ public class BasicIncludeBrowserTest extends IncludeBrowserBaseTest {
 			IFile system= createFile(op.getProject(), "system.h", "");
 			IFile source= createFile(getProject().getProject(), "source.cpp", contents[0].toString());
 			CCorePlugin.getIndexManager().reindex(op);
-			CCorePlugin.getIndexManager().joinIndexer(INDEXER_WAIT_TIME, NPM);
+			waitForIndexer(op);
 
 			openIncludeBrowser(source);
 			Tree tree = getIBTree();

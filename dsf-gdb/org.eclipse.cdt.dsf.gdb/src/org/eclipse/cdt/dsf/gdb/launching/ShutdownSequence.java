@@ -84,20 +84,24 @@ public class ShutdownSequence extends Sequence {
 			ServiceReference<?>[] serviceRefs = GdbPlugin.getBundleContext().getServiceReferences( 
 					IDsfService.class.getName(),
 					String.format( "(%s=%s)", IDsfService.PROP_SESSION_ID, fSessionId ).intern() ); //$NON-NLS-1$
-			List<IDsfService> services = new ArrayList<IDsfService>( serviceRefs.length );
-			for ( ServiceReference<?> ref : serviceRefs ) {
-				Object serviceObj = GdbPlugin.getBundleContext().getService( ref );
-				if ( serviceObj instanceof IDsfService ) {
-					services.add( (IDsfService)serviceObj );
+			
+			if (serviceRefs != null) {
+				List<IDsfService> services = new ArrayList<IDsfService>( serviceRefs.length );
+				for ( ServiceReference<?> ref : serviceRefs ) {
+					Object serviceObj = GdbPlugin.getBundleContext().getService( ref );
+					if ( serviceObj instanceof IDsfService ) {
+						services.add( (IDsfService)serviceObj );
+					}
 				}
-			}
-			Collections.sort( services, new Comparator<IDsfService>() {
+				Collections.sort( services, new Comparator<IDsfService>() {
 
-				public int compare( IDsfService o1, IDsfService o2 ) {
-					return o2.getStartupNumber() - o1.getStartupNumber();
-				}
-			} );
-			result = services.toArray( new IDsfService[services.size()] );
+					@Override
+					public int compare( IDsfService o1, IDsfService o2 ) {
+						return o2.getStartupNumber() - o1.getStartupNumber();
+					}
+				} );
+				result = services.toArray( new IDsfService[services.size()] );
+			}
 		}
 		catch( InvalidSyntaxException e ) {
 			// Shouldn't happen

@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.parser.scanner;
 
@@ -17,6 +17,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPUsingDirective;
 import org.eclipse.cdt.core.index.IIndexFile;
 import org.eclipse.cdt.core.index.IIndexMacro;
 import org.eclipse.cdt.core.parser.FileContent;
+import org.eclipse.cdt.core.parser.ISignificantMacros;
 
 /**
  * Instructs the preprocessor on how to handle a file-inclusion.
@@ -38,15 +39,28 @@ public class InternalFileContent extends FileContent {
 		USE_SOURCE
 	}
 
+	public static class FileVersion {
+		public final String fPath;
+		public final ISignificantMacros fSigMacros;
+		public FileVersion(String path, ISignificantMacros sig) {
+			fPath= path;
+			fSigMacros= sig;
+		}
+	}
+	
 	private final InclusionKind fKind;
 	private final AbstractCharArray fSource;
 	private final List<IIndexMacro> fMacroDefinitions;
 	private final List<ICPPUsingDirective> fUsingDirectives;
 	private final String fFileLocation;
+	private final List<FileVersion> fNonPragmaOnceFiles;
 	private boolean fHeuristic;
-	private boolean fIsSource= false;
+	private boolean fIsSource;
 	private List<IIndexFile> fFiles;
 	private IncludeSearchPathElement fFoundOnPath;
+	private final long fTimestamp;
+	private final long fFileSize;
+	private final long fReadTime;
 	
 	/**
 	 * For skipping include files.
@@ -64,13 +78,18 @@ public class InternalFileContent extends FileContent {
 		fMacroDefinitions= null;
 		fUsingDirectives= null;
 		fSource= null;
+		fNonPragmaOnceFiles= null;
+		fTimestamp= NULL_TIMESTAMP;
+		fFileSize= NULL_FILE_SIZE;
+		fReadTime= 0;
 	}
 
 	/**
 	 * For reading include files from disk.
 	 * @throws IllegalArgumentException in case the codeReader or its location is <code>null</code>.
 	 */
-	public InternalFileContent(String filePath, AbstractCharArray content) throws IllegalArgumentException {
+	public InternalFileContent(String filePath, AbstractCharArray content, long timestamp,
+			long fileSize, long fileReadTime) throws IllegalArgumentException {
 		if (content == null) {
 			throw new IllegalArgumentException();
 		}
@@ -79,9 +98,35 @@ public class InternalFileContent extends FileContent {
 		fSource= content;
 		fMacroDefinitions= null;
 		fUsingDirectives= null;
+		fNonPragmaOnceFiles= null;
 		if (fFileLocation == null) {
 			throw new IllegalArgumentException();
 		}
+		fTimestamp= timestamp;
+		fFileSize= fileSize;
+		fReadTime= fileReadTime; 
+	}
+
+	/**
+	 * For reading in-memory buffers.
+	 * @throws IllegalArgumentException in case the codeReader or its location is <code>null</code>.
+	 */
+	public InternalFileContent(String filePath, CharArray content) throws IllegalArgumentException {
+		if (content == null) {
+			throw new IllegalArgumentException();
+		}
+		fKind= InclusionKind.USE_SOURCE;
+		fFileLocation= filePath;
+		fSource= content;
+		fMacroDefinitions= null;
+		fUsingDirectives= null;
+		fNonPragmaOnceFiles= null;
+		if (fFileLocation == null) {
+			throw new IllegalArgumentException();
+		}
+		fTimestamp= NULL_TIMESTAMP;
+		fFileSize = NULL_FILE_SIZE;
+		fReadTime= 0;
 	}
 
 	/**
@@ -91,14 +136,19 @@ public class InternalFileContent extends FileContent {
 	 * @param files 
 	 * @throws IllegalArgumentException in case the fileLocation or the macroDefinitions are <code>null</code>.
 	 */
-	public InternalFileContent(String fileLocation, List<IIndexMacro> macroDefinitions, List<ICPPUsingDirective> usingDirectives,
-			List<IIndexFile> files) {
+	public InternalFileContent(String fileLocation, List<IIndexMacro> macroDefinitions,
+			List<ICPPUsingDirective> usingDirectives, List<IIndexFile> files,
+			List<FileVersion> nonPragmaOnceVersions) {
 		fKind= InclusionKind.FOUND_IN_INDEX;
 		fFileLocation= fileLocation;
 		fSource= null;
 		fUsingDirectives= usingDirectives;
 		fMacroDefinitions= macroDefinitions;
 		fFiles= files;
+		fNonPragmaOnceFiles= nonPragmaOnceVersions;
+		fTimestamp= NULL_TIMESTAMP;
+		fFileSize = NULL_FILE_SIZE;
+		fReadTime= 0;
 	}
 
 	/**
@@ -116,12 +166,29 @@ public class InternalFileContent extends FileContent {
 		return fFileLocation;
 	}
 
-	/**
-	 * Returns a 64-bit hash value of the file contents.
-	 */
+	@Override
+	public long getTimestamp() {
+		return fTimestamp;
+	}
+
+	@Override
+	public long getReadTime() {
+		return fReadTime;
+	}
+
+	@Override
+	public long getFileSize() {
+		return fFileSize;
+	}
+
 	@Override
 	public long getContentsHash() {
 		return fSource != null ? fSource.getContentsHash() : 0;
+	}
+
+	@Override
+	public boolean hasError() {
+		return fSource != null && fSource.hasError();
 	}
 
 	/**
@@ -155,6 +222,10 @@ public class InternalFileContent extends FileContent {
 	public List<IIndexFile> getFilesIncluded() {
 		return fFiles;
 	}
+	
+	public List<FileVersion> getNonPragmaOnceVersions() {
+		return fNonPragmaOnceFiles;
+	}
 
 	/**
 	 * Returns whether this inclusion was found by a heuristics.
@@ -182,7 +253,7 @@ public class InternalFileContent extends FileContent {
 	public void setFoundOnPath(IncludeSearchPathElement isp) {
 		fFoundOnPath= isp;
 	}
-
+	
 	/**
 	 * This method is slow. Use only for debugging.
 	 */

@@ -1,21 +1,24 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2010 QNX Software Systems and others.
+ * Copyright (c) 2007, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Bryan Wilkinson (QNX) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Bryan Wilkinson (QNX) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
 import org.eclipse.cdt.core.dom.ast.DOMException;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethodSpecialization;
 import org.eclipse.cdt.internal.core.Util;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
@@ -30,8 +33,7 @@ import org.eclipse.core.runtime.CoreException;
  * Specialization of a method
  */
 class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
-		implements ICPPMethod {
-
+		implements ICPPMethodSpecialization {
 	/**
 	 * Offset of remaining annotation information (relative to the beginning of
 	 * the record).
@@ -67,7 +69,7 @@ class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
 	public PDOMCPPMethodSpecialization(PDOMLinkage linkage, long bindingRecord) {
 		super(linkage, bindingRecord);
 	}
-	
+
 	@Override
 	protected int getRecordSize() {
 		return RECORD_SIZE;
@@ -78,22 +80,27 @@ class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
 		return IIndexCPPBindingConstants.CPP_METHOD_SPECIALIZATION;
 	}
 	
+	@Override
 	public boolean isDestructor() {
 		return getBit(getByte(record + ANNOTATION1), PDOMCPPAnnotation.DESTRUCTOR_OFFSET);
 	}
 
+	@Override
 	public boolean isImplicit() {
 		return getBit(getByte(record + ANNOTATION1), PDOMCPPAnnotation.IMPLICIT_METHOD_OFFSET);
 	}
 
+	@Override
 	public boolean isExplicit() {
 		return getBit(getByte(record + ANNOTATION1), PDOMCPPAnnotation.EXPLICIT_METHOD_OFFSET);
 	}
 
+	@Override
 	public boolean isVirtual() {
 		return getBit(getByte(record + ANNOTATION1), PDOMCPPAnnotation.VIRTUAL_OFFSET);
 	}
 
+	@Override
 	public boolean isPureVirtual() {
 		return getBit(getByte(record + ANNOTATION1), PDOMCPPAnnotation.PURE_VIRTUAL_OFFSET);
 	}
@@ -109,10 +116,12 @@ class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
 		return false;
 	}
 
+	@Override
 	public ICPPClassType getClassOwner() {
 		return (ICPPClassType) getOwner();
 	}
 
+	@Override
 	public int getVisibility() {
 		return PDOMCPPAnnotation.getVisibility(getByte(record + ANNOTATION_OFFSET));
 	}
@@ -128,10 +137,20 @@ class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
 	}
 	
 	@Override
-	public IType[] getExceptionSpecification() {
+	public IType[] getExceptionSpecification(IASTNode point) {
 		if (isImplicit()) {
-			return ClassTypeHelper.getInheritedExceptionSpecification(this);
+			return ClassTypeHelper.getInheritedExceptionSpecification(this, point);
 		}
 		return super.getExceptionSpecification();
+	}
+
+	@Override
+	public boolean isOverride() {
+		return false;
+	}
+
+	@Override
+	public boolean isFinal() {
+		return false;
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2010 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik  
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0 
@@ -7,12 +7,13 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- *    Institute for Software - initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Institute for Software - initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.rewrite.astwriter;
 
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTArrayDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTArrayModifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
@@ -26,52 +27,45 @@ import org.eclipse.cdt.core.dom.ast.IASTPointer;
 import org.eclipse.cdt.core.dom.ast.IASTPointerOperator;
 import org.eclipse.cdt.core.dom.ast.IASTStandardFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTTypeId;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTPointerToMember;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTReferenceOperator;
 import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator;
+import org.eclipse.cdt.core.parser.Keywords;
 import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
 
-
 /**
- * 
  * Generates source code of declarator nodes. The actual string operations are delegated
- * to the <code>Scribe</code> class.
+ * to the {@link Scribe} class.
  * 
- * @see Scribe
  * @see IASTDeclarator
  * @author Emanuel Graf IFS
- * 
  */
 public class DeclaratorWriter extends NodeWriter {
-
-	private static final String AMPERSAND_SPACE = "& "; //$NON-NLS-1$
-	private static final String AMPERSAND__AMPERSAND_SPACE = "&& "; //$NON-NLS-1$
-	private static final String STAR_SPACE = "* "; //$NON-NLS-1$
-	private static final String PURE_VIRTUAL = " =0"; //$NON-NLS-1$
-	private static final String MUTABLE = "mutable"; //$NON-NLS-1$
+	private static final String AMPERSAND_AMPERSAND = "&&"; //$NON-NLS-1$
+	private static final String PURE_VIRTUAL = " = 0"; //$NON-NLS-1$
 	private static final String ARROW_OPERATOR = "->"; //$NON-NLS-1$
 	
-	public DeclaratorWriter(Scribe scribe, ASTVisitor visitor, NodeCommentMap commentMap) {
+	public DeclaratorWriter(Scribe scribe, ASTWriterVisitor visitor, NodeCommentMap commentMap) {
 		super(scribe, visitor, commentMap);
 	}
 	
 	protected void writeDeclarator(IASTDeclarator declarator) {
 		if (declarator instanceof IASTStandardFunctionDeclarator) {
 			writeFunctionDeclarator((IASTStandardFunctionDeclarator) declarator);
-		}else if (declarator instanceof IASTArrayDeclarator) {
+		} else if (declarator instanceof IASTArrayDeclarator) {
 			writeArrayDeclarator((IASTArrayDeclarator) declarator);
-		}else if (declarator instanceof IASTFieldDeclarator) {
+		} else if (declarator instanceof IASTFieldDeclarator) {
 			writeFieldDeclarator((IASTFieldDeclarator) declarator);
-		}else if (declarator instanceof ICASTKnRFunctionDeclarator) {
+		} else if (declarator instanceof ICASTKnRFunctionDeclarator) {
 			writeCKnRFunctionDeclarator((ICASTKnRFunctionDeclarator) declarator);
-		}else{
+		} else {
 			writeDefaultDeclarator(declarator);
 		}
-		
-		if(hasTrailingComments(declarator)) {
-			writeTrailingComments(declarator, false);			
-		}	
+
+		visitor.setSpaceNeededBeforeName(false);
+		writeTrailingComments(declarator, false);			
 	}
 
 	protected void writeDefaultDeclarator(IASTDeclarator declarator) {
@@ -81,14 +75,14 @@ public class DeclaratorWriter extends NodeWriter {
 		name.accept(visitor);
 		writeNestedDeclarator(declarator);
 		IASTInitializer init = getInitializer(declarator);
-		if(init!= null) {
+		if (init != null) {
 			init.accept(visitor);
 		}
 	}
 
 	protected void writePointerOperators(IASTDeclarator declarator, IASTPointerOperator[] pointOps) {
 		for (IASTPointerOperator operator : pointOps) {
-			writePointerOp(operator);
+			writePointerOperator(operator);
 		}
 	}
 
@@ -109,7 +103,7 @@ public class DeclaratorWriter extends NodeWriter {
 
 	private void writeInitializer(IASTStandardFunctionDeclarator funcDec) {
 		IASTInitializer init = getInitializer(funcDec);
-		if(init != null) {
+		if (init != null) {
 			init.accept(visitor);
 		}
 	}
@@ -123,7 +117,11 @@ public class DeclaratorWriter extends NodeWriter {
 
 	private void writeNestedDeclarator(IASTDeclarator funcDec) {
 		IASTDeclarator nestedDeclarator = funcDec.getNestedDeclarator();
-		if(nestedDeclarator != null) {
+		if (nestedDeclarator != null) {
+			if (visitor.isSpaceNeededBeforeName()) {
+				scribe.printSpace();
+				visitor.setSpaceNeededBeforeName(false);
+			}
 			scribe.print('(');
 			nestedDeclarator.accept(visitor);
 			scribe.print(')');
@@ -133,20 +131,28 @@ public class DeclaratorWriter extends NodeWriter {
 	private void writeCppFunctionDeclarator(ICPPASTFunctionDeclarator funcDec) {
 		if (funcDec.isConst()) {
 			scribe.printSpace();
-			scribe.print(CONST);
+			scribe.print(Keywords.CONST);
 		}
 		if (funcDec.isVolatile()) {
 			scribe.printSpace();
-			scribe.print(VOLATILE);
+			scribe.print(Keywords.VOLATILE);
 		}
 		if (funcDec.isMutable()) {
 			scribe.printSpace();
-			scribe.print(MUTABLE);
+			scribe.print(Keywords.MUTABLE);
 		}
-		if(funcDec.isPureVirtual()) {
+		if (funcDec.isOverride()) {
+			scribe.printSpace();
+			scribe.print(Keywords.cOVERRIDE);
+		}
+		if (funcDec.isFinal()) {
+			scribe.printSpace();
+			scribe.print(Keywords.cFINAL);
+		}
+		if (funcDec.isPureVirtual()) {
 			scribe.print(PURE_VIRTUAL);
 		}
-		writeExceptionSpecification(funcDec, funcDec.getExceptionSpecification());
+		writeExceptionSpecification(funcDec, funcDec.getExceptionSpecification(), funcDec.getNoexceptExpression());
 		if (funcDec.getTrailingReturnType() != null) {
 			scribe.printSpace();
 			scribe.print(ARROW_OPERATOR);
@@ -155,20 +161,31 @@ public class DeclaratorWriter extends NodeWriter {
 		}
 	}
 
-	protected void writeExceptionSpecification(ICPPASTFunctionDeclarator funcDec, IASTTypeId[] exceptions) {
+	protected void writeExceptionSpecification(ICPPASTFunctionDeclarator funcDec, IASTTypeId[] exceptions,
+			ICPPASTExpression noexceptExpression) {
 		if (exceptions != ICPPASTFunctionDeclarator.NO_EXCEPTION_SPECIFICATION) {
 			scribe.printSpace();
-			scribe.print(THROW);
+			scribe.printStringSpace(Keywords.THROW);
 			scribe.print('(');
 			writeNodeList(exceptions);
 			scribe.print(')');
 		}
+		if (noexceptExpression != null) {
+			scribe.printSpace();
+			scribe.print(Keywords.NOEXCEPT);
+			if (noexceptExpression != ICPPASTFunctionDeclarator.NOEXCEPT_DEFAULT) {
+				scribe.printSpace();
+				scribe.print('(');
+				noexceptExpression.accept(visitor);
+				scribe.print(')');
+			}
+		}
 	}
 
-	protected void writeParameterDeclarations(IASTStandardFunctionDeclarator funcDec, IASTParameterDeclaration[] paraDecls) {
-		writeNodeList(paraDecls);
-		if(funcDec.takesVarArgs()){
-			if(paraDecls.length > 0){
+	protected void writeParameterDeclarations(IASTStandardFunctionDeclarator funcDec, IASTParameterDeclaration[] paramDecls) {
+		writeNodeList(paramDecls);
+		if (funcDec.takesVarArgs()) {
+			if (paramDecls.length > 0) {
 				scribe.print(COMMA_SPACE);
 			}
 			scribe.print(VAR_ARGS);
@@ -178,35 +195,34 @@ public class DeclaratorWriter extends NodeWriter {
 	private void writePointer(IASTPointer operator) {
 		if (operator instanceof ICPPASTPointerToMember) {
 			ICPPASTPointerToMember pointerToMemberOp = (ICPPASTPointerToMember) operator;
-			if(pointerToMemberOp.getName() != null){
+			if (pointerToMemberOp.getName() != null) {
 				pointerToMemberOp.getName().accept(visitor);
-				scribe.print(STAR_SPACE);
+				scribe.print('*');
 			}
 		} else {
 			scribe.print('*');
 		}
-		
-		
+
 		if (operator.isConst()) {
-			scribe.printStringSpace(CONST);
+			scribe.printStringSpace(Keywords.CONST);
 		}
 		if (operator.isVolatile()) {
-			scribe.printStringSpace(VOLATILE);
+			scribe.printStringSpace(Keywords.VOLATILE);
 		}
 		if (operator.isRestrict()) {
-			scribe.print(RESTRICT);
+			scribe.printStringSpace(Keywords.RESTRICT);
 		}
 	}
 
-	private void writePointerOp(IASTPointerOperator operator) {
+	public void writePointerOperator(IASTPointerOperator operator) {
 		if (operator instanceof IASTPointer) {
 			IASTPointer pointOp = (IASTPointer) operator;
 			writePointer(pointOp);
 		} else if (operator instanceof ICPPASTReferenceOperator) {
 			if (((ICPPASTReferenceOperator) operator).isRValueReference()) {
-				scribe.print(AMPERSAND__AMPERSAND_SPACE);
+				scribe.print(AMPERSAND_AMPERSAND);
 			} else {
-				scribe.print(AMPERSAND_SPACE);
+				scribe.print('&');
 			}
 		}
 	}
@@ -222,7 +238,7 @@ public class DeclaratorWriter extends NodeWriter {
 		IASTArrayModifier[] arrMods = arrDecl.getArrayModifiers();
 		writeArrayModifiers(arrDecl, arrMods);
 		IASTInitializer initializer = getInitializer(arrDecl);
-		if(initializer != null) {
+		if (initializer != null) {
 			initializer.accept(visitor);
 		}
 	}
@@ -255,7 +271,7 @@ public class DeclaratorWriter extends NodeWriter {
 		scribe.printSpace();
 		fieldDecl.getBitFieldSize().accept(visitor);
 		IASTInitializer initializer = getInitializer(fieldDecl);
-		if(initializer != null) {
+		if (initializer != null) {
 			initializer.accept(visitor);
 		}
 	}
@@ -267,17 +283,15 @@ public class DeclaratorWriter extends NodeWriter {
 		scribe.print(')');
 		scribe.newLine();
 		writeKnRParameterDeclarations(knrFunct, knrFunct.getParameterDeclarations());
-		
-
 	}
 
-	protected void writeKnRParameterDeclarations(
-			ICASTKnRFunctionDeclarator knrFunct, IASTDeclaration[] knrDeclarations) {
-		for (int i = 0; i < knrDeclarations.length;  ++i) {
+	protected void writeKnRParameterDeclarations(ICASTKnRFunctionDeclarator knrFunct,
+			IASTDeclaration[] knrDeclarations) {
+		for (int i = 0; i < knrDeclarations.length; ++i) {
 			scribe.noNewLines();
 			knrDeclarations[i].accept(visitor);
 			scribe.newLines();
-			if(i + 1 < knrDeclarations.length) {
+			if (i + 1 < knrDeclarations.length) {
 				scribe.newLine();
 			}
 		}

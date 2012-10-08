@@ -22,6 +22,7 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNodeSelector;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorElifStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroExpansion;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
@@ -48,13 +49,21 @@ public class MultiMacroExpansionExplorer extends MacroExpansionExplorer {
 			fOffset= offset;
 			fLength= length;
 		}
-		public int getNodeOffset() {return fOffset;}
-		public int getNodeLength() {return fLength;}
-		public String getFileName() {return fFilePath;}
+		@Override
+		public int getNodeOffset() { return fOffset; }
+		@Override
+		public int getNodeLength() { return fLength; }
+		@Override
+		public String getFileName() { return fFilePath; }
 
-		public int getStartingLineNumber() {return 0;}
-		public int getEndingLineNumber() {return 0;}
-		public IASTFileLocation asFileLocation() {return this;}
+		@Override
+		public int getStartingLineNumber() { return 0; }
+		@Override
+		public int getEndingLineNumber() { return 0; }
+		@Override
+		public IASTFileLocation asFileLocation() { return this; }
+		@Override
+		public IASTPreprocessorIncludeStatement getContextInclusionStatement() { return null; }
 	}
 
 	private final char[] fSource;

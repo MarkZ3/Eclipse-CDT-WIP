@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Mike Kucera (IBM)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Mike Kucera (IBM)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast.cpp;
 
@@ -22,11 +22,9 @@ import org.eclipse.cdt.core.dom.ast.IType;
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  */
-public interface ICPPASTFieldReference extends IASTFieldReference, IASTImplicitNameOwner {
-
+public interface ICPPASTFieldReference extends IASTFieldReference, ICPPASTExpression, IASTImplicitNameOwner {
 	/**
 	 * Was template keyword used?
-	 * 
 	 */
 	public boolean isTemplate();
 
@@ -40,11 +38,13 @@ public interface ICPPASTFieldReference extends IASTFieldReference, IASTImplicitN
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public ICPPASTFieldReference copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public ICPPASTFieldReference copy(CopyStyle style);
 
 	/**
@@ -52,4 +52,10 @@ public interface ICPPASTFieldReference extends IASTFieldReference, IASTImplicitN
 	 * @since 5.4
 	 */
 	public IType getFieldOwnerType();
+	
+	/**
+	 * @since 5.5
+	 */
+	@Override
+	public ICPPASTExpression getFieldOwner();
 }

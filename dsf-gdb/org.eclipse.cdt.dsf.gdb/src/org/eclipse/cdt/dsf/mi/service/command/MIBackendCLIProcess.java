@@ -22,7 +22,7 @@ import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandControlService;
@@ -103,7 +103,7 @@ public class MIBackendCLIProcess extends AbstractCLIProcess {
                         rm.done();
                     } else {
                         fExitedEventListener.fWaitForRMs.add(
-                            new RequestMonitor(ImmediateExecutor.getInstance(), rm) {
+                            new ImmediateRequestMonitor(rm) {
                                 @Override
                                 protected void handleSuccess() {
                                     rm.setData(new Object());
@@ -132,6 +132,7 @@ public class MIBackendCLIProcess extends AbstractCLIProcess {
         }
         try {
             getSession().getExecutor().submit(new Callable<Object>() { 
+            	@Override
                 public Object call() throws Exception {
                     if (fMIBackend.getState() != IMIBackend.State.TERMINATED) {
                         throw new IllegalThreadStateException("Backend Process has not exited"); //$NON-NLS-1$
@@ -153,7 +154,7 @@ public class MIBackendCLIProcess extends AbstractCLIProcess {
     @Override
     public void destroy() {
         try {
-            getSession().getExecutor().execute(new DsfRunnable() { public void run() {
+            getSession().getExecutor().execute(new DsfRunnable() { 	@Override public void run() {
                 if (!DsfSession.isSessionActive(getSession().getId())) return;
                 if (isDisposed()) return;
 

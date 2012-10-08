@@ -10,6 +10,7 @@
  *     Wind River Systems   - Modified for new DSF Reference Implementation
  *     Ericsson AB          - Additional handling of events 
  *     Ericsson             - Version 7.0  
+ *     Mikhail Khodjaiants (Mentor Graphics) - Refactor common code in GDBControl* classes (bug 372795)
  *******************************************************************************/
 
 package org.eclipse.cdt.dsf.mi.service.command;
@@ -20,11 +21,9 @@ import org.eclipse.cdt.dsf.datamodel.IDMContext;
 import org.eclipse.cdt.dsf.debug.service.IBreakpoints.IBreakpointsTargetDMContext;
 import org.eclipse.cdt.dsf.debug.service.ISignals.ISignalsDMContext;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandControlService;
-import org.eclipse.cdt.dsf.debug.service.command.ICommandListener;
+import org.eclipse.cdt.dsf.debug.service.command.ICommandControlService.ICommandControlDMContext;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandResult;
 import org.eclipse.cdt.dsf.debug.service.command.ICommandToken;
-import org.eclipse.cdt.dsf.debug.service.command.IEventListener;
-import org.eclipse.cdt.dsf.debug.service.command.ICommandControlService.ICommandControlDMContext;
 import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
 import org.eclipse.cdt.dsf.mi.service.command.commands.CLICommand;
 import org.eclipse.cdt.dsf.mi.service.command.commands.MIInterpreterExecConsole;
@@ -41,27 +40,27 @@ import org.eclipse.cdt.dsf.service.DsfServicesTracker;
  */
 @ConfinedToDsfExecutor("fConnection#getExecutor")
 public class CLIEventProcessor_7_0
-    implements ICommandListener, IEventListener
+    implements IEventProcessor
 {
     private final ICommandControlService fCommandControl;
-    private final ICommandControlDMContext fControlDmc;
     
     private final DsfServicesTracker fServicesTracker;
     
     public CLIEventProcessor_7_0(ICommandControlService connection, ICommandControlDMContext controlDmc) {
         fCommandControl = connection;
-        fControlDmc = controlDmc;
         fServicesTracker = new DsfServicesTracker(GdbPlugin.getBundleContext(), fCommandControl.getSession().getId());
         fCommandControl.addCommandListener(this);
         fCommandControl.addEventListener(this);
     }
 
-    public void dispose() {
+	@Override
+	public void dispose() {
         fCommandControl.removeCommandListener(this);
         fCommandControl.removeEventListener(this);
         fServicesTracker.dispose();
     }
     
+	@Override
     public void commandSent(ICommandToken token) {
         if (token.getCommand() instanceof CLICommand<?>) {
             processStateChanges( (CLICommand<?>)token.getCommand() );
@@ -71,6 +70,7 @@ public class CLIEventProcessor_7_0
         }
     }
     
+	@Override
     public void commandDone(ICommandToken token, ICommandResult result) {
         if (token.getCommand() instanceof CLICommand<?>) {
             processSettingChanges( (CLICommand<?>)token.getCommand() );
@@ -80,14 +80,17 @@ public class CLIEventProcessor_7_0
         }
     }
     
+	@Override
     public void commandQueued(ICommandToken token) {
         // No action 
     }
     
+	@Override
     public void commandRemoved(ICommandToken token) {
         // No action 
     }
     
+	@Override
     public void eventReceived(Object output) {
     }
 

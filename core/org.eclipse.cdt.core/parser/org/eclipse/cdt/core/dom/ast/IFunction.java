@@ -7,9 +7,9 @@
  *
  * Contributors:
  *     Doug Schaefer (IBM) - Initial API and implementation
+ *     Sergey Prigogin (Google) 
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
-
 
 /**
  * This represents a function in the program. A function is also a scope
@@ -19,19 +19,18 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IFunction extends IBinding {
-
 	/**
 	 * Returns the formal parameters of the function.
 	 */
 	public IParameter[] getParameters();
 	
 	/**
-	 * Get the function scope
+	 * Returns the function scope
 	 */
 	public IScope getFunctionScope();
 	
 	/**
-	 * Get the IFunctionType for this function
+	 * Returns the IFunctionType for this function
 	 */
 	public IFunctionType getType();
 	
@@ -53,4 +52,11 @@ public interface IFunction extends IBinding {
 	 * Returns {@code true} if this function takes variable arguments.
 	 */
 	public boolean takesVarArgs();
+
+	/**
+	 * Returns {@code true} if this function never returns. Based on 'noreturn' attribute in
+	 * the function declaration.
+	 * @since 5.4
+	 */
+	public boolean isNoReturn();
 }

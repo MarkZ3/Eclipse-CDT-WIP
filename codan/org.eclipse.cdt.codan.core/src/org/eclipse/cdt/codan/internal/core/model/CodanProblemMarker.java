@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    QNX Software Systems (Alena Laskavaia)  - initial API and implementation
+ *     QNX Software Systems (Alena Laskavaia)  - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.core.model;
 
@@ -31,7 +31,7 @@ import org.eclipse.core.runtime.CoreException;
 /**
  * Instance of a problem. Intermediate representation before problem become a
  * marker
- * 
+ *
  * @since 1.1
  */
 public class CodanProblemMarker implements ICodanProblemMarker {
@@ -39,10 +39,6 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 	private IProblemLocation loc;
 	private IProblem problem;
 	private Object args[];
-
-	public Object[] getArgs() {
-		return args;
-	}
 
 	/**
 	 * @param problem
@@ -55,38 +51,27 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		this.args = args;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.model.ICodanProblemMarker#getLocation()
-	 */
+	@Override
+	public Object[] getArgs() {
+		return args;
+	}
+
+	@Override
 	public IProblemLocation getLocation() {
 		return loc;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.model.ICodanProblemMarker#getProblem()
-	 */
+	@Override
 	public IProblem getProblem() {
 		return problem;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.model.ICodanProblemMarker#getResource()
-	 */
+	@Override
 	public IResource getResource() {
 		return loc.getFile();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.model.ICodanProblemMarker#createMarker()
-	 */
+	@Override
 	public IMarker createMarker() throws CoreException {
 		IResource file = loc.getFile();
 		int lineNumber = loc.getLineNumber();
@@ -107,11 +92,7 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		return marker;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.model.ICodanProblemMarker#createMessage()
-	 */
+	@Override
 	public String createMessage() {
 		String messagePattern = problem.getMessagePattern();
 		String message = problem.getId();
@@ -124,10 +105,6 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		return message;
 	}
 
-	/**
-	 * @param args2
-	 * @return
-	 */
 	private static String serializeArgs(Object[] args) {
 		if (args != null) {
 			Properties prop = new Properties();
@@ -149,9 +126,9 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 	}
 
 	/**
-	 * Return the argument of a problem that checker passed to "reportProblem"
+	 * Returns the argument of a problem that checker passed to "reportProblem"
 	 * method
-	 * 
+	 *
 	 * @param marker - problem marker
 	 * @param index - index of the argument 0 based
 	 * @return problem argument at index, can be null if not set. Can throw AUBE
@@ -163,9 +140,9 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 	}
 
 	/**
-	 * Return the arguments of a problem that checker passed to "reportProblem"
+	 * Returns the arguments of a problem that checker passed to "reportProblem"
 	 * method
-	 * 
+	 *
 	 * @param marker - problem marker
 	 * @return problem arguments, can not be null. Can be 0 sized array.
 	 */
@@ -188,8 +165,8 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 	}
 
 	/**
-	 * Return problemId from marker
-	 * 
+	 * Returns problemId from marker
+	 *
 	 * @param marker
 	 * @return codan problemId
 	 */
@@ -219,8 +196,8 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 	}
 
 	/**
-	 * Attempt to restore CodamProblemMaker from the resource marker
-	 * 
+	 * Attempts to restore CodamProblemMaker from the resource marker
+	 *
 	 * @param marker
 	 * @return new instanceof of ICodanProblemMarker or null if marker is not
 	 *         codan marker
@@ -233,10 +210,6 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		return new CodanProblemMarker(problem, loc, getProblemArguments(marker));
 	}
 
-	/**
-	 * @param marker
-	 * @return
-	 */
 	public static CodanProblem getProblem(IMarker marker) {
 		String id = getProblemId(marker);
 		if (id == null)
@@ -249,10 +222,6 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		return problem;
 	}
 
-	/**
-	 * @param resource
-	 * @return
-	 */
 	public static IProblemProfile getProfile(IResource resource) {
 		IProblemProfile profile = CheckersRegistry.getInstance().getResourceProfile(resource);
 		return profile;
@@ -270,11 +239,6 @@ public class CodanProblemMarker implements ICodanProblemMarker {
 		return loc;
 	}
 
-	/**
-	 * @param marker
-	 * @param res
-	 * @throws CoreException
-	 */
 	public static void setProblemArguments(IMarker marker, String[] args) throws CoreException {
 		String propArgs = serializeArgs(args);
 		marker.setAttribute(PROBLEM_ARGS, propArgs);

@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM Rational Software) - Initial API and implementation
+ *     John Camelon (IBM Rational Software) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -17,7 +17,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTElaboratedTypeSpecifier extends IASTDeclSpecifier, IASTNameOwner {
-
 	/**
 	 * Enumeration.
 	 */
@@ -39,17 +38,16 @@ public interface IASTElaboratedTypeSpecifier extends IASTDeclSpecifier, IASTName
 	public static final int k_last = k_union;
 
 	/**
-	 * Get the kind.
+	 * Returns the kind.
 	 * 
 	 * @return int (kind).
 	 */
 	public int getKind();
 
 	/**
-	 * Set the kind.
+	 * Sets the kind.
 	 * 
-	 * @param value
-	 *            int (kind)
+	 * @param value int (kind)
 	 */
 	public void setKind(int value);
 
@@ -61,14 +59,14 @@ public interface IASTElaboratedTypeSpecifier extends IASTDeclSpecifier, IASTName
 			"IASTElaboratedTypeSpecifier.TYPE_NAME - IASTName for IASTElaboratedTypeSpecifier"); //$NON-NLS-1$
 
 	/**
-	 * Get the name.
+	 * Returns the name.
 	 * 
 	 * @return <code>IASTName</code>
 	 */
 	public IASTName getName();
 
 	/**
-	 * Set the name.
+	 * Sets the name.
 	 * 
 	 * @param name
 	 *            <code>IASTName</code>
@@ -78,5 +76,6 @@ public interface IASTElaboratedTypeSpecifier extends IASTDeclSpecifier, IASTName
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTElaboratedTypeSpecifier copy();
 }

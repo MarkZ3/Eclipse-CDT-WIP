@@ -53,7 +53,7 @@ public class CheckOptionExpression implements IBooleanExpression {
 	private boolean fIsRegex;
 	private String fOtherOptionId;
 	private String fOtherHolderId;
-	
+
 	public CheckOptionExpression(IManagedConfigElement element){
 		fOptionId = element.getAttribute(OPTION_ID);
 		fHolderId = element.getAttribute(HOLDER_ID);
@@ -63,13 +63,14 @@ public class CheckOptionExpression implements IBooleanExpression {
 		fOtherHolderId = element.getAttribute(OTHER_HOLDER_ID);
 	}
 
-	public boolean evaluate(IResourceInfo rcInfo, 
-            IHoldsOptions holder, 
+	@Override
+	public boolean evaluate(IResourceInfo rcInfo,
+            IHoldsOptions holder,
             IOption option) {
 		boolean result = false;
 		IBuildObject ho[] = getHolderAndOption(fOptionId, fHolderId,
 				rcInfo, holder, option);
-		
+
 		if(ho != null){
 			if(fValue != null)
 				result = evaluate((IOption)ho[1],((IHoldsOptions)ho[0]),fValue);
@@ -83,22 +84,23 @@ public class CheckOptionExpression implements IBooleanExpression {
 		}
 		return result;
 	}
-	
-	public boolean evaluate(IResourceInfo rcInfo, 
-            IHoldsOptions holder, 
+
+	@Override
+	public boolean evaluate(IResourceInfo rcInfo,
+            IHoldsOptions holder,
             IOptionCategory category) {
 		boolean result = false;
 		IBuildObject ho[] = getHolderAndOption(fOptionId, fHolderId,
 				rcInfo, holder);
-		
+
 		if(ho != null){
 			if(fValue != null)
 				result = evaluate((IOption)ho[1],((IHoldsOptions)ho[0]),fValue);
-			// otherOptionId shouldn't be set when enabling optionCategory 
-		}	
+			// otherOptionId shouldn't be set when enabling optionCategory
+		}
 		return result;
 	}
-	
+
 	public boolean evaluate(IOption option, IHoldsOptions holder, String value){
 		IBuildMacroProvider provider = ManagedBuildManager.getBuildMacroProvider();
 		String delimiter = ManagedBuildManager.getEnvironmentVariableProvider().getDefaultDelimiter();
@@ -107,9 +109,10 @@ public class CheckOptionExpression implements IBooleanExpression {
 			String resolvedValue = provider.resolveValue(value, inexVal, delimiter,
 					IBuildMacroProvider.CONTEXT_OPTION,
 					new OptionContextData(option,holder));
-			
+
 			switch(option.getValueType()){
 				case IOption.STRING:
+				case IOption.TREE:
 				case IOption.ENUMERATED:{
 					String stringValue = option.getStringValue();
 					stringValue = provider.resolveValue(stringValue, inexVal, delimiter,
@@ -146,7 +149,7 @@ public class CheckOptionExpression implements IBooleanExpression {
 					listValue = provider.resolveValue(listValue, inexVal, delimiter,
 							IBuildMacroProvider.CONTEXT_OPTION,
 							new OptionContextData(option,holder));
-					
+
 					if(fIsRegex){
 						Pattern pattern = Pattern.compile(resolvedValue);
 						Matcher matcher = pattern.matcher(listValue);
@@ -162,25 +165,26 @@ public class CheckOptionExpression implements IBooleanExpression {
 		}
 		return false;
 	}
-	
-	public boolean evaluate(IOption option, IHoldsOptions holder, 
+
+	public boolean evaluate(IOption option, IHoldsOptions holder,
 			IOption otherOption, IHoldsOptions otherHolder){
 		try {
 			if(option.getValueType() != otherOption.getValueType())
 				return false;
-			
+
 			BuildMacroProvider provider = (BuildMacroProvider)ManagedBuildManager.getBuildMacroProvider();
 			String delimiter = ManagedBuildManager.getEnvironmentVariableProvider().getDefaultDelimiter();
 			String inexVal = " "; 	//$NON-NLS-1$
-			
+
 			switch(option.getValueType()){
 				case IOption.STRING:
+				case IOption.TREE:
 				case IOption.ENUMERATED:{
 					String stringValue = option.getStringValue();
 					stringValue = provider.resolveValue(stringValue, inexVal, delimiter,
 							IBuildMacroProvider.CONTEXT_OPTION,
 							new OptionContextData(option,holder));
-					
+
 					String str = otherOption.getStringValue();
 					str = provider.resolveValue(str, inexVal, delimiter,
 								IBuildMacroProvider.CONTEXT_OPTION,
@@ -208,7 +212,7 @@ public class CheckOptionExpression implements IBooleanExpression {
 					@SuppressWarnings("unchecked")
 					List<String> list = (List<String>)option.getValue();
 					String listValue[] = list.toArray(new String[list.size()]);
-					
+
 					@SuppressWarnings("unchecked")
 					List<String> otherList = (List<String>)otherOption.getValue();
 					String otherValue[] = otherList.toArray(new String[otherList.size()]);
@@ -216,15 +220,15 @@ public class CheckOptionExpression implements IBooleanExpression {
 					IMacroContextInfo info = provider.getMacroContextInfo(IBuildMacroProvider.CONTEXT_OPTION,
 							new OptionContextData(option,holder));
 					SupplierBasedCdtVariableSubstitutor subst = provider.getMacroSubstitutor(info,inexVal,delimiter);
-					
+
 					listValue = CdtVariableResolver.resolveStringListValues(listValue,subst,false);
-					
+
 					info = provider.getMacroContextInfo(IBuildMacroProvider.CONTEXT_OPTION,
 							new OptionContextData(otherOption,otherHolder));
 					subst = provider.getMacroSubstitutor(info,inexVal,delimiter);
 
 					otherValue = CdtVariableResolver.resolveStringListValues(otherValue,subst,false);
-					
+
 					if(listValue.length == otherValue.length){
 						for(int i = 0; i < listValue.length; i++){
 							if(!listValue[i].equals(otherValue[i]))
@@ -241,13 +245,13 @@ public class CheckOptionExpression implements IBooleanExpression {
 		} catch (CdtVariableException e) {
 		} catch (ClassCastException e) {
 		}
-		return false;		
+		return false;
 	}
-	
+
 	protected IBuildObject[] getHolderAndOption(String optionId,
 			String holderId,
-			IResourceInfo rcInfo, 
-	        IHoldsOptions holder, 
+			IResourceInfo rcInfo,
+	        IHoldsOptions holder,
 	        IOption option
 			){
 		IBuildObject result[] = null;
@@ -259,7 +263,7 @@ public class CheckOptionExpression implements IBooleanExpression {
 				hld = holder;
 			else
 				hld = getHolder(holderId,rcInfo);
-			
+
 			if(hld != null) {
 				IOption opt = getOption(optionId,hld);
 				if(opt != null)
@@ -268,11 +272,11 @@ public class CheckOptionExpression implements IBooleanExpression {
 		}
 		return result;
 	}
-	
+
 	/* This is called for optionCategory */
 	protected IBuildObject[] getHolderAndOption(String optionId,
 			String holderId,
-			IResourceInfo rcInfo, 
+			IResourceInfo rcInfo,
 			IHoldsOptions holder
 	){
 		IBuildObject result[] = null;
@@ -296,8 +300,8 @@ public class CheckOptionExpression implements IBooleanExpression {
             IHoldsOptions holder){
 		return holder.getOptionBySuperClassId(optionId);
 	}
-	
-	protected IHoldsOptions getHolder(String id, 
+
+	protected IHoldsOptions getHolder(String id,
 			IResourceInfo rcInfo){
 		IHoldsOptions holder = null;
 		if(rcInfo instanceof IFileInfo){
@@ -322,10 +326,10 @@ public class CheckOptionExpression implements IBooleanExpression {
 				}
 			}
 		}
-		
+
 		return holder;
 	}
-	
+
 	protected boolean isHolder(String id, IHoldsOptions holder){
 		do {
 			if(id.equals(holder.getId()))
@@ -337,7 +341,7 @@ public class CheckOptionExpression implements IBooleanExpression {
 			else
 				holder = null;
 		} while(holder != null);
-		
+
 		return false;
 	}
 }

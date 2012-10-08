@@ -36,21 +36,24 @@ public class CPPTemplateTypeParameter extends CPPTemplateParameter implements
 		fIsParameterPack= isPack;
 	}
 
+	@Override
 	public final boolean isParameterPack() {
 		return fIsParameterPack;
 	}
 
+	@Override
 	public ICPPScope asScope() {
 	    if (unknownScope == null) {
 	    	IASTName n = null;
 	    	IASTNode[] nodes = getDeclarations();
 	    	if (nodes != null && nodes.length > 0)
 	    		n = (IASTName) nodes[0];
-	        unknownScope = new CPPUnknownScope(this, n);
+	        unknownScope = new CPPUnknownTypeScope(this, n);
 	    }
 	    return unknownScope;
 	}
 
+	@Override
 	public IType getDefault() {
 		IASTName[] nds = getDeclarations();
 		if (nds == null || nds.length == 0)
@@ -69,15 +72,17 @@ public class CPPTemplateTypeParameter extends CPPTemplateParameter implements
 		return null;
 	}
 	
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		IType t= getDefault();
 		if (t == null)
 			return null;
 		
-		return new CPPTemplateArgument(t);
+		return new CPPTemplateTypeArgument(t);
 	}
 
-    public boolean isSameType(IType type) {
+    @Override
+	public boolean isSameType(IType type) {
         if (type == this)
             return true;
         if (type instanceof ITypedef)
@@ -87,8 +92,4 @@ public class CPPTemplateTypeParameter extends CPPTemplateParameter implements
         
         return getParameterID() == ((ICPPTemplateParameter) type).getParameterID();
     }
-
-	public IASTName getUnknownName() {
-		return new CPPASTName(getNameCharArray());
-	}
 }

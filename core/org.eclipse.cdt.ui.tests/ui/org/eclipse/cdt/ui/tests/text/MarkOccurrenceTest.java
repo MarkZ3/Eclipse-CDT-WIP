@@ -137,6 +137,7 @@ public class MarkOccurrenceTest extends BaseUITestCase {
 	
 		fMatch= null;
 		fSelWASTListener= new ISelectionListenerWithAST() {
+			@Override
 			public void selectionChanged(IEditorPart part, ITextSelection selection, IASTTranslationUnit astRoot) {
 				if (fMatch != null && selection != null && selection.getOffset() == fMatch.getOffset() && selection.getLength() == fMatch.getLength()) {
 					countOccurrences();
@@ -356,7 +357,7 @@ public class MarkOccurrenceTest extends BaseUITestCase {
 
 		fEditor.selectAndReveal(fMatch.getOffset(), fMatch.getLength());
 		
-		assertOccurrences(2, 1);
+		assertOccurrences(2, 0);
 		assertOccurrencesInWidget();
 	}
 	

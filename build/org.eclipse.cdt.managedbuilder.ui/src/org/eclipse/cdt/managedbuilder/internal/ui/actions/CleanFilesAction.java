@@ -13,7 +13,6 @@ package org.eclipse.cdt.managedbuilder.internal.ui.actions;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Vector;
 
 import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.managedbuilder.core.IManagedBuildInfo;
@@ -26,7 +25,6 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Preferences;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
@@ -53,7 +51,7 @@ public class CleanFilesAction extends ActionDelegate implements
 	private IAction action = null;
 
 	/**
-	 * 
+	 *
 	 */
 	public CleanFilesAction() {
 		this(PlatformUI.getWorkbench().getActiveWorkbenchWindow());
@@ -71,7 +69,7 @@ public class CleanFilesAction extends ActionDelegate implements
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.eclipse.ui.IWorkbenchWindowActionDelegate#dispose()
 	 */
 	@Override
@@ -91,9 +89,10 @@ public class CleanFilesAction extends ActionDelegate implements
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.eclipse.ui.IWorkbenchWindowActionDelegate#init(org.eclipse.ui.IWorkbenchWindow)
 	 */
+	@Override
 	public void init(IWorkbenchWindow window) {
 		workbenchWindow = window;
 
@@ -104,7 +103,7 @@ public class CleanFilesAction extends ActionDelegate implements
 	 * interface. The conversion is a bare cast operation (if the object is
 	 * instance of <code>IFile</code>, or an adaptation (if the object is
 	 * instance of <code>IAdaptable</code>).
-	 * 
+	 *
 	 * @param object
 	 *            the object to be cast to <code>IFile</code>
 	 * @return a reference to an IFile corresponding to the object provided, or
@@ -145,7 +144,7 @@ public class CleanFilesAction extends ActionDelegate implements
 	/**
 	 * Returns a list of buildable resources currently selected.
 	 * "Buildable" means buildable by MBS.
-	 * 
+	 *
 	 * @return a list of resources
 	 */
 	private List<IFile> getSelectedBuildableFiles() {
@@ -183,16 +182,14 @@ public class CleanFilesAction extends ActionDelegate implements
 	private static final class CleanFilesJob extends Job {
 		private final List<IFile> files;
 
-		protected Vector<?> generationProblems;
-
-		private CleanFilesJob(String name, List<IFile> filesToBuild) {
-			super(name);
+		private CleanFilesJob(List<IFile> filesToBuild) {
+			super(ManagedMakeMessages.getResourceString("CleanFilesAction.cleaningFiles")); //$NON-NLS-1$
 			files = filesToBuild;
 		}
 
 		/*
 		 * (non-Javadoc)
-		 * 
+		 *
 		 * @see org.eclipse.core.runtime.jobs.Job#run(org.eclipse.core.runtime.IProgressMonitor)
 		 */
 		@Override
@@ -212,36 +209,9 @@ public class CleanFilesAction extends ActionDelegate implements
 					}
 				}
 			}
-			try {
-				if (files != null) {
-					monitor
-							.beginTask(
-									ManagedMakeMessages
-											.getResourceString("CleanFilesAction.cleaningFiles"), files.size()); //$NON-NLS-1$
 
-					Iterator<IFile> iterator = files.iterator();
-
-					// clean each file
-					while (iterator.hasNext() && !monitor.isCanceled()) {
-						IFile file = iterator.next();
-
-						GeneratedMakefileBuilder builder = new GeneratedMakefileBuilder();
-						builder.cleanFile(file, monitor);
-
-						if (monitor.isCanceled()) {
-							return Status.CANCEL_STATUS;
-						}
-					}
-
-					monitor.done();
-
-				}
-			} catch (OperationCanceledException e) {
-				return Status.CANCEL_STATUS;
-			} finally {
-				monitor.done();
-			}
-			return Status.OK_STATUS;
+			GeneratedMakefileBuilder builder = new GeneratedMakefileBuilder();
+			return builder.cleanFiles(files, monitor);
 		}
 
 		@Override
@@ -252,35 +222,30 @@ public class CleanFilesAction extends ActionDelegate implements
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.eclipse.ui.IActionDelegate#run(org.eclipse.jface.action.IAction)
 	 */
 	@Override
 	public void run(IAction action) {
-
 		List<IFile> selectedFiles = getSelectedBuildableFiles();
-
-		CleanFilesJob job = new CleanFilesJob(
-				ManagedMakeMessages
-						.getResourceString("CleanFilesAction.cleaningFiles"), selectedFiles); //$NON-NLS-1$
-
+		CleanFilesJob job = new CleanFilesJob(selectedFiles);
 		job.schedule();
 	}
 
 	private boolean shouldBeEnabled() {
-		
-		
+
+
 		// fix for Bugzilla 139663
 		// if build automatically is turned on, then this menu should be turned off as
 		// it will trigger the auto build
 		Preferences preferences = ResourcesPlugin.getPlugin().getPluginPreferences();
-		
+
 		if(preferences.getBoolean(ResourcesPlugin.PREF_AUTO_BUILDING))
 		{
 			// auto building is on... do not enable the menu
 			return false;
 		}
-		
+
 		ISelectionService selectionService = workbenchWindow
 				.getSelectionService();
 		ISelection selection = selectionService.getSelection();
@@ -338,7 +303,7 @@ public class CleanFilesAction extends ActionDelegate implements
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.eclipse.ui.IActionDelegate#selectionChanged(org.eclipse.jface.action.IAction,
 	 *      org.eclipse.jface.viewers.ISelection)
 	 */

@@ -92,14 +92,25 @@ public class C99Scope implements IC99Scope, IASTInternalScope {
 	public void populateCache() {
 	}
 
+	public void removeNestedFromCache(IASTNode container) {
+	}
+
 	public IBinding getBinding(IASTName name, boolean resolve,
 			IIndexFileSet acceptLocalBindings) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
+	/**
+	 * @deprecated Use {@link #getBindings(ScopeLookupData)} instead
+	 */
+	@Deprecated
 	public IBinding[] getBindings(IASTName name, boolean resolve,
 			boolean prefixLookup, IIndexFileSet acceptLocalBindings) {
+				return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+			}
+
+	public IBinding[] getBindings(ScopeLookupData lookup) {
 		// TODO Auto-generated method stub
 		return null;
 	}

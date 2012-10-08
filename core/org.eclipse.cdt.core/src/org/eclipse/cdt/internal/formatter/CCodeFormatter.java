@@ -7,7 +7,7 @@
  *
  * Contributors:
  *     QNX Software Systems - Initial API and implementation
- *     Sergey Prigogin, Google
+ *     Sergey Prigogin (Google)
  *     Anton Leherbauer (Wind River Systems)
  *     IBM Corporation
  *******************************************************************************/
@@ -21,10 +21,13 @@ import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.gnu.cpp.GPPLanguage;
 import org.eclipse.cdt.core.formatter.CodeFormatter;
 import org.eclipse.cdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.cdt.core.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.cdt.core.index.IIndex;
+import org.eclipse.cdt.core.model.CModelException;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ILanguage;
 import org.eclipse.cdt.core.model.ITranslationUnit;
+import org.eclipse.cdt.core.model.IWorkingCopy;
 import org.eclipse.cdt.core.parser.FileContent;
 import org.eclipse.cdt.core.parser.IScannerInfo;
 import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
@@ -33,6 +36,8 @@ import org.eclipse.cdt.core.parser.ScannerInfo;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.jface.text.IRegion;
+import org.eclipse.jface.text.Region;
 import org.eclipse.text.edits.TextEdit;
 
 public class CCodeFormatter extends CodeFormatter {
@@ -117,26 +122,23 @@ public class CCodeFormatter extends CodeFormatter {
 		}
 	}
 
-	/*
-	 * @see org.eclipse.cdt.core.formatter.CodeFormatter#format(int, java.lang.String, int, int, int, java.lang.String)
-	 */
 	@Override
-	public TextEdit format(int kind, String source, int offset, int length, int indentationLevel, String lineSeparator) {
-		TextEdit edit= null;
-		ITranslationUnit tu= (ITranslationUnit) options.get(DefaultCodeFormatterConstants.FORMATTER_TRANSLATION_UNIT);
-		if (tu == null) {
-			IFile file= (IFile) options.get(DefaultCodeFormatterConstants.FORMATTER_CURRENT_FILE);
-			if (file != null) {
-				tu= (ITranslationUnit) CoreModel.getDefault().create(file);
-			}
-		}
+	public TextEdit format(int kind, String source, int offset, int length, int indentationLevel,
+			String lineSeparator) {
+		preferences.initial_indentation_level = indentationLevel;
+		return format(kind, source, new IRegion[] { new Region(offset, length) }, lineSeparator)[0];
+	}
+
+	@Override
+	public TextEdit[] format(int kind, String source, IRegion[] regions, String lineSeparator) {
+		TextEdit[] edits= new TextEdit[regions.length];
 		if (lineSeparator != null) {
 			preferences.line_separator = lineSeparator;
 		} else {
 			preferences.line_separator = System.getProperty("line.separator"); //$NON-NLS-1$
 		}
-		preferences.initial_indentation_level = indentationLevel;
 
+		ITranslationUnit tu = getTranslationUnit(source);
 		if (tu != null) {
 			IIndex index;
 			try {
@@ -150,16 +152,11 @@ public class CCodeFormatter extends CodeFormatter {
 			IASTTranslationUnit ast;
 			try {
 				try {
-					ast= tu.getAST(index, ITranslationUnit.AST_SKIP_ALL_HEADERS);
-				} catch (CoreException exc) {
-					throw new AbortFormatting(exc);
+					ast= tu.getAST(index, ITranslationUnit.AST_SKIP_INDEXED_HEADERS);
+				} catch (CoreException e) {
+					throw new AbortFormatting(e);
 				}
-				CodeFormatterVisitor codeFormatter = new CodeFormatterVisitor(preferences, offset, length);
-				edit= codeFormatter.format(source, ast);
-				IStatus status= codeFormatter.getStatus();
-				if (!status.isOK()) {
-					CCorePlugin.log(status);
-				}
+				formatRegions(source, regions, edits, ast);
 			} finally {
 				index.releaseReadLock();
 			}
@@ -176,16 +173,47 @@ public class CCodeFormatter extends CodeFormatter {
 			try {
 				ast= language.getASTTranslationUnit(content, scanInfo, contentProvider, null, 0,
 						ParserUtil.getParserLogService());
-				CodeFormatterVisitor codeFormatter = new CodeFormatterVisitor(preferences, offset, length);
-				edit= codeFormatter.format(source, ast);
-				IStatus status= codeFormatter.getStatus();
-				if (!status.isOK()) {
-					CCorePlugin.log(status);
-				}
+				formatRegions(source, regions, edits, ast);
 			} catch (CoreException e) {
 				throw new AbortFormatting(e);
 			}
 		}
-		return edit;
+		return edits;
+	}
+
+	private void formatRegions(String source, IRegion[] regions, TextEdit[] edits,
+			IASTTranslationUnit ast) {
+		for (int i = 0; i < regions.length; i++) {
+			IRegion region = regions[i];
+			CodeFormatterVisitor codeFormatter =
+					new CodeFormatterVisitor(preferences, region.getOffset(), region.getLength());
+			edits[i] = codeFormatter.format(source, ast);
+			IStatus status= codeFormatter.getStatus();
+			if (!status.isOK()) {
+				CCorePlugin.log(status);
+			}
+		}
+	}
+
+	private ITranslationUnit getTranslationUnit(String source) {
+		ITranslationUnit tu= (ITranslationUnit) options.get(DefaultCodeFormatterConstants.FORMATTER_TRANSLATION_UNIT);
+		if (tu == null) {
+			IFile file= (IFile) options.get(DefaultCodeFormatterConstants.FORMATTER_CURRENT_FILE);
+			if (file != null) {
+				tu= (ITranslationUnit) CoreModel.getDefault().create(file);
+			}
+		}
+		if (tu != null && source != null) {
+			try {
+				// Create a private working copy and set it contents to source.
+				if (tu.isWorkingCopy())
+					tu = ((IWorkingCopy) tu).getOriginalElement();
+				tu = tu.getWorkingCopy();
+				tu.getBuffer().setContents(source);
+			} catch (CModelException e) {
+				throw new AbortFormatting(e);
+			}
+		}
+		return tu;
 	}
 }

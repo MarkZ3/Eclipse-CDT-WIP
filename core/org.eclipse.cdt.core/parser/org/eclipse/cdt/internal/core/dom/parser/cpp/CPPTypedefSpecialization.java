@@ -12,90 +12,31 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
-import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
-import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameterMap;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeContainer;
-import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
-import org.eclipse.core.runtime.Assert;
 
 /**
  * Specialization of a typedef in the context of a class-specialization.
  */
 public class CPPTypedefSpecialization extends CPPSpecialization implements ITypedef, ITypeContainer {
-	final static class RecursionResolvingBinding extends ProblemBinding {
-		public RecursionResolvingBinding(IASTNode node, char[] arg) {
-			super(node, IProblemBinding.SEMANTIC_RECURSION_IN_LOOKUP, arg);
-			Assert.isTrue(CPPASTNameBase.sAllowRecursionBindings, getMessage());
-		}
-	}
-	
 	public static final int MAX_RESOLUTION_DEPTH = 5;
 	public static final int MAX_TYPE_NESTING = 60;
 
-	private IType type;
-    private int fResolutionDepth;
+	private IType fType;
 
-    public CPPTypedefSpecialization(IBinding specialized, ICPPClassType owner, 
-    		ICPPTemplateParameterMap tpmap) {
+    public CPPTypedefSpecialization(IBinding specialized, ICPPClassType owner, ICPPTemplateParameterMap tpmap, IType type) {
         super(specialized, owner, tpmap);
+        fType= type;
     }
 
-    private ITypedef getTypedef() {
-        return (ITypedef) getSpecializedBinding();
+    @Override
+	public IType getType() {
+    	return fType;
     }
-
-    /* (non-Javadoc)
-     * @see org.eclipse.cdt.core.dom.ast.ITypedef#getType()
-     */
-    public IType getType() {
-    	return getType(MAX_TYPE_NESTING);
-    }
-    
-    private IType getType(int maxDepth) {
-        if (type == null) {
-        	try {
-	        	if (++fResolutionDepth > MAX_RESOLUTION_DEPTH) {
-	        		type = new RecursionResolvingBinding(getDefinition(), getNameCharArray());
-	        	} else {
-		            type= specializeType(getTypedef().getType());
-		        	// A typedef pointing to itself is a sure recipe for an infinite loop -- replace
-		            // with a problem binding.
-		            if (!verifyType(type, maxDepth)) {
-		            	type = new RecursionResolvingBinding(getDefinition(), getNameCharArray());
-		            }
-	        	}
-        	} finally {
-        		--fResolutionDepth;
-        	}
-	    }
-		return type;
-    }
-
-	private boolean verifyType(IType type, int maxTypeNesting) {
-		for (;;) {
-			if (--maxTypeNesting < 0)
-				return false;
-			if (equals(type))
-				return false;
-			if (type instanceof CPPTypedefSpecialization) {
-				type= ((CPPTypedefSpecialization) type).getType(maxTypeNesting);
-			} else if (type instanceof ITypeContainer) {
-				type= ((ITypeContainer) type).getType();
-			} else {
-				return true;
-			}
-		}
-	}
-
-	public int incResolutionDepth(int increment) {
-		fResolutionDepth += increment;
-		return fResolutionDepth;
-	}
 
     /* (non-Javadoc)
      * @see java.lang.Object#clone()
@@ -114,7 +55,8 @@ public class CPPTypedefSpecialization extends CPPSpecialization implements IType
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.IType#isSameType(org.eclipse.cdt.core.dom.ast.IType)
      */
-    public boolean isSameType(IType o) {
+    @Override
+	public boolean isSameType(IType o) {
         if (o == this)
             return true;
 	    if (o instanceof ITypedef) {
@@ -130,7 +72,8 @@ public class CPPTypedefSpecialization extends CPPSpecialization implements IType
 	    return false;
     }
 
+	@Override
 	public void setType(IType type) {
-		this.type = type;
+		fType = type;
 	}
 }

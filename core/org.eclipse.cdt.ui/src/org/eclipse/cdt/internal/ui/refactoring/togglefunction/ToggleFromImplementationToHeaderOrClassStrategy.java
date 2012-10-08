@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2011, 2012 Institute for Software, HSR Hochschule fuer Technik  
  * Rapperswil, University of applied sciences and others.
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0 
@@ -7,12 +7,15 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- * 		Martin Schwab & Thomas Kallenberg - initial API and implementation 
+ * 	   Martin Schwab & Thomas Kallenberg - initial API and implementation
+ *     Sergey Prigogin (Google)
  ******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring.togglefunction;
 
 import java.util.List;
 
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.text.edits.TextEditGroup;
 
 import org.eclipse.cdt.core.dom.ast.IASTComment;
@@ -28,20 +31,19 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite.CommentPosition;
 
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTLiteralNode;
 
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
 import org.eclipse.cdt.internal.ui.refactoring.utils.CPPASTAllVisitor;
 
 public class ToggleFromImplementationToHeaderOrClassStrategy implements IToggleRefactoringStrategy {
-
 	private ToggleRefactoringContext context;
 	private TextEditGroup infoText;
-	private IASTTranslationUnit other_tu;
-	private ASTLiteralNode includenode;
+	private IASTTranslationUnit otherAst;
+	private ASTLiteralNode includeNode;
 
-	public ToggleFromImplementationToHeaderOrClassStrategy(
-			ToggleRefactoringContext context) {
+	public ToggleFromImplementationToHeaderOrClassStrategy(ToggleRefactoringContext context) {
 		this.context = context;
 		this.infoText = new TextEditGroup(Messages.EditGroupName);
 	}
@@ -50,34 +52,35 @@ public class ToggleFromImplementationToHeaderOrClassStrategy implements IToggleR
 		return definition.getDeclarator().getName() instanceof ICPPASTQualifiedName;
 	}
 	
-	public void run(ModificationCollector modifications) {
+	@Override
+	public void run(ModificationCollector modifications) throws CoreException {
 		newFileCheck();
-		ASTRewrite implast = modifications.rewriterForTranslationUnit(context.getDefinitionUnit());
-		List<IASTComment>leadingComments = implast.getComments(context.getDefinition(), CommentPosition.leading);
-		removeDefinitionFromImplementation(implast);
-		if (includenode != null) {
-			implast.insertBefore(context.getDefinitionUnit(), 
-					context.getDefinitionUnit().getChildren()[0], includenode, infoText);
+		ASTRewrite implAst = modifications.rewriterForTranslationUnit(context.getDefinitionAST());
+		List<IASTComment>leadingComments = implAst.getComments(context.getDefinition(), CommentPosition.leading);
+		removeDefinitionFromImplementation(implAst);
+		if (includeNode != null) {
+			implAst.insertBefore(context.getDefinitionAST(), 
+					context.getDefinitionAST().getChildren()[0], includeNode, infoText);
 		}
-		if (context.getDeclarationUnit() != null) {
+		if (context.getDeclarationAST() != null) {
 			addDefinitionToClass(modifications, leadingComments);
 		} else {
 			addDefinitionToHeader(modifications, leadingComments);
 		}
 	}
 
-	private void newFileCheck() {
-		if (context.getDeclarationUnit() == null) {
+	private void newFileCheck() throws CoreException {
+		if (context.getDeclarationAST() == null) {
 			if (isFreeFunction(context.getDefinition())) {
 				throw new NotSupportedException(Messages.ToggleFromImplementationToHeaderOrClassStrategy_CanNotToggle);
 			}
-			other_tu = context.getTUForSiblingFile();
-			if (other_tu == null) {
-				ToggleFileCreator filecreator = new ToggleFileCreator(context, ".h"); //$NON-NLS-1$
-				if (filecreator.askUserForFileCreation(context)) {
-					filecreator.createNewFile();
-					other_tu = filecreator.loadTranslationUnit();
-					includenode = new ASTLiteralNode(filecreator.getIncludeStatement() + "\n\n"); //$NON-NLS-1$
+			otherAst = context.getASTForPartnerFile();
+			if (otherAst == null) {
+				ToggleFileCreator fileCreator = new ToggleFileCreator(context, ".h"); //$NON-NLS-1$
+				if (fileCreator.askUserForFileCreation(context)) {
+					IFile file = fileCreator.createNewFile();
+					otherAst = context.getAST(file, null);
+					includeNode = new ASTLiteralNode(fileCreator.getIncludeStatement() + "\n\n"); //$NON-NLS-1$
 				} else {
 					throw new NotSupportedException(Messages.ToggleFromImplementationToHeaderOrClassStrategy_CanNotCreateNewFile);
 				}
@@ -86,14 +89,13 @@ public class ToggleFromImplementationToHeaderOrClassStrategy implements IToggleR
 	}
 
 	private void addDefinitionToHeader(ModificationCollector modifications, List<IASTComment> leadingComments) {
-		ASTRewrite headerRewrite = modifications.rewriterForTranslationUnit(other_tu);
+		ASTRewrite headerRewrite = modifications.rewriterForTranslationUnit(otherAst);
 		IASTFunctionDefinition newDefinition = ToggleNodeHelper.createFunctionSignatureWithEmptyBody(
-context
-				.getDefinition().getDeclSpecifier().copy(CopyStyle.withLocations), context.getDefinition()
-				.getDeclarator().copy(CopyStyle.withLocations),
+				context.getDefinition().getDeclSpecifier().copy(CopyStyle.withLocations),
+				context.getDefinition().getDeclarator().copy(CopyStyle.withLocations),
 				context.getDefinition().copy(CopyStyle.withLocations));
-		newDefinition.setParent(other_tu);
-		headerRewrite.insertBefore(other_tu.getTranslationUnit(), null, newDefinition, infoText);
+		newDefinition.setParent(otherAst);
+		headerRewrite.insertBefore(otherAst.getTranslationUnit(), null, newDefinition, infoText);
 		restoreBody(headerRewrite, newDefinition, modifications);
 		for (IASTComment comment : leadingComments) {			
 			headerRewrite.addComment(newDefinition, comment, CommentPosition.leading);
@@ -102,10 +104,9 @@ context
 
 	private void addDefinitionToClass(ModificationCollector modifications, List<IASTComment> leadingComments) {
 		ASTRewrite headerRewrite = modifications.rewriterForTranslationUnit(
-				context.getDeclarationUnit());
+				context.getDeclarationAST());
 		IASTFunctionDefinition newDefinition = ToggleNodeHelper.createInClassDefinition(
-				context.getDeclaration(), context.getDefinition(), 
-				context.getDeclarationUnit());
+				context.getDeclaration(), context.getDefinition(), context.getDeclarationAST());
 		newDefinition.setParent(getParent());
 		restoreBody(headerRewrite, newDefinition, modifications);
 		headerRewrite.replace(context.getDeclaration().getParent(), newDefinition, infoText);
@@ -115,14 +116,13 @@ context
 	}
 
 	private IASTNode getParent() {
-		IASTNode parent = ToggleNodeHelper.getAncestorOfType(context.getDefinition(), 
+		IASTNode parent = CPPVisitor.findAncestorWithType(context.getDefinition(),
 				ICPPASTCompositeTypeSpecifier.class);
 		IASTNode parentnode = null;
 		if (parent != null) {
-			parentnode  = parent;
-		}
-		else {
-			parentnode =context.getDeclarationUnit();
+			parentnode = parent;
+		} else {
+			parentnode = context.getDeclarationAST();
 		}
 		return parentnode;
 	}
@@ -132,7 +132,8 @@ context
 		IASTFunctionDefinition oldDefinition = context.getDefinition();
 		newDefinition.setBody(oldDefinition.getBody().copy(CopyStyle.withLocations));
 		
-		if (newDefinition instanceof ICPPASTFunctionWithTryBlock && oldDefinition instanceof ICPPASTFunctionWithTryBlock) {
+		if (newDefinition instanceof ICPPASTFunctionWithTryBlock &&
+				oldDefinition instanceof ICPPASTFunctionWithTryBlock) {
 			ICPPASTFunctionWithTryBlock newTryDef = (ICPPASTFunctionWithTryBlock) newDefinition;
 			ICPPASTFunctionWithTryBlock oldTryDef = (ICPPASTFunctionWithTryBlock) oldDefinition;
 			for (ICPPASTCatchHandler handler : oldTryDef.getCatchHandlers()) {
@@ -160,12 +161,11 @@ context
 				}
 			}
 		});
-		
 	}
 
 	private void removeDefinitionFromImplementation(ASTRewrite implast) {
-		ICPPASTNamespaceDefinition ns = ToggleNodeHelper.getAncestorOfType(
-				context.getDefinition(), ICPPASTNamespaceDefinition.class);
+		ICPPASTNamespaceDefinition ns =
+				CPPVisitor.findAncestorWithType(context.getDefinition(), ICPPASTNamespaceDefinition.class);
 		if (ns != null && isSingleElementInNamespace(ns, context.getDefinition())) {
 			implast.remove(ns, infoText);
 		} else {

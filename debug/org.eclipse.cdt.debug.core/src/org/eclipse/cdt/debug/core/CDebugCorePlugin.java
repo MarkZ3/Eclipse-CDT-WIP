@@ -21,12 +21,14 @@ import java.util.List;
 import org.eclipse.cdt.debug.core.breakpointactions.BreakpointActionManager;
 import org.eclipse.cdt.debug.core.command.CCommandAdapterFactory;
 import org.eclipse.cdt.debug.core.disassembly.IDisassemblyContextService;
+import org.eclipse.cdt.debug.core.model.ICDebugElement;
 import org.eclipse.cdt.debug.core.model.IRestart;
 import org.eclipse.cdt.debug.core.sourcelookup.AbsolutePathSourceContainer;
 import org.eclipse.cdt.debug.core.sourcelookup.CProjectSourceContainer;
 import org.eclipse.cdt.debug.core.sourcelookup.ICSourceLocation;
 import org.eclipse.cdt.debug.core.sourcelookup.ProgramRelativePathSourceContainer;
 import org.eclipse.cdt.debug.internal.core.DebugConfiguration;
+import org.eclipse.cdt.debug.internal.core.DebugModelProvider;
 import org.eclipse.cdt.debug.internal.core.ICDebugInternalConstants;
 import org.eclipse.cdt.debug.internal.core.ListenerList;
 import org.eclipse.cdt.debug.internal.core.SessionManager;
@@ -348,6 +350,8 @@ public class CDebugCorePlugin extends Plugin {
 		createDisassemblyContextService();
 		setSessionManager(new SessionManager());
 		setDefaultLaunchDelegates();
+		
+		Platform.getAdapterManager().registerAdapters(new DebugModelProvider(), ICDebugElement.class);
 	}
 
 	/* (non-Javadoc)
@@ -374,11 +378,11 @@ public class CDebugCorePlugin extends Plugin {
 			fCommonSourceLookupDirector = new CommonSourceLookupDirector();
 			boolean convertingFromLegacyFormat = false;
 			String newMemento = CDebugCorePlugin.getDefault().getPluginPreferences().getString(ICDebugInternalConstants.PREF_DEFAULT_SOURCE_CONTAINERS);
-			if (newMemento.length() == 0) {
+			if (newMemento.isEmpty()) {
 				newMemento = CDebugCorePlugin.getDefault().getPluginPreferences().getString(ICDebugInternalConstants.PREF_COMMON_SOURCE_CONTAINERS);
 				convertingFromLegacyFormat = true;
 			}
-			if (newMemento.length() == 0) {
+			if (newMemento.isEmpty()) {
 				// Add the participant(s). This happens as part of
 				// initializeFromMemento(), but since we're not calling it, we
 				// need to do this explicitly. See 299583.

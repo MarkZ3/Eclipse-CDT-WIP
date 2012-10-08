@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -18,59 +18,59 @@ import org.eclipse.cdt.core.dom.ast.IBasicType.Kind;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTSimpleDeclSpecifier;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
-public class CPPASTSimpleDeclSpecifier extends CPPASTBaseDeclSpecifier implements ICPPASTSimpleDeclSpecifier,
-		IASTAmbiguityParent {
+public class CPPASTSimpleDeclSpecifier extends CPPASTBaseDeclSpecifier
+		implements ICPPASTSimpleDeclSpecifier, IASTAmbiguityParent {
     private int type;
     private boolean isSigned;
     private boolean isUnsigned;
     private boolean isShort;
     private boolean isLong;
     private boolean isLonglong;
-    private boolean isComplex=false;
-    private boolean isImaginary=false;
+    private boolean isComplex;
+    private boolean isImaginary;
 	private IASTExpression fDeclTypeExpression;
 
-    public CPPASTSimpleDeclSpecifier copy() {
+    @Override
+	public CPPASTSimpleDeclSpecifier copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
     
+	@Override
 	public CPPASTSimpleDeclSpecifier copy(CopyStyle style) {
-		CPPASTSimpleDeclSpecifier copy = new CPPASTSimpleDeclSpecifier();
-		copySimpleDeclSpec(copy, style);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(new CPPASTSimpleDeclSpecifier(), style);
 	}
 
-	protected void copySimpleDeclSpec(CPPASTSimpleDeclSpecifier other, CopyStyle style) {
-    	copyBaseDeclSpec(other);
-    	other.type = type;
-    	other.isSigned = isSigned;
-    	other.isUnsigned = isUnsigned;
-    	other.isShort = isShort;
-    	other.isLong = isLong;
-    	other.isLonglong= isLonglong;
-    	other.isComplex= isComplex;
-    	other.isImaginary= isImaginary;
+	protected <T extends CPPASTSimpleDeclSpecifier> T copy(T copy, CopyStyle style) {
+    	copy.type = type;
+    	copy.isSigned = isSigned;
+    	copy.isUnsigned = isUnsigned;
+    	copy.isShort = isShort;
+    	copy.isLong = isLong;
+    	copy.isLonglong= isLonglong;
+    	copy.isComplex= isComplex;
+    	copy.isImaginary= isImaginary;
     	if (fDeclTypeExpression != null) {
-			other.setDeclTypeExpression(fDeclTypeExpression.copy(style));
+			copy.setDeclTypeExpression(fDeclTypeExpression.copy(style));
     	}
+    	return super.copy(copy, style);
     }
 
 	/**
      * @see org.eclipse.cdt.core.dom.ast.IASTSimpleDeclSpecifier
      */
-    public int getType() {
+    @Override
+	public int getType() {
         return type;
     }
 
-    public void setType(int type) {
+    @Override
+	public void setType(int type) {
         assertNotFrozen();
         this.type = type;
     }
 
-    public void setType(Kind kind) {
+    @Override
+	public void setType(Kind kind) {
     	setType(getType(kind));
     }
     
@@ -96,77 +96,96 @@ public class CPPASTSimpleDeclSpecifier extends CPPASTBaseDeclSpecifier implement
 			return t_unspecified;
 		case eVoid:
 			return t_void;
+		case eNullPtr:
+			// Null pointer type cannot be expressed wit ha simple decl specifier.
+			break;
     	}
     	return t_unspecified;
     }
     
-    public boolean isSigned() {
+    @Override
+	public boolean isSigned() {
         return isSigned;
     }
 
-    public boolean isUnsigned() {
+    @Override
+	public boolean isUnsigned() {
         return isUnsigned;
     }
 
-    public boolean isShort() {
+    @Override
+	public boolean isShort() {
         return isShort;
     }
 
-    public boolean isLong() {
+    @Override
+	public boolean isLong() {
         return isLong;
     }
 
-    public boolean isLongLong() {
+    @Override
+	public boolean isLongLong() {
 		return isLonglong;
 	}
 
+	@Override
 	public boolean isComplex() {
 		return isComplex;
 	}
 
+	@Override
 	public boolean isImaginary() {
 		return isImaginary;
 	}
 
+	@Override
 	public IASTExpression getDeclTypeExpression() {
 		return fDeclTypeExpression;
 	}
 
+	@Override
 	public void setSigned(boolean value) {
         assertNotFrozen();
         isSigned = value;
     }
 
-    public void setUnsigned(boolean value) {
+    @Override
+	public void setUnsigned(boolean value) {
         assertNotFrozen();
         isUnsigned = value;
     }
 
-    public void setLong(boolean value) {
+    @Override
+	public void setLong(boolean value) {
         assertNotFrozen();
         isLong = value;
     }
 
-    public void setShort(boolean value) {
+    @Override
+	public void setShort(boolean value) {
         assertNotFrozen();
         isShort = value;
     }
 
-    public void setLongLong(boolean value) {
+    @Override
+	public void setLongLong(boolean value) {
         assertNotFrozen();
         isLonglong = value;
 	}
 
+	@Override
 	public void setComplex(boolean value) {
         assertNotFrozen();
         isComplex = value;
 	}
 
+	@Override
 	public void setImaginary(boolean value) {
         assertNotFrozen();
         isImaginary = value;
 	}
 
+	@Override
 	public void setDeclTypeExpression(IASTExpression expression) {
         assertNotFrozen();
         fDeclTypeExpression = expression;
@@ -199,6 +218,7 @@ public class CPPASTSimpleDeclSpecifier extends CPPASTBaseDeclSpecifier implement
         return true;
     }
 
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (child == fDeclTypeExpression) {
 			other.setPropertyInParent(child.getPropertyInParent());

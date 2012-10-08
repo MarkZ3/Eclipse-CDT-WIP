@@ -6,11 +6,14 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM Rational Software) - Initial API and implementation
- *    Yuan Zhang / Beth Tibbitts (IBM Research)
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM Rational Software) - Initial API and implementation
+ *     Yuan Zhang / Beth Tibbitts (IBM Research)
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
+
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.restoreTypedefs;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
@@ -28,9 +31,8 @@ import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 /**
  * Binary expression for c
  */
-public class CASTBinaryExpression extends ASTNode implements
-        IASTBinaryExpression, IASTAmbiguityParent {
-
+public class CASTBinaryExpression extends ASTNode
+		implements IASTBinaryExpression, IASTAmbiguityParent {
     private int op;
     private IASTExpression operand1;
     private IASTExpression operand2;
@@ -44,47 +46,51 @@ public class CASTBinaryExpression extends ASTNode implements
 		setOperand2(operand2);
 	}
 	
+	@Override
 	public CASTBinaryExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CASTBinaryExpression copy(CopyStyle style) {
 		CASTBinaryExpression copy = new CASTBinaryExpression();
 		copy.op = op;
 		copy.setOperand1(operand1 == null ? null : operand1.copy(style));
 		copy.setOperand2(operand2 == null ? null : operand2.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
+	@Override
 	public int getOperator() {
         return op;
     }
 
-    public IASTExpression getOperand1() {
+    @Override
+	public IASTExpression getOperand1() {
         return operand1;
     }
 
-    public IASTExpression getOperand2() {
+    @Override
+	public IASTExpression getOperand2() {
         return operand2;
     }
 
-    public IASTInitializerClause getInitOperand2() {
+    @Override
+	public IASTInitializerClause getInitOperand2() {
         return operand2;
 	}
 
 	/**
      * @param op An op_X field from {@link IASTBinaryExpression}
      */
-    public void setOperator(int op) {
+    @Override
+	public void setOperator(int op) {
         assertNotFrozen();
         this.op = op;
     }
 
-    public void setOperand1(IASTExpression expression) {
+    @Override
+	public void setOperand1(IASTExpression expression) {
         assertNotFrozen();
         operand1 = expression;
         if (expression != null) {
@@ -93,7 +99,8 @@ public class CASTBinaryExpression extends ASTNode implements
 		}
     }
 
-    public void setOperand2(IASTExpression expression) {
+    @Override
+	public void setOperand2(IASTExpression expression) {
         assertNotFrozen();
         operand2 = expression;
         if (expression != null) {
@@ -103,16 +110,16 @@ public class CASTBinaryExpression extends ASTNode implements
     }
 
     @Override
-	public boolean accept( ASTVisitor action ){
+	public boolean accept(ASTVisitor action) {
     	if (operand1 instanceof IASTBinaryExpression || operand2 instanceof IASTBinaryExpression) {
     		return acceptWithoutRecursion(this, action);
     	}
     	
-        if( action.shouldVisitExpressions ){
-		    switch( action.visit( this ) ){
-	            case ASTVisitor.PROCESS_ABORT : return false;
-	            case ASTVisitor.PROCESS_SKIP  : return true;
-	            default : break;
+        if (action.shouldVisitExpressions) {
+		    switch (action.visit(this)) {
+	            case ASTVisitor.PROCESS_ABORT: return false;
+	            case ASTVisitor.PROCESS_SKIP: return true;
+	            default: break;
 	        }
 		}
         
@@ -139,12 +146,12 @@ public class CASTBinaryExpression extends ASTNode implements
 	
 	public static boolean acceptWithoutRecursion(IASTBinaryExpression bexpr, ASTVisitor action) {
 		N stack= new N(bexpr);
-		while(stack != null) {
+		while (stack != null) {
 			IASTBinaryExpression expr= stack.fExpression;
 			if (stack.fState == 0) {
 				if (action.shouldVisitExpressions) {
 					switch (action.visit(expr)) {
-					case ASTVisitor.PROCESS_ABORT : 
+					case ASTVisitor.PROCESS_ABORT: 
 						return false;
 					case ASTVisitor.PROCESS_SKIP: 
 						stack= stack.fNext;
@@ -186,59 +193,63 @@ public class CASTBinaryExpression extends ASTNode implements
 	}
 
     
-    public void replace(IASTNode child, IASTNode other) {
-        if( child == operand1 )
-        {
-            other.setPropertyInParent( child.getPropertyInParent() );
-            other.setParent( child.getParent() );
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
+        if (child == operand1) {
+            other.setPropertyInParent(child.getPropertyInParent());
+            other.setParent(child.getParent());
             operand1 = (IASTExpression) other;
         }
-        if( child == operand2)
-        {
-            other.setPropertyInParent( child.getPropertyInParent() );
-            other.setParent( child.getParent() );
+        if (child == operand2) {
+            other.setPropertyInParent(child.getPropertyInParent());
+            other.setParent(child.getParent());
             operand2 = (IASTExpression) other;
         }
     }
     
-    public IType getExpressionType() {
+    @Override
+	public IType getExpressionType() {
         final int op = getOperator();
-        final IType t1= CVisitor.unwrapTypedefs(getOperand1().getExpressionType());
-    	final IType t2= CVisitor.unwrapTypedefs(getOperand2().getExpressionType());
-    	IType type= CArithmeticConversion.convertCOperandTypes(op, t1, t2);
+        IType originalType1 = getOperand1().getExpressionType();
+    	IType originalType2 = getOperand2().getExpressionType();
+		final IType type1= CVisitor.unwrapTypedefs(originalType1);
+		final IType type2= CVisitor.unwrapTypedefs(originalType2);
+    	IType type= CArithmeticConversion.convertCOperandTypes(op, type1, type2);
     	if (type != null) {
-    		return type;
+    		return restoreTypedefs(type, originalType1, originalType2);
     	}
-		switch (op) {
-			case op_lessEqual:
-			case op_lessThan:
-			case op_greaterEqual:
-			case op_greaterThan:
-			case op_logicalAnd:
-			case op_logicalOr:
-			case op_equals:
-			case op_notequals:
-				return new CBasicType(Kind.eInt, 0, this);
-	        case IASTBinaryExpression.op_plus:
-	        	if (t1 instanceof IArrayType) {
-	        		return arrayTypeToPointerType((ICArrayType) t1);
-	        	} else if (t2 instanceof IPointerType) {
-	        		return t2;
-	        	} else if (t2 instanceof IArrayType) {
-	        		return arrayTypeToPointerType((ICArrayType) t2);
-	        	}
-	        	break;
 
-			case IASTBinaryExpression.op_minus:
-				if (t2 instanceof IPointerType || t2 instanceof IArrayType) {
-					if (t1 instanceof IPointerType || t1 instanceof IArrayType) {
-		    			return CVisitor.getPtrDiffType(this);
-					}
-					return t1;
+		switch (op) {
+		case op_lessEqual:
+		case op_lessThan:
+		case op_greaterEqual:
+		case op_greaterThan:
+		case op_logicalAnd:
+		case op_logicalOr:
+		case op_equals:
+		case op_notequals:
+			return new CBasicType(Kind.eInt, 0, this);
+
+        case IASTBinaryExpression.op_plus:
+        	if (type1 instanceof IArrayType) {
+        		return arrayTypeToPointerType((ICArrayType) type1);
+        	} else if (type2 instanceof IPointerType) {
+        		return restoreTypedefs(type2, originalType2);
+        	} else if (type2 instanceof IArrayType) {
+        		return arrayTypeToPointerType((ICArrayType) type2);
+        	}
+        	break;
+
+		case IASTBinaryExpression.op_minus:
+			if (type2 instanceof IPointerType || type2 instanceof IArrayType) {
+				if (type1 instanceof IPointerType || type1 instanceof IArrayType) {
+	    			return CVisitor.getPtrDiffType(this);
 				}
-				break;
+        		return restoreTypedefs(type1, originalType1);
+			}
+			break;
 		}
-		return t1;
+		return restoreTypedefs(type1, originalType1);
     }
 
 	private IType arrayTypeToPointerType(ICArrayType type) {
@@ -248,6 +259,7 @@ public class CASTBinaryExpression extends ASTNode implements
 				(type.isVolatile() ? CPointerType.IS_VOLATILE : 0));
 	}
     
+	@Override
 	public boolean isLValue() {
 		switch (getOperator()) {
 		case op_assign:
@@ -266,6 +278,7 @@ public class CASTBinaryExpression extends ASTNode implements
 		return false;
 	}
 	
+	@Override
 	public final ValueCategory getValueCategory() {
 		return isLValue() ? ValueCategory.LVALUE : ValueCategory.PRVALUE;
 	}

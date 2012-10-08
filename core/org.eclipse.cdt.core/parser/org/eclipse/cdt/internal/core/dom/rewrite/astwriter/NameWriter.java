@@ -7,17 +7,17 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- * Institute for Software - initial API and implementation
+ *     Institute for Software - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.rewrite.astwriter;
 
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConversionName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateId;
+import org.eclipse.cdt.core.parser.Keywords;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateTypeParameter;
 import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
 
@@ -36,7 +36,7 @@ public class NameWriter extends NodeWriter {
 	 * @param scribe
 	 * @param visitor
 	 */
-	public NameWriter(Scribe scribe, ASTVisitor visitor, NodeCommentMap commentMap) {
+	public NameWriter(Scribe scribe, ASTWriterVisitor visitor, NodeCommentMap commentMap) {
 		super(scribe, visitor, commentMap);
 	}
 	
@@ -45,7 +45,7 @@ public class NameWriter extends NodeWriter {
 			writeTempalteId((ICPPASTTemplateId) name);
 		} else if (name instanceof ICPPASTConversionName) {
 			scribe.print(OPERATOR);
-			((ICPPASTConversionName)name).getTypeId().accept(visitor);
+			((ICPPASTConversionName) name).getTypeId().accept(visitor);
 		} else if (name instanceof ICPPASTQualifiedName){
 			writeQualifiedName((ICPPASTQualifiedName) name);
 		} else {
@@ -59,7 +59,7 @@ public class NameWriter extends NodeWriter {
 	
 	private void writeTempalteId(ICPPASTTemplateId tempId) {
 		if (needsTemplateQualifier(tempId)) {
-			scribe.print(TEMPLATE);
+			scribe.printStringSpace(Keywords.TEMPLATE);
 		}
 		scribe.print(tempId.getTemplateName().toString());
 		scribe.print('<');
@@ -118,6 +118,9 @@ public class NameWriter extends NodeWriter {
 	}
 
 	private void writeQualifiedName(ICPPASTQualifiedName qname) {
+		if (qname.isFullyQualified()) {
+			scribe.print(COLON_COLON);
+		}
 		IASTName[] nodes = qname.getNames();
 		for (int i = 0; i < nodes.length; ++i) {
 			nodes[i].accept(visitor);

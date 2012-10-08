@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Ericsson and others.
+ * Copyright (c) 2011, 2012 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     Ericsson - initial API and implementation
  *     Sergey Prigogin (Google)
+ *     Anton Gorenkov - Need to use a process factory (Bug 210366)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
@@ -20,7 +21,7 @@ import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.ReflectionSequence;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
@@ -203,7 +204,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 
 			fCommandControl.queueCommand(
 					fCommandFactory.createMIBreakInsert(bpTargetDmc, true, false, null, 0, userStopSymbol, 0),
-					new DataRequestMonitor<MIBreakInsertInfo>(ImmediateExecutor.getInstance(), rm) {
+					new ImmediateDataRequestMonitor<MIBreakInsertInfo>(rm) {
 						@Override
 						public void handleSuccess() {
 							if (getData() != null) {
@@ -234,7 +235,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 			fCommandControl.queueCommand(
 					fCommandFactory.createMIBreakInsert(bpTargetDmc, true, false, null, 0, 
 							ICDTLaunchConfigurationConstants.DEBUGGER_STOP_AT_MAIN_SYMBOL_DEFAULT, 0),
-					new DataRequestMonitor<MIBreakInsertInfo>(ImmediateExecutor.getInstance(), rm) {
+					new ImmediateDataRequestMonitor<MIBreakInsertInfo>(rm) {
 						@Override
 						public void handleSuccess() {
 							if (getData() != null) {
@@ -274,7 +275,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
     			// Tell GDB to use this PTY
     			fCommandControl.queueCommand(
     					fCommandFactory.createMIInferiorTTYSet((IMIContainerDMContext)getContainerContext(), fPty.getSlaveName()), 
-    					new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm) {
+    					new ImmediateDataRequestMonitor<MIInfo>(rm) {
     						@Override
     						protected void handleFailure() {
     							// We were not able to tell GDB to use the PTY
@@ -295,6 +296,15 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 	 */
 	@Execute
 	public void stepCreateConsole(final RequestMonitor rm) {
+    	if (fBackend.getSessionType() == SessionType.REMOTE && !fBackend.getIsAttachSession()) {
+    		// Remote non-attach sessions don't support multi-process and therefore will not
+    		// start new processes.  Those sessions will only start the one process, which should
+    		// not have a console, because it's output is handled by GDB server.  Therefore,
+    		// no need to create an inferior process and add it to the launch
+    		rm.done();
+    		return;
+    	}
+    	
 		Process inferiorProcess;
 		if (fPty == null) {
 			inferiorProcess = new MIInferiorProcess(fContainerDmc, fBackend.getMIOutputStream());
@@ -328,6 +338,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 		// Add the inferior to the launch.  
 		// This cannot be done on the executor or things deadlock.
 		DebugPlugin.getDefault().asyncExec(new Runnable() {
+			@Override
 			public void run() {
 				String label = pathLabel;
 
@@ -353,9 +364,16 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 				}
 
 				// Add the inferior
-				InferiorRuntimeProcess runtimeInferior = new InferiorRuntimeProcess(launch, inferior, label, null);
+				// Need to go through DebugPlugin.newProcess so that we can use 
+				// the overrideable process factory to allow others to override.
+				// First set attribute to specify we want to create an inferior process.
+				// Bug 210366
+				Map<String, String> attributes = new HashMap<String, String>();
+			    attributes.put(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR, 
+			    		       IGdbDebugConstants.INFERIOR_PROCESS_CREATION_VALUE);
+			    IProcess runtimeInferior = DebugPlugin.newProcess(launch, inferior, label, attributes);
+			    // Now set the inferior groupId
 				runtimeInferior.setAttribute(IGdbDebugConstants.INFERIOR_GROUPID_ATTR, groupId);
-				launch.addProcess(runtimeInferior);
 
 				rm.done();
 			}
@@ -373,7 +391,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 		} else {
 			command = fCommandFactory.createMIExecRun(fContainerDmc);	
 		}
-		fCommandControl.queueCommand(command, new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm) {
+		fCommandControl.queueCommand(command, new ImmediateDataRequestMonitor<MIInfo>(rm) {
 			@Override
 			protected void handleSuccess() {
 				// Now that the process is started, the pid has been allocated
@@ -429,7 +447,7 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 	public void stepContinue(RequestMonitor rm) {
 		if (fReverseEnabled && !fUserBreakpointIsOnMain) {
 			fCommandControl.queueCommand(fCommandFactory.createMIExecContinue(fContainerDmc),
-					new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm));
+					new ImmediateDataRequestMonitor<MIInfo>(rm));
 		} else {
 			rm.done();
 		}

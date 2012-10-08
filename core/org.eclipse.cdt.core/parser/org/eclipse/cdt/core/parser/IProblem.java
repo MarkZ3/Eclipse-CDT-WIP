@@ -1,15 +1,14 @@
 /*******************************************************************************
- *  Copyright (c) 2000, 2010 IBM Corporation and others.
+ *  Copyright (c) 2000, 2011 IBM Corporation and others.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
  *  http://www.eclipse.org/legal/epl-v10.html
  * 
  *  Contributors:
- *     John Camelon (IBM Corporation) - initial API and implementation
+ *      John Camelon (IBM Corporation) - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.parser;
-
 
 /**
  * Description of a C/C++ syntax problems and spelling errors as detected by the lexer, preprocessor,
@@ -26,8 +25,7 @@ package org.eclipse.cdt.core.parser;
  * @noimplement This interface is not intended to be implemented by clients.
  * @noextend This interface is not intended to be extended by clients.
  */
-public interface IProblem
-{
+public interface IProblem {
 	/**
 	 * Returns the problem id
 	 */
@@ -79,7 +77,6 @@ public interface IProblem
 	 */
 	boolean isWarning();
 
-	
 	/**
 	 * -1, returned when an offset or a line number is unknown.
 	 */
@@ -322,6 +319,12 @@ public interface IProblem
 	 * @see #A_PREPROC_POUND_WARNING
 	 */
 	public final static int PREPROCESSOR_POUND_WARNING = PREPROCESSOR_RELATED | 0x00E;
+	
+	/**
+	 * Maximum inclusion depth is exceeded  
+	 * @since 5.4
+	 */
+	public final static int PREPROCESSOR_EXCEEDS_MAXIMUM_INCLUSION_DEPTH= PREPROCESSOR_RELATED | 0x00F;
 	
 	/**
 	 * Syntax error, detected by the parser.

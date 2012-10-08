@@ -6,10 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Andrew Niefer (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
- *    Bryan Wilkinson (QNX)
- *    Andrew Ferguson (Symbian)
+ *     Andrew Niefer (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Bryan Wilkinson (QNX)
+ *     Andrew Ferguson (Symbian)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -28,8 +28,14 @@ public class CPPClassSpecializationScope extends AbstractCPPClassSpecializationS
 	}
 		
 	// This scope does not cache its own names
+	@Override
 	public void addName(IASTName name) {}
+	@Override
 	public IASTNode getPhysicalNode() { return null; }
+	@Override
 	public void addBinding(IBinding binding) {}
+	@Override
 	public void populateCache() {}
+	@Override
+	public void removeNestedFromCache(IASTNode container) {}
 }

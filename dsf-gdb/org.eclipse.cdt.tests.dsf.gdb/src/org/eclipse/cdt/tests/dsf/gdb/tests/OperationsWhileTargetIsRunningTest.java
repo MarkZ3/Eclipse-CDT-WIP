@@ -18,9 +18,8 @@ import java.util.concurrent.TimeoutException;
 
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
-import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
 import org.eclipse.cdt.dsf.debug.service.IProcesses.IProcessDMContext;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.IExitedDMEvent;
@@ -39,10 +38,7 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.ServiceEventWaitor;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.core.runtime.preferences.DefaultScope;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.osgi.service.prefs.Preferences;
@@ -71,12 +67,15 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
 	 */
 	private static final String EXEC_NAME = "TargetAvail.exe";
 	
-	@Before
-	public void init() throws Exception {
+	@Override
+	public void doBeforeTest() throws Exception {
+		super.doBeforeTest();
+
 		final DsfSession session = getGDBLaunch().getSession();
 		
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fServicesTracker = 
             			new DsfServicesTracker(TestsPlugin.getBundleContext(), 
             					session.getId());
@@ -92,13 +91,17 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
 	}
 
 
-	@After
-	public void tearDown() {
+	@Override
+	public void doAfterTest() throws Exception {
+		super.doAfterTest();
+
 		fServicesTracker.dispose();
 	}
 	
-	@BeforeClass
-	public static void beforeClassMethod() {
+	@Override
+	protected void setLaunchAttributes() {
+		super.setLaunchAttributes();
+		
 		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, 
 				           EXEC_PATH + EXEC_NAME);
 	}
@@ -109,6 +112,13 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
      */
     @Test
     public void restartWhileTargetRunningKillGDB() throws Throwable {
+    	// Restart is not supported for a remote session
+    	if (isRemoteSession()) {
+    		Assert.assertFalse("Restart operation should not be allowed for a remote session",
+    				           SyncUtil.canRestart());
+    	    return;
+    	}
+
     	// First set the preference to kill GDB (although it should not happen in this test)
     	Preferences node = DefaultScope.INSTANCE.getNode(GdbPlugin.PLUGIN_ID);
     	node.putBoolean(IGdbDebugPreferenceConstants.PREF_AUTO_TERMINATE_GDB, true);
@@ -132,6 +142,13 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
      */
     @Test
     public void restartWhileTargetRunningGDBAlive() throws Throwable {
+    	// Restart is not supported for a remote session
+    	if (isRemoteSession()) {
+    		Assert.assertFalse("Restart operation should not be allowed for a remote session",
+    				           SyncUtil.canRestart());
+    	    return;
+    	}
+    	
     	// First set the preference not to kill gdb
     	Preferences node = DefaultScope.INSTANCE.getNode(GdbPlugin.PLUGIN_ID);
     	node.putBoolean(IGdbDebugPreferenceConstants.PREF_AUTO_TERMINATE_GDB, false);
@@ -170,9 +187,10 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
         // Don't use a query here.  The terminate, because it kills GDB, may not return right away
         // But that is ok because we wait for a shutdown event right after
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
     	        IProcessDMContext processDmc = DMContexts.getAncestorOfType(fContainerDmc, IProcessDMContext.class);
-    	    	fProcesses.terminate(processDmc, new RequestMonitor(ImmediateExecutor.getInstance(), null));
+    	    	fProcesses.terminate(processDmc, new ImmediateRequestMonitor());
             }
         };
         fProcesses.getExecutor().execute(runnable);
@@ -259,8 +277,9 @@ public class OperationsWhileTargetIsRunningTest extends BaseTestCase {
         // Don't use a query here.  Because GDB will be killed, the call to detach may not return right away
         // But that is ok because we wait for a shutdown event right after
         Runnable runnable = new Runnable() {
-            public void run() {
-    	    	fProcesses.detachDebuggerFromProcess(fContainerDmc, new RequestMonitor(ImmediateExecutor.getInstance(), null));
+            @Override
+			public void run() {
+    	    	fProcesses.detachDebuggerFromProcess(fContainerDmc, new ImmediateRequestMonitor());
             }
         };
         fProcesses.getExecutor().execute(runnable);

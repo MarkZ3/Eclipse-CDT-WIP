@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     Andrew Niefer (IBM Corporation) - initial API and implementation
  *     Markus Schorn (Wind River Systems)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -45,6 +46,7 @@ public class CPPImplicitMethod extends CPPImplicitFunction implements ICPPMethod
 		super(name, scope, type, params, false);
 	}
    
+	@Override
 	public int getVisibility() {
 		IASTDeclaration decl= getPrimaryDeclaration();
 		if (decl == null) {
@@ -76,6 +78,7 @@ public class CPPImplicitMethod extends CPPImplicitFunction implements ICPPMethod
         return ICPPASTVisibilityLabel.v_public;
     }
 	
+	@Override
 	public ICPPClassType getClassOwner() {
 		ICPPClassScope scope = (ICPPClassScope)getScope();
 		return scope.getClassType();
@@ -157,10 +160,12 @@ public class CPPImplicitMethod extends CPPImplicitFunction implements ICPPMethod
 		return null;
 	}
 
-    public boolean isVirtual() {
+    @Override
+	public boolean isVirtual() {
         return false;
     }
 
+	@Override
 	public boolean isDestructor() {
 		char [] n = getNameCharArray();
 		if( n != null && n.length > 0 )
@@ -168,15 +173,28 @@ public class CPPImplicitMethod extends CPPImplicitFunction implements ICPPMethod
 		return false;
 	}
 
+	@Override
 	public boolean isImplicit() {
 		return getPrimaryDeclaration() == null;
 	}
 	
-    public boolean isExplicit() {
+    @Override
+	public boolean isExplicit() {
         return false;
     }
 	
+	@Override
 	public boolean isPureVirtual() {
+		return false;
+	}
+
+	@Override
+	public boolean isOverride() {
+		return false;
+	}
+
+	@Override
+	public boolean isFinal() {
 		return false;
 	}
 
@@ -187,6 +205,6 @@ public class CPPImplicitMethod extends CPPImplicitFunction implements ICPPMethod
 
 	@Override
 	public IType[] getExceptionSpecification() {
-		return ClassTypeHelper.getInheritedExceptionSpecification(this);
+		return ClassTypeHelper.getInheritedExceptionSpecification(this, null);
 	}
 }

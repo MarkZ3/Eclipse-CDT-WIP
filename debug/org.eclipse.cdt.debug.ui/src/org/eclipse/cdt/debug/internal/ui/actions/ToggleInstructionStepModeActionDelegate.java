@@ -23,29 +23,38 @@ import org.eclipse.debug.core.model.IDebugElement;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IDisconnect;
 import org.eclipse.debug.core.model.ITerminate;
+import org.eclipse.debug.ui.DebugUITools;
+import org.eclipse.debug.ui.contexts.DebugContextEvent;
+import org.eclipse.debug.ui.contexts.IDebugContextListener;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.ui.IViewActionDelegate;
 import org.eclipse.ui.IViewPart;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.IWorkbenchWindowActionDelegate;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.actions.ActionDelegate;
 
 /**
  * Turns instruction step mode on/off for selected target.
  */
-public class ToggleInstructionStepModeActionDelegate extends ActionDelegate implements IViewActionDelegate, IPropertyChangeListener {
+public class ToggleInstructionStepModeActionDelegate extends ActionDelegate 
+    implements IViewActionDelegate, IWorkbenchWindowActionDelegate, IPropertyChangeListener, IDebugContextListener  
+{
 
 	private ISteppingModeTarget fTarget = null;
 	
 	private IAction fAction = null;
 
-	private IViewPart fView;
+	private IWorkbenchWindow fWindow = null;
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.core.runtime.Preferences.IPropertyChangeListener#propertyChange(org.eclipse.core.runtime.Preferences.PropertyChangeEvent)
 	 */
+	@Override
 	public void propertyChange( PropertyChangeEvent event ) {
 		IAction action = getAction();
 		if ( action != null ) {
@@ -60,15 +69,24 @@ public class ToggleInstructionStepModeActionDelegate extends ActionDelegate impl
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IViewActionDelegate#init(org.eclipse.ui.IViewPart)
 	 */
+	@Override
 	public void init( IViewPart view ) {
-		fView = view;
+		fWindow = view.getSite().getWorkbenchWindow();
+		DebugUITools.getDebugContextManager().getContextService(fWindow).addDebugContextListener(this);
 	}
 
+	@Override
+	public void init(IWorkbenchWindow window) {
+	    fWindow = window;
+        DebugUITools.getDebugContextManager().getContextService(fWindow).addDebugContextListener(this);
+	}
+	
 	/* (non-Javadoc)
 	 * @see org.eclipse.ui.IActionDelegate2#dispose()
 	 */
 	@Override
 	public void dispose() {
+        DebugUITools.getDebugContextManager().getContextService(fWindow).removeDebugContextListener(this);
         ISteppingModeTarget target = getTarget();
         if ( target != null && target instanceof ITargetProperties ) {
             ((ITargetProperties)target).removePropertyChangeListener( this );
@@ -98,7 +116,10 @@ public class ToggleInstructionStepModeActionDelegate extends ActionDelegate impl
             target.enableInstructionStepping( enabled );
             if ( enabled && target instanceof ICDebugTarget ) {
                 try {
-                    getView().getSite().getPage().showView( ICDebugUIConstants.ID_DSF_DISASSEMBLY_VIEW );
+                    IWorkbenchPage page = fWindow.getActivePage();
+                    if (page != null) {
+                        page.showView( ICDebugUIConstants.ID_DSF_DISASSEMBLY_VIEW );
+                    }
                 }
                 catch( PartInitException e ) {
                     CDebugUIPlugin.log( e.getStatus() );
@@ -115,11 +136,11 @@ public class ToggleInstructionStepModeActionDelegate extends ActionDelegate impl
 		run( action );
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.ui.IActionDelegate#selectionChanged(org.eclipse.jface.action.IAction, org.eclipse.jface.viewers.ISelection)
-	 */
 	@Override
-	public void selectionChanged( IAction action, ISelection selection ) {
+	public void debugContextChanged(DebugContextEvent event) {
+	    if (fAction == null) return;
+	    
+	    ISelection selection = event.getContext();
 	    ISteppingModeTarget newTarget = null;
         if ( selection instanceof IStructuredSelection ) {
             newTarget = getTargetFromSelection( ((IStructuredSelection)selection).getFirstElement() );
@@ -130,16 +151,16 @@ public class ToggleInstructionStepModeActionDelegate extends ActionDelegate impl
                 ((ITargetProperties)oldTarget).removePropertyChangeListener( this );
             }
             setTarget( null );
-            action.setChecked( false );
+            fAction.setChecked( false );
         }
         if ( newTarget != null && !isTerminated( newTarget ) ) {
             setTarget( newTarget );
             if ( newTarget instanceof ITargetProperties ) {
                 ((ITargetProperties)newTarget).addPropertyChangeListener( this );
             }
-            action.setChecked( newTarget.isInstructionSteppingEnabled() );
+            fAction.setChecked( newTarget.isInstructionSteppingEnabled() );
         }
-        action.setEnabled(
+        fAction.setEnabled(
                 newTarget != null
                 && newTarget.supportsInstructionStepping()
                 && !isTerminated( newTarget ) );
@@ -181,8 +202,7 @@ public class ToggleInstructionStepModeActionDelegate extends ActionDelegate impl
 		}
 		return target;
 	}
-
-	private IViewPart getView() {
-		return fView;
-	}
+	
+	
+	
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2010 IBM Corporation and others.
+ * Copyright (c) 2000, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,11 +17,11 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +72,7 @@ import org.eclipse.cdt.core.index.IIndexBinding;
 import org.eclipse.cdt.core.index.IIndexFile;
 import org.eclipse.cdt.core.index.IIndexInclude;
 import org.eclipse.cdt.core.index.IIndexMacro;
+import org.eclipse.cdt.core.index.IIndexManager;
 import org.eclipse.cdt.core.index.IIndexName;
 import org.eclipse.cdt.core.index.IndexFilter;
 import org.eclipse.cdt.core.model.ILanguage;
@@ -170,11 +171,11 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 			}
 
 			final String[] lookupName = new String[1];
-
+			final IIndex index= CCorePlugin.getIndexManager().getIndex(fTu.getCProject(), IIndexManager.ADD_DEPENDENCIES | IIndexManager.ADD_EXTENSION_FRAGMENTS_ADD_IMPORT);
 			SharedASTJob job = new SharedASTJob(CEditorMessages.AddIncludeOnSelection_label, fTu) {
 				@Override
 				public IStatus runOnAST(ILanguage lang, IASTTranslationUnit ast) throws CoreException {
-					deduceInclude((ITextSelection) selection, ast, lookupName);
+					deduceInclude((ITextSelection) selection, index, ast, lookupName);
 					return Status.OK_STATUS;
 				}
 			};
@@ -198,6 +199,8 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 			}
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
+		} catch (CoreException e) {
+			CUIPlugin.log("Cannot perform 'Add Include'", e); //$NON-NLS-1$
 		}
 	}
 
@@ -208,7 +211,7 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 	 * @param ast an AST.
 	 * @param lookupName a one-element array used to return the selected name.
 	 */
-	private void deduceInclude(ITextSelection selection, IASTTranslationUnit ast, String[] lookupName)
+	private void deduceInclude(ITextSelection selection, IIndex index, IASTTranslationUnit ast, String[] lookupName)
 			throws CoreException {
 		IASTNodeSelector selector = ast.getNodeSelector(fTu.getLocation().toOSString());
 		IASTName name = selector.findEnclosingName(selection.getOffset(), selection.getLength());
@@ -232,7 +235,6 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 		}
 
 		final Map<String, IncludeCandidate> candidatesMap= new HashMap<String, IncludeCandidate>();
-		final IIndex index = ast.getIndex();
 		final IndexFilter filter = IndexFilter.getDeclaredBindingFilter(ast.getLinkage().getLinkageID(), false);
 		
 		List<IIndexBinding> bindings = new ArrayList<IIndexBinding>();
@@ -281,6 +283,7 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 				throw new RuntimeException("ambiguous input"); //$NON-NLS-1$
 			}
 			runInUIThread(new Runnable() {
+				@Override
 				public void run() {
 					ElementListSelectionDialog dialog=
 						new ElementListSelectionDialog(getShell(), new LabelProvider());
@@ -435,8 +438,7 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 			if (isWorkspaceFile(headerFile.getLocation().getURI())) {
 				return headerFile;
 			}
-			// TODO(sprigogin): Change to ArrayDeque when Java 5 support is no longer needed.
-			LinkedList<IIndexFile> front = new LinkedList<IIndexFile>();
+			ArrayDeque<IIndexFile> front = new ArrayDeque<IIndexFile>();
 			front.add(headerFile);
 			HashSet<IIndexFile> processed = new HashSet<IIndexFile>();
 			processed.add(headerFile);
@@ -481,12 +483,15 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 	private IFunctionSummary findContribution(final String name) {
 		final IFunctionSummary[] fs = new IFunctionSummary[1];
 		IRunnableWithProgress op = new IRunnableWithProgress() {
+			@Override
 			public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 				ICHelpInvocationContext context = new ICHelpInvocationContext() {
+					@Override
 					public IProject getProject() {
 						return fProject;
 					}
 
+					@Override
 					public ITranslationUnit getTranslationUnit() {
 						return fTu;
 					}
@@ -701,6 +706,7 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 		/* (non-Javadoc)
 		 * @see org.eclipse.cdt.ui.IRequiredInclude#getIncludeName()
 		 */
+		@Override
 		public String getIncludeName() {
 			return includeName;
 		}
@@ -708,6 +714,7 @@ public class AddIncludeOnSelectionAction extends TextEditorAction {
 		/* (non-Javadoc)
 		 * @see org.eclipse.cdt.ui.IRequiredInclude#isStandard()
 		 */
+		@Override
 		public boolean isStandard() {
 			return isSystem;
 		}

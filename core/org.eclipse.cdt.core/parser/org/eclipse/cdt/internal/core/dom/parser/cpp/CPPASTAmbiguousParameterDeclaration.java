@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - Initial API and implementation
+ *     Markus Schorn - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -34,22 +34,21 @@ import org.eclipse.core.runtime.Assert;
  * <br>
  * template<typename... T> void function(T ...); // is T a parameter pack?
  */
-public class CPPASTAmbiguousParameterDeclaration extends ASTAmbiguousNode implements
-		IASTAmbiguousParameterDeclaration, ICPPASTParameterDeclaration {
-
+public class CPPASTAmbiguousParameterDeclaration extends ASTAmbiguousNode
+		implements IASTAmbiguousParameterDeclaration, ICPPASTParameterDeclaration {
     private ICPPASTParameterDeclaration fParameterDecl;
 
     public CPPASTAmbiguousParameterDeclaration(ICPPASTParameterDeclaration decl) {
     	fParameterDecl= decl;
 	}
 
+	@Override
 	public void addParameterDeclaration(IASTParameterDeclaration d) {
 		assert false;
     }
-
 	
     @Override
-	public IASTNode resolveAmbiguity(ASTVisitor resolver) {
+	protected final IASTNode doResolveAmbiguity(ASTVisitor resolver) {
 		final IASTAmbiguityParent owner= (IASTAmbiguityParent) getParent();
 		
 		// Setup the ast to use the alternative
@@ -72,15 +71,16 @@ public class CPPASTAmbiguousParameterDeclaration extends ASTAmbiguousNode implem
 		final ASTNode asNode = (ASTNode) dtor;
 		if (ptrOps.length > 0) {
 			final ASTNode first = (ASTNode)ptrOps[0];
-			final ASTNode last = (ASTNode)ptrOps[ptrOps.length-1];
+			final ASTNode last = (ASTNode)ptrOps[ptrOps.length - 1];
 			asNode.setOffsetAndLength(first.getOffset(), last.getOffset() + last.getLength());
 		} else {
 			asNode.setOffsetAndLength(0, 0);
 		}
 	}
 
+	@Override
 	public IASTParameterDeclaration[] getParameterDeclarations() {
-    	return new IASTParameterDeclaration[] {fParameterDecl};
+    	return new IASTParameterDeclaration[] { fParameterDecl };
     }
 
     @Override
@@ -88,32 +88,39 @@ public class CPPASTAmbiguousParameterDeclaration extends ASTAmbiguousNode implem
         return getParameterDeclarations();
     }
 
+	@Override
 	public IASTDeclSpecifier getDeclSpecifier() {
 		return fParameterDecl.getDeclSpecifier();
 	}
 
+	@Override
 	public ICPPASTDeclarator getDeclarator() {
 		return fParameterDecl.getDeclarator();
 	}
 
+	@Override
 	public void setDeclSpecifier(IASTDeclSpecifier declSpec) {
 		Assert.isLegal(false);
 	}
 
+	@Override
 	public void setDeclarator(IASTDeclarator declarator) {
 		Assert.isLegal(false);
 	}
 
+	@Override
 	public ICPPASTParameterDeclaration copy() {
 		Assert.isLegal(false);
 		return null;
 	}
 
+	@Override
 	public ICPPASTParameterDeclaration copy(CopyStyle style) {
 		Assert.isLegal(false);
 		return null;
 	}
 
+	@Override
 	public boolean isParameterPack() {
 		Assert.isLegal(false);
 		return true;

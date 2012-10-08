@@ -85,6 +85,7 @@ public class DialogField {
 		if (display != null) {
 			display.asyncExec(
 				new Runnable() {
+					@Override
 					public void run() {
 						setFocus();
 					}
@@ -221,7 +222,10 @@ public class DialogField {
 		Assert.isTrue(nColumns >= getNumberOfControls(), "given number of columns is too small"); //$NON-NLS-1$
 	}
 	
-	
+	public void dispose() {
+		if (fLabel != null) fLabel.dispose();
+		if (fDialogFieldListener != null) fDialogFieldListener = null;
+	}
 
 	
 }

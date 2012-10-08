@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Andrew Gvozdev  - initial API and implementation
+ *     Andrew Gvozdev  - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
@@ -22,6 +22,7 @@ import org.eclipse.jface.text.IDocument;
  * quick fix for assignment in condition
  */
 public class QuickFixAssignmentInCondition extends AbstractCodanCMarkerResolution {
+	@Override
 	public String getLabel() {
 		return Messages.QuickFixAssignmentInCondition_Message;
 	}

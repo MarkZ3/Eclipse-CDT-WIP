@@ -6,8 +6,9 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * IBM Rational Software - Initial API and implementation
- * Yuan Zhang / Beth Tibbitts (IBM Research)
+ *     IBM Rational Software - Initial API and implementation
+ *     Yuan Zhang / Beth Tibbitts (IBM Research)
+ *     Sergey Prigogin (Google) 
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
 
@@ -18,66 +19,70 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * @author jcamelon
  */
-public class CASTCompoundStatement extends ASTNode implements IASTCompoundStatement, IASTAmbiguityParent {
-    private IASTStatement [] statements = null;
-    private IScope scope = null;
+public class CASTCompoundStatement extends ASTAttributeOwner implements IASTCompoundStatement, IASTAmbiguityParent {
+    private IASTStatement[] statements;
+    private IScope scope;
 
-    public CASTCompoundStatement copy() {
+    @Override
+	public CASTCompoundStatement copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
     
+	@Override
 	public CASTCompoundStatement copy(CopyStyle style) {
 		CASTCompoundStatement copy = new CASTCompoundStatement();
 		for (IASTStatement statement : getStatements())
 			copy.addStatement(statement == null ? null : statement.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
-    public IASTStatement[] getStatements() {
+    @Override
+	public IASTStatement[] getStatements() {
         if (statements == null) return IASTStatement.EMPTY_STATEMENT_ARRAY;
-        return (IASTStatement[]) ArrayUtil.trim(IASTStatement.class, statements);
+        return ArrayUtil.trim(IASTStatement.class, statements);
     }
 
-    public void addStatement(IASTStatement statement) {
+    @Override
+	public void addStatement(IASTStatement statement) {
         assertNotFrozen();
-        statements = (IASTStatement[]) ArrayUtil.append(IASTStatement.class, statements, statement);
+        statements = ArrayUtil.append(IASTStatement.class, statements, statement);
         if (statement != null) {
         	statement.setParent(this);
         	statement.setPropertyInParent(NESTED_STATEMENT);
         }
     }
 
-    public IScope getScope() {
+    @Override
+	public IScope getScope() {
         if (scope == null)
             scope = new CScope(this, EScopeKind.eLocal);
         return scope;
     }
 
     @Override
-	public boolean accept(ASTVisitor action){
-        if (action.shouldVisitStatements){
-		    switch (action.visit(this)){
+	public boolean accept(ASTVisitor action) {
+        if (action.shouldVisitStatements) {
+		    switch (action.visit(this)) {
 	            case ASTVisitor.PROCESS_ABORT: return false;
 	            case ASTVisitor.PROCESS_SKIP: return true;
 	            default: break;
 	        }
 		}
-        IASTStatement [] s = getStatements();
+
+        if (!acceptByAttributes(action)) return false;
+        IASTStatement[] s = getStatements();
         for (int i = 0; i < s.length; i++) {
             if (!s[i].accept(action)) return false;
         }
-        if (action.shouldVisitStatements){
-        	switch (action.leave(this)){
+
+        if (action.shouldVisitStatements) {
+        	switch (action.leave(this)) {
         		case ASTVisitor.PROCESS_ABORT: return false;
         		case ASTVisitor.PROCESS_SKIP: return true;
         		default: break;
@@ -86,7 +91,8 @@ public class CASTCompoundStatement extends ASTNode implements IASTCompoundStatem
         return true;
     }
 
-    public void replace(IASTNode child, IASTNode other) {
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
         if (statements == null) return;
         for (int i = 0; i < statements.length; ++i) {
             if (statements[i] == child) {

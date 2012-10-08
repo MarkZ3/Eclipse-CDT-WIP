@@ -57,7 +57,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		StringBuilder[] contents = getContentsForTest(2);
 		IFile file1= createFile(getProject(), "SomeClass.h", contents[0].toString());
 		IFile file2= createFile(getProject(), "SomeClass.cpp", contents[1].toString());
-		waitForIndexer(fIndex, file2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IViewPart outline= activateView(IPageLayout.ID_OUTLINE);
@@ -98,7 +98,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		StringBuilder[] contents = getContentsForTest(2);
 		IFile file1= createFile(getProject(), "SomeClass.h", contents[0].toString());
 		IFile file2= createFile(getProject(), "SomeClass.cpp", contents[1].toString());
-		waitForIndexer(fIndex, file2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IViewPart outline= activateView(IPageLayout.ID_OUTLINE);
@@ -161,7 +161,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 	public void testPolyMorphicMethodCalls_156689() throws Exception {
 		String content= getContentsForTest(1)[0].toString();
 		IFile file= createFile(getProject(), "SomeClass.cpp", content);
-		waitForIndexer(fIndex, file, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IWorkbenchWindow workbenchWindow = ch.getSite().getWorkbenchWindow();
@@ -217,7 +217,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 	public void testReversePolyMorphicMethodCalls_156689() throws Exception {
 		String content= getContentsForTest(1)[0].toString();
 		IFile file= createFile(getProject(), "SomeClass.cpp", content);
-		waitForIndexer(fIndex, file, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IWorkbenchWindow workbenchWindow = ch.getSite().getWorkbenchWindow();
@@ -253,7 +253,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 	public void testMethodInstance_Bug240599() throws Exception {
 		String content= getContentsForTest(1)[0].toString();
 		IFile file= createFile(getProject(), "CSome.cpp", content);
-		waitForIndexer(fIndex, file, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IWorkbenchWindow workbenchWindow = ch.getSite().getWorkbenchWindow();
@@ -293,7 +293,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 	public void testMultiplePolyMorphicMethodCalls_244987() throws Exception {
 		String content= getContentsForTest(1)[0].toString();
 		IFile file= createFile(getProject(), "SomeClass244987.cpp", content);
-		waitForIndexer(fIndex, file, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 		final IWorkbenchWindow workbenchWindow = ch.getSite().getWorkbenchWindow();
@@ -335,7 +335,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 	public void testMacrosHidingCall_249801() throws Exception {
 		String content= getContentsForTest(1)[0].toString();
 		IFile file= createFile(getProject(), "file249801.cpp", content);
-		waitForIndexer(fIndex, file, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, file);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 
@@ -370,7 +370,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		IFile header= createFile(getProject(), "260262.h", hcontent);
 		IFile f1= createFile(getProject(), "260262.c", content_full);
 		IFile f2= createFile(getProject(), "260262.cpp", content_inc);
-		waitForIndexer(fIndex, f2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, f2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 
@@ -400,7 +400,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		IFile header= createFile(getProject(), "260262.h", hcontent);
 		IFile f1= createFile(getProject(), "260262.c", content_full);
 		IFile f2= createFile(getProject(), "260262.cpp", content_inc);
-		waitForIndexer(fIndex, f2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, f2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 
@@ -428,7 +428,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		final StringBuilder[] contents = getContentsForTest(1);
 		final String content = contents[0].toString();
 		IFile f2= createFile(getProject(), "testUnnamedNamespace_283679.cpp", content);
-		waitForIndexer(fIndex, f2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, f2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 
@@ -463,7 +463,7 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		final StringBuilder[] contents = getContentsForTest(1);
 		final String content = contents[0].toString();
 		IFile f2= createFile(getProject(), "testCallsToFromVirtualMethod_246064.cpp", content);
-		waitForIndexer(fIndex, f2, CallHierarchyBaseTest.INDEXER_WAIT_TIME);
+		waitUntilFileIsIndexed(fIndex, f2);
 
 		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
 
@@ -478,5 +478,31 @@ public class CallHierarchyBugs extends CallHierarchyBaseTest {
 		expandTreeItem(item);
 		checkTreeNode(chTree, 0, 1, "Derived::dosomething() : void");
 		checkTreeNode(chTree, 0, 2, null);
+	}
+	
+	//	template<typename T> struct Array {
+	//	      template<typename TIterator> void erase(TIterator it) {}
+	//	};
+	//
+	//	int main() {
+	//		Array<int> test;
+	//		test.erase(1); 
+	//	}
+	public void testCallsToInstanceofSpecializedTemplate_361999() throws Exception {
+		final String content = getAboveComment();
+		IFile f2= createFile(getProject(), "testCallsToInstanceofSpecializedTemplate_361999.cpp", content);
+		waitUntilFileIsIndexed(fIndex, f2);
+
+		final CHViewPart ch= (CHViewPart) activateView(CUIPlugin.ID_CALL_HIERARCHY);
+
+		// open editor, check outline
+		CEditor editor= openEditor(f2);
+		int idx = content.indexOf("erase(TIterator it)");
+		editor.selectAndReveal(idx, 0);
+		openCallHierarchy(editor, true);
+
+		Tree chTree= checkTreeNode(ch, 0, "Array<T>::erase(TIterator) : void").getParent();
+		TreeItem ti= checkTreeNode(chTree, 0, 0, "main() : int");
+		checkTreeNode(chTree, 0, 1, null);
 	}
 }

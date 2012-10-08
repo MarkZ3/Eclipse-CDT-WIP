@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007 - 2010 QNX Software Systems and others.
+ * Copyright (c) 2007, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,11 +8,11 @@
  * Contributors:
  *     QNX Software Systems - Initial API and implementation
  *     Andy Jin - Hardware debugging UI improvements, bug 229946
- *     Anna Dushistova(MontaVista) - bug 241279 
+ *     Anna Dushistova (MontaVista) - bug 241279 
  *              - Hardware Debugging: Host name or ip address not saving in 
  *                the debug configuration
  *     Andy Jin (QNX) - Added DSF debugging, bug 248593
- *     Bruce Griffith,Sage Electronic Engineering, LLC - bug 305943
+ *     Bruce Griffith, Sage Electronic Engineering, LLC - bug 305943
  *              - API generalization to become transport-independent (e.g. to
  *                allow connections via serial ports and pipes).
 *******************************************************************************/
@@ -84,14 +84,17 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 	private String savedJtagDevice;
 	protected Button fUpdateThreadlistOnSuspend;
 
+	@Override
 	public String getName() {
 		return TAB_NAME;
 	}
 
+	@Override
 	public Image getImage() {
 		return GDBJtagImages.getDebuggerTabImage();
 	}
 
+	@Override
 	public void createControl(Composite parent) {
 		ScrolledComposite sc = new ScrolledComposite(parent, SWT.V_SCROLL | SWT.H_SCROLL);
 		sc.setExpandHorizontal(true);
@@ -138,7 +141,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 	private void variablesButtonSelected(Text text) {
 		StringVariableSelectionDialog dialog = new StringVariableSelectionDialog(getShell());
 		if (dialog.open() == StringVariableSelectionDialog.OK) {
-			text.append(dialog.getVariableExpression());
+			text.insert(dialog.getVariableExpression());
 		}
 	}
 
@@ -161,6 +164,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		gd = new GridData(GridData.FILL_HORIZONTAL);
 		gdbCommand.setLayoutData(gd);
 		gdbCommand.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent e) {
 				scheduleUpdateJob(); // provides much better performance for Text listeners
 			}
@@ -169,6 +173,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		Button button = new Button(comp, SWT.NONE);
 		button.setText(Messages.getString("GDBJtagDebuggerTab.gdbCommandBrowse"));
 		button.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				browseButtonSelected(Messages.getString("GDBJtagDebuggerTab.gdbCommandBrowse_Title"), gdbCommand);
 			}
@@ -177,6 +182,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		button = new Button(comp, SWT.NONE);
 		button.setText(Messages.getString("GDBJtagDebuggerTab.gdbCommandVariable"));
 		button.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				variablesButtonSelected(gdbCommand);
 			}
@@ -194,6 +200,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		useRemote = new Button(group, SWT.CHECK);
 		useRemote.setText(Messages.getString("GDBJtagDebuggerTab.useRemote_Text"));
 		useRemote.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				useRemoteChanged();
 				updateLaunchConfigurationDialog();
@@ -217,6 +224,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		}
 
 		jtagDevice.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent e) {
 				updateDeviceIpPort(jtagDevice.getText());
 				scheduleUpdateJob(); // provides much better performance for Text listeners
@@ -277,22 +285,26 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		//
 
 		ipAddress.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent e) {
 				scheduleUpdateJob(); // provides much better performance for Text listeners
 			}
 		});
 		portNumber.addVerifyListener(new VerifyListener() {
+			@Override
 			public void verifyText(VerifyEvent e) {
 				e.doit = Character.isDigit(e.character) || Character.isISOControl(e.character);
 			}
 		});
 		portNumber.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent e) {
 				scheduleUpdateJob(); // provides much better performance for Text listeners
 			}
 		});
 
 		connection.addModifyListener(new ModifyListener() {
+			@Override
 			public void modifyText(ModifyEvent e) {
 				scheduleUpdateJob(); // provides much better performance for Text listeners
 			}
@@ -361,6 +373,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		return null;
 	}
 
+	@Override
 	public void initializeFrom(ILaunchConfiguration configuration) {
 		try {
 			String defaultGdbCommand = Platform.getPreferencesService().getString(GdbPlugin.PLUGIN_ID,
@@ -424,6 +437,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
 		return TAB_ID;
 	}
 
+	@Override
 	public void performApply(ILaunchConfigurationWorkingCopy configuration) {
 		configuration.setAttribute(IMILaunchConfigurationConstants.ATTR_DEBUG_NAME, gdbCommand.getText().trim());
 		configuration.setAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUG_NAME, gdbCommand.getText().trim()); // DSF
@@ -453,6 +467,7 @@ public class GDBJtagDSFDebuggerTab extends AbstractLaunchConfigurationTab {
                 fUpdateThreadlistOnSuspend.getSelection());
 	}
 
+	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy configuration) {
 		String defaultGdbCommand = Platform.getPreferencesService().getString(GdbPlugin.PLUGIN_ID,
                                                                               IGdbDebugPreferenceConstants.PREF_DEFAULT_GDB_COMMAND, "", null);  //$NON-NLS-1$

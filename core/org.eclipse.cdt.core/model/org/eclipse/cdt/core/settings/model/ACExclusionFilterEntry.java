@@ -16,9 +16,10 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.IPath;
 
 public abstract class ACExclusionFilterEntry extends ACPathEntry implements ICExclusionPatternPathEntry {
-	private IPath[] exclusionPatterns;
+	private final IPath[] exclusionPatterns;
 	private final static char[][] UNINIT_PATTERNS = new char[][] { "Non-initialized yet".toCharArray() }; //$NON-NLS-1$
-	char[][]fullCharExclusionPatterns = UNINIT_PATTERNS;
+	/** calculated value, does not have to be final */
+	char[][] fullCharExclusionPatterns = UNINIT_PATTERNS;
 
 
 	ACExclusionFilterEntry(IPath path, IPath exclusionPatterns[] , int flags) {
@@ -36,15 +37,19 @@ public abstract class ACExclusionFilterEntry extends ACPathEntry implements ICEx
 		this.exclusionPatterns = exclusionPatterns != null ? (IPath[])exclusionPatterns.clone() : new IPath[0];
 	}
 
+	/**
+	 * @since 5.4
+	 */
 	@Override
-	protected final boolean isFile() {
+	public final boolean isFile() {
 		return false;
 	}
-	
+
 	/**
 	 * Returns the exclusion patterns
 	 * @return IPath[]
 	 */
+	@Override
 	public IPath[] getExclusionPatterns() {
 		return exclusionPatterns.length != 0 ? (IPath[])exclusionPatterns.clone() : exclusionPatterns;
 	}
@@ -52,6 +57,7 @@ public abstract class ACExclusionFilterEntry extends ACPathEntry implements ICEx
 	/**
 	 * Returns a char based representation of the exclusions patterns full path.
 	 */
+	@Override
 	public char[][] fullExclusionPatternChars() {
 		if (this.fullCharExclusionPatterns == UNINIT_PATTERNS) {
 			int length = this.exclusionPatterns.length;
@@ -61,32 +67,40 @@ public abstract class ACExclusionFilterEntry extends ACPathEntry implements ICEx
 				path = getLocation();
 			IPath prefixPath = path.removeTrailingSeparator();
 			for (int i = 0; i < length; i++) {
-				this.fullCharExclusionPatterns[i] = 
+				this.fullCharExclusionPatterns[i] =
 					prefixPath.append(this.exclusionPatterns[i]).toString().toCharArray();
 			}
 		}
 		return this.fullCharExclusionPatterns;
 	}
-	
+
 	@Override
-	public boolean equals(Object other) {
-		if(!super.equals(other))
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
 			return false;
-		
-		ACExclusionFilterEntry otherEntry = (ACExclusionFilterEntry)other;
-		return Arrays.equals(exclusionPatterns, otherEntry.exclusionPatterns);
+		if (getClass() != obj.getClass())
+			return false;
+		ACExclusionFilterEntry other = (ACExclusionFilterEntry) obj;
+		if (!Arrays.equals(exclusionPatterns, other.exclusionPatterns))
+			return false;
+		return true;
 	}
 
 	@Override
 	public int hashCode() {
-		return super.hashCode() + exclusionPatterns.hashCode();
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + Arrays.hashCode(exclusionPatterns);
+		return result;
 	}
 
 	@Override
 	public boolean equalsByContents(ICSettingEntry entry) {
 		if(!super.equalsByContents(entry))
 			return false;
-		
+
 		ACExclusionFilterEntry otherEntry = (ACExclusionFilterEntry)entry;
 		return Arrays.equals(exclusionPatterns, otherEntry.exclusionPatterns);
 	}

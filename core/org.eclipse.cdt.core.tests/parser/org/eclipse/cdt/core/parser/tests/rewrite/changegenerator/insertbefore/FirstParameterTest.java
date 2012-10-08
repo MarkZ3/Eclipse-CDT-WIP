@@ -7,16 +7,16 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  *  
  * Contributors: 
- * Institute for Software - initial API and implementation
+ *     Institute for Software - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.parser.tests.rewrite.changegenerator.insertbefore;
 
 import junit.framework.Test;
 
+import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclSpecifier;
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.parser.tests.rewrite.changegenerator.ChangeGeneratorTest;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTFunctionDeclarator;
@@ -24,30 +24,28 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTParameterDeclaration;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTSimpleDeclSpecifier;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification;
-import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationStore;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification.ModificationKind;
-
-
-
-
+import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationStore;
 
 public class FirstParameterTest extends ChangeGeneratorTest {
 
-	public FirstParameterTest(){
-		super("Insert Before First Parameter"); //$NON-NLS-1$
+	FirstParameterTest() {
+		super("FirstParameterTest");
+	}
+
+	public static Test suite() {		
+		return new FirstParameterTest();
 	}
 
 	@Override
 	protected void setUp() throws Exception {
-		source = "void foo(int a){\n}\n\n"; //$NON-NLS-1$
-		expectedSource = "void foo(int newParameter, int a){\n}\n\n"; //$NON-NLS-1$
+		source = "void foo(int a) {\n}\n\n"; //$NON-NLS-1$
+		expectedSource = "void foo(int newParameter, int a) {\n}\n\n"; //$NON-NLS-1$
 		super.setUp();
 	}
-	
 
 	@Override
-	protected ASTVisitor createModificator(
-			final ASTModificationStore modStore) {
+	protected ASTVisitor createModificator(final ASTModificationStore modStore) {
 		return new ASTVisitor() {
 			{
 				shouldVisitDeclarators = true;
@@ -56,10 +54,10 @@ public class FirstParameterTest extends ChangeGeneratorTest {
 			@Override
 			public int visit(IASTDeclarator declarator) {
 				if (declarator instanceof CPPASTFunctionDeclarator) {
-					CPPASTFunctionDeclarator functionDeclarator = (CPPASTFunctionDeclarator)declarator;
+					CPPASTFunctionDeclarator functionDeclarator = (CPPASTFunctionDeclarator) declarator;
 					IASTParameterDeclaration[] parameters = functionDeclarator.getParameters();
-					for(IASTParameterDeclaration curParam : parameters){
-						if(String.valueOf(curParam.getDeclarator().getName().toCharArray()).equals("a")){ //$NON-NLS-1$
+					for (IASTParameterDeclaration curParam : parameters){
+						if (String.valueOf(curParam.getDeclarator().getName().toCharArray()).equals("a")){ //$NON-NLS-1$
 							CPPASTParameterDeclaration insertedParameter = new CPPASTParameterDeclaration();
 							CPPASTDeclarator parameterDeclarator = new CPPASTDeclarator();
 							CPPASTName parameterName = new CPPASTName("newParameter".toCharArray()); //$NON-NLS-1$
@@ -68,7 +66,8 @@ public class FirstParameterTest extends ChangeGeneratorTest {
 							CPPASTSimpleDeclSpecifier parameterDeclSpec = new CPPASTSimpleDeclSpecifier();
 							parameterDeclSpec.setType(IASTSimpleDeclSpecifier.t_int);
 							insertedParameter.setDeclSpecifier(parameterDeclSpec);
-							ASTModification modification = new ASTModification(ModificationKind.INSERT_BEFORE, curParam, insertedParameter, null);
+							ASTModification modification = new ASTModification(ModificationKind.INSERT_BEFORE,
+									curParam, insertedParameter, null);
 							modStore.storeModification(null, modification);
 						}
 					}
@@ -76,10 +75,5 @@ public class FirstParameterTest extends ChangeGeneratorTest {
 				return PROCESS_CONTINUE;
 			}
 		};
-	}
-	
-	public static Test suite() {
-		return new FirstParameterTest();
-		
 	}
 }

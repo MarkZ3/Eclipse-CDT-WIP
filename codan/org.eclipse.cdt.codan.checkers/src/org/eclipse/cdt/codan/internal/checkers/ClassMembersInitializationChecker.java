@@ -1,22 +1,24 @@
 /*******************************************************************************
- * Copyright (c) 2011 Anton Gorenkov
+ * Copyright (c) 2011, 2012 Anton Gorenkov and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Anton Gorenkov  - initial implementation
+ *     Anton Gorenkov  - initial implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers;
 
-import java.util.Stack;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Stack;
 
 import org.eclipse.cdt.codan.core.cxx.model.AbstractIndexAstChecker;
 import org.eclipse.cdt.codan.core.model.IProblemWorkingCopy;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
+import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionCallExpression;
@@ -26,21 +28,25 @@ import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
+import org.eclipse.cdt.core.dom.ast.IASTUnaryExpression;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.ICompositeType;
 import org.eclipse.cdt.core.dom.ast.IEnumeration;
 import org.eclipse.cdt.core.dom.ast.IField;
 import org.eclipse.cdt.core.dom.ast.IPointerType;
+import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTUnaryExpression;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPReferenceType;
+import org.eclipse.cdt.core.index.IIndex;
+import org.eclipse.cdt.core.index.IIndexBinding;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVariableReadWriteFlags;
 import org.eclipse.cdt.internal.core.pdom.dom.PDOMName;
 
@@ -51,34 +57,35 @@ import org.eclipse.cdt.internal.core.pdom.dom.PDOMName;
  * of methods that are working with their value.
  * 
  * @author Anton Gorenkov
- * 
  */
 public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 	public static final String ER_ID = "org.eclipse.cdt.codan.internal.checkers.ClassMembersInitialization"; //$NON-NLS-1$
 	public static final String PARAM_SKIP = "skip"; //$NON-NLS-1$
 
+	@Override
 	public void processAst(IASTTranslationUnit ast) {
 		ast.accept(new OnEachClass());
 	}
 
 	class OnEachClass extends ASTVisitor {
-		
 		// NOTE: Classes can be nested and even can be declared in constructors of the other classes
-		private Stack< Set<IField> > constructorsStack = new Stack< Set<IField> >();
+		private final Stack<Set<IField>> constructorsStack = new Stack<Set<IField>>();
+		private boolean skipConstructorsWithFCalls = skipConstructorsWithFCalls();
 
 		OnEachClass() {
 			shouldVisitDeclarations = true;
 			shouldVisitNames = true;
-			shouldVisitExpressions = skipConstructorsWithFCalls();
+			shouldVisitExpressions = true;
 		}
 
+		@Override
 		public int visit(IASTDeclaration declaration) {
 			ICPPConstructor constructor = getConstructor(declaration);
 			if (constructor != null) {
 				Set<IField> fieldsInConstructor = constructorsStack.push(new HashSet<IField>());
 				
 				// Add all class fields
-				for (IField field : constructor.getClassOwner().getDeclaredFields()) {
+				for (IField field : ClassTypeHelper.getDeclaredFields(constructor.getClassOwner(), declaration)) {
 					if (isSimpleType(field.getType()) && !field.isStatic()) {
 						fieldsInConstructor.add(field);
 					}
@@ -87,6 +94,7 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 			return PROCESS_CONTINUE;
 		}
 
+		@Override
 		public int leave(IASTDeclaration declaration) {
 			if (getConstructor(declaration) != null) {
 				for (IField field : constructorsStack.pop()) {
@@ -96,20 +104,22 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 			return PROCESS_CONTINUE;
 		}
 		
+		@Override
 		public int visit(IASTExpression expression) {
-			if (!constructorsStack.empty() && expression instanceof IASTFunctionCallExpression) {
-				Set<IField> actualContructorFields = constructorsStack.peek();
-				if (!actualContructorFields.isEmpty()) {
-					boolean skipCurrentConstructor = false;
-					IASTFunctionCallExpression fCall = (IASTFunctionCallExpression)expression;
+			boolean skipCurrentConstructor = false;
+			
+			if (skipConstructorsWithFCalls && !constructorsStack.empty() && expression instanceof IASTFunctionCallExpression) {
+				Set<IField> actualConstructorFields = constructorsStack.peek();
+				if (!actualConstructorFields.isEmpty()) {
+					IASTFunctionCallExpression fCall = (IASTFunctionCallExpression) expression;
 					IASTExpression fNameExp = fCall.getFunctionNameExpression();
 					if (fNameExp instanceof IASTIdExpression) {
-						IASTIdExpression fName = (IASTIdExpression)fNameExp;
+						IASTIdExpression fName = (IASTIdExpression) fNameExp;
 						IBinding fBinding = fName.getName().resolveBinding();
 						if (fBinding instanceof ICPPMethod) {
-							ICPPMethod method = (ICPPMethod)fBinding;
-							ICompositeType constructorOwner = actualContructorFields.iterator().next().getCompositeTypeOwner();
-							if (constructorOwner == method.getClassOwner() && !method.getType().isConst()) {
+							ICPPMethod method = (ICPPMethod) fBinding;
+							ICompositeType constructorOwner = actualConstructorFields.iterator().next().getCompositeTypeOwner();
+							if (constructorOwner.equals(method.getClassOwner()) && !method.getType().isConst()) {
 								skipCurrentConstructor = true;
 							}
 						} else if (fBinding instanceof ICPPFunction) {
@@ -121,48 +131,92 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 							}
 						}
 					}
-					if (skipCurrentConstructor) {
-						constructorsStack.peek().clear();
-					}
 				}
+			}
+			
+			// Bug 368420 - Skip constructor if pattern is *this = toBeCopied;
+			if (expression instanceof IASTBinaryExpression) {
+				IASTBinaryExpression binaryExpression = (IASTBinaryExpression) expression;
+				if (referencesThis(binaryExpression.getOperand1()) && binaryExpression.getOperand1().isLValue()) {
+					skipCurrentConstructor = true;
+				}
+			}
+			
+			if (skipCurrentConstructor && !constructorsStack.empty()) {
+				constructorsStack.peek().clear();
 			}
 			return PROCESS_CONTINUE;
 		}
 		
-		/** Checks whether expression references this (directly, by pointer or by reference)
-		 * 
+		/**
+		 * Checks whether expression references this (directly, by pointer or by reference)
 		 */
 		public boolean referencesThis(IASTNode expr) {
 			if (expr instanceof IASTLiteralExpression) {
-				IASTLiteralExpression litArg = (IASTLiteralExpression)expr;
+				IASTLiteralExpression litArg = (IASTLiteralExpression) expr;
 				if (litArg.getKind() == IASTLiteralExpression.lk_this) {
 					return true;
 				}
 			} else if (expr instanceof ICPPASTUnaryExpression) {
-				ICPPASTUnaryExpression unExpr = (ICPPASTUnaryExpression)expr;
+				ICPPASTUnaryExpression unExpr = (ICPPASTUnaryExpression) expr;
 				switch (unExpr.getOperator()) {
-					case ICPPASTUnaryExpression.op_amper:
-					case ICPPASTUnaryExpression.op_star:
-					case ICPPASTUnaryExpression.op_bracketedPrimary:
+					case IASTUnaryExpression.op_amper:
+					case IASTUnaryExpression.op_star:
+					case IASTUnaryExpression.op_bracketedPrimary:
 						return referencesThis(unExpr.getOperand());
 				}
 			}
 			return false;
 		}
 
+		@Override
 		public int visit(IASTName name) {
 			if (!constructorsStack.empty()) {
-				Set<IField> actualContructorFields = constructorsStack.peek();
-				if (!actualContructorFields.isEmpty()) {
+				Set<IField> actualConstructorFields = constructorsStack.peek();
+				if (!actualConstructorFields.isEmpty()) {
 					IBinding binding = name.resolveBinding();
-					if (actualContructorFields.contains(binding)) {
-						if ((CPPVariableReadWriteFlags.getReadWriteFlags(name) & PDOMName.WRITE_ACCESS) != 0) {
-							actualContructorFields.remove(binding);
+					if (binding != null && !(binding instanceof IProblemBinding)) {
+						IField equivalentFieldBinding = getContainedEquivalentBinding(
+								actualConstructorFields, binding, name.getTranslationUnit().getIndex());
+						if (equivalentFieldBinding != null) {
+							if ((CPPVariableReadWriteFlags.getReadWriteFlags(name) & PDOMName.WRITE_ACCESS) != 0) {
+								actualConstructorFields.remove(equivalentFieldBinding);
+							}
 						}
 					}
 				}
 			}
 			return PROCESS_CONTINUE;
+		}
+		
+		private IField getContainedEquivalentBinding(Iterable<IField> fields, IBinding binding, IIndex index) {
+			for (IField field : fields) {
+				if (areEquivalentBindings(binding, field, index)) {
+					return field;
+				}
+			}
+			
+			return null;
+		}
+		
+		private boolean areEquivalentBindings(IBinding binding1, IBinding binding2, IIndex index) {
+			if (binding1.equals(binding2)) {
+				return true;
+			}
+			if ((binding1 instanceof IIndexBinding) != (binding2 instanceof IIndexBinding) && index != null) {
+				if (binding1 instanceof IIndexBinding) {
+					binding2 = index.adaptBinding(binding2);
+				} else {
+					binding1 = index.adaptBinding(binding1);
+				}
+				if (binding1 == null || binding2 == null) {
+					return false;
+				}
+				if (binding1.equals(binding2)) {
+					return true;
+				}
+			}
+			return false;
 		}
 		
 		/** Checks whether class member of the specified type should be initialized
@@ -186,7 +240,7 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 					type instanceof IPointerType ||
 					type instanceof IEnumeration ||
 					type instanceof ICPPReferenceType ||
-					(type instanceof ITypedef && isSimpleType( ((ITypedef)type).getType()) ) );
+					(type instanceof ITypedef && isSimpleType(((ITypedef) type).getType())));
 		}
 
 		/** Checks that specified declaration is a class constructor 
@@ -194,11 +248,13 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 		 */
 		private ICPPConstructor getConstructor(IASTDeclaration decl) {
 			if (decl instanceof ICPPASTFunctionDefinition) {
-				ICPPASTFunctionDefinition functionDefinition = (ICPPASTFunctionDefinition)decl;
+				ICPPASTFunctionDefinition functionDefinition = (ICPPASTFunctionDefinition) decl;
+				if (functionDefinition.isDeleted())
+					return null;
 				IBinding binding = functionDefinition.getDeclarator().getName().resolveBinding();
 				if (binding instanceof ICPPConstructor) {
 					ICPPConstructor constructor = (ICPPConstructor) binding;
-					if (constructor.getClassOwner().getKey()!=ICPPClassType.k_union) {
+					if (constructor.getClassOwner().getKey() != ICompositeType.k_union) {
 						return constructor;
 					}
 				}
@@ -206,7 +262,6 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 			
 			return null;
 		}
-
 	}
 	
 	@Override
@@ -218,5 +273,4 @@ public class ClassMembersInitializationChecker extends AbstractIndexAstChecker {
 	public boolean skipConstructorsWithFCalls() {
 		return (Boolean) getPreference(getProblemById(ER_ID, getFile()), PARAM_SKIP);
 	}
-	
 }

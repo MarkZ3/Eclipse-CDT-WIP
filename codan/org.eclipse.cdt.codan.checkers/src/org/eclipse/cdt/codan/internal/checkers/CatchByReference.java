@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Alena Laskavaia  - initial API and implementation
+ *     Alena Laskavaia  - initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers;
 
@@ -45,6 +45,7 @@ public class CatchByReference extends AbstractIndexAstChecker {
 	public static final String PARAM_EXCEPT_ARG_LIST = "exceptions"; //$NON-NLS-1$
 	public static final String PARAM_UNKNOWN_TYPE = "unknown"; //$NON-NLS-1$
 
+	@Override
 	public void processAst(IASTTranslationUnit ast) {
 		// traverse the ast using the visitor pattern.
 		ast.accept(new OnCatch());
@@ -55,6 +56,7 @@ public class CatchByReference extends AbstractIndexAstChecker {
 			shouldVisitStatements = true;
 		}
 
+		@Override
 		public int visit(IASTStatement stmt) {
 			if (stmt instanceof ICPPASTTryBlockStatement) {
 				try {
@@ -70,7 +72,7 @@ public class CatchByReference extends AbstractIndexAstChecker {
 								if (spec instanceof IASTNamedTypeSpecifier) {
 									IASTName tname = ((IASTNamedTypeSpecifier) spec).getName();
 									IType typeName = (IType) tname.resolveBinding();
-									typeName = CxxAstUtils.getInstance().unwindTypedef(typeName);
+									typeName = CxxAstUtils.unwindTypedef(typeName);
 									if (typeName instanceof IBasicType || typeName instanceof IPointerType || typeName == null)
 										continue;
 									if (typeName instanceof IProblemBinding && !shouldReportForUnknownType())

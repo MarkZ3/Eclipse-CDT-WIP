@@ -6,9 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM - Initial API and implementation
- *    Anton Leherbauer (Wind River Systems)
- *    Markus Schorn (Wind River Systems)
+ *     IBM - Initial API and implementation
+ *     Anton Leherbauer (Wind River Systems)
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
 
@@ -25,10 +26,8 @@ import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator;
  * @author dsteffle
  */
 public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKnRFunctionDeclarator {
-
 	IASTName[] parameterNames = IASTName.EMPTY_NAME_ARRAY;
 	IASTDeclaration[] parameterDeclarations = IASTDeclaration.EMPTY_DECLARATION_ARRAY;
-	
 
 	public CASTKnRFunctionDeclarator() {
 	}
@@ -46,7 +45,6 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 	@Override
 	public CASTKnRFunctionDeclarator copy(CopyStyle style) {
 		CASTKnRFunctionDeclarator copy = new CASTKnRFunctionDeclarator();
-		copyBaseDeclarator(copy, style);
 
 		copy.parameterNames = new IASTName[parameterNames.length];
 		for (int i = 0; i < parameterNames.length; i++) {
@@ -65,12 +63,10 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 				copy.parameterDeclarations[i].setPropertyInParent(FUNCTION_PARAMETER);
 			}
 		}
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
+	@Override
 	public void setParameterNames(IASTName[] names) {
         assertNotFrozen();
 		parameterNames = names;
@@ -84,12 +80,12 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 		}
 	}
 
-
+	@Override
 	public IASTName[] getParameterNames() {
 		return parameterNames;
 	}
 
-
+	@Override
 	public void setParameterDeclarations(IASTDeclaration[] decls) {
         assertNotFrozen();
 		parameterDeclarations = decls;
@@ -103,7 +99,7 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 		}	
 	}
 
-
+	@Override
 	public IASTDeclaration[] getParameterDeclarations() {
 		return parameterDeclarations;
 	}
@@ -125,18 +121,21 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 		return super.postAccept(action);
 	}
 	
+	@Override
 	public IASTDeclarator getDeclaratorForParameterName(IASTName name) {
-		boolean found=false;
-		for(int i=0; i<parameterNames.length; i++) {
-			if (parameterNames[i] == name) found = true;
+		boolean found= false;
+		for (int i= 0; i < parameterNames.length; i++) {
+			if (parameterNames[i] == name)
+				found = true;
 		}
-		if(!found) return null;
+		if (!found)
+			return null;
 		
-		for(int i=0; i<parameterDeclarations.length; i++) {
+		for (int i= 0; i < parameterDeclarations.length; i++) {
 			if (parameterDeclarations[i] instanceof IASTSimpleDeclaration) {
-				IASTDeclarator[] decltors = ((IASTSimpleDeclaration)parameterDeclarations[i]).getDeclarators();
-				for(int j=0; j<decltors.length; j++) {
-					if(decltors[j].getName().toString().equals(name.toString()))
+				IASTDeclarator[] decltors = ((IASTSimpleDeclaration) parameterDeclarations[i]).getDeclarators();
+				for (int j= 0; j < decltors.length; j++) {
+					if (decltors[j].getName().toString().equals(name.toString()))
 						return decltors[j];
 				}
 			}
@@ -148,8 +147,10 @@ public class CASTKnRFunctionDeclarator extends CASTDeclarator implements ICASTKn
 	@Override
 	public int getRoleForName(IASTName name) {
 		IASTName [] n = getParameterNames();
-		for( int i = 0; i < n.length; ++i )
-			if( n[i] == name ) return r_unclear; 
+		for (int i = 0; i < n.length; ++i) {
+			if (n[i] == name)
+				return r_unclear;
+		}
 		return super.getRoleForName(name);
 	}
 }

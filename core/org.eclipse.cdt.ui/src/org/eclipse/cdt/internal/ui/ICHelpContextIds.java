@@ -85,6 +85,7 @@ public interface ICHelpContextIds {
 
 	public static final String APPEARANCE_PREFERENCE_PAGE = PREFIX + "appearance_preference_page_context"; //$NON-NLS-1$
 	public static final String SPELLING_CONFIGURATION_BLOCK= PREFIX + "spelling_configuration_block_context"; //$NON-NLS-1$
+	public static final String CODE_STYLE_PREFERENCE_PAGE = PREFIX + "code_style_preference_context"; //$NON-NLS-1$
 	public static final String CODE_TEMPLATES_PREFERENCE_PAGE = PREFIX + "code_templates_preference_context"; //$NON-NLS-1$
 	public static final String NAME_STYLE_PREFERENCE_PAGE = PREFIX + "name_style_preference_context"; //$NON-NLS-1$
 
@@ -119,6 +120,7 @@ public interface ICHelpContextIds {
 	public static final String RENAME_TYPE_WIZARD_PAGE= 	PREFIX + "rename_type_wizard_page_context"; //$NON-NLS-1$
 	public static final String RENAME_FIELD_WIZARD_PAGE=	PREFIX + "rename_field_wizard_page_context"; //$NON-NLS-1$
 	public static final String RENAME_RESOURCE_WIZARD_PAGE=	PREFIX + "rename_resource_wizard_page_context"; //$NON-NLS-1$
+	public static final String EXTRACT_FUNCTION_WIZARD_PAGE= PREFIX + "extract_function_wizard_page_context"; //$NON-NLS-1$
 
 	// Dialogs
 	public static final String EDIT_TEMPLATE_DIALOG = PREFIX + "edit_template_dialog_context"; //$NON-NLS-1$
@@ -162,8 +164,6 @@ public interface ICHelpContextIds {
 	public static final String COUTLINE_VIEW = PREFIX + "outline_view"; //$NON-NLS-1$
 	public static final String CPROJECT_VIEW = PREFIX + "projects_view"; //$NON-NLS-1$
 	public static final String C_SEARCH_VIEW = PREFIX + "search_view"; //$NON-NLS-1$
-
-	public static final String PATHENTRY_VARIABLES_PREFERENCE_PAGE= PREFIX + "pathentry_variables_preference_page_context"; //$NON-NLS-1$
 
 	public static final String SAVE_ACTIONS_PREFERENCE_PAGE = PREFIX + "save_actions_preference_page_context"; //$NON-NLS-1$
 	public static final String SCALABILITY_PREFERENCE_PAGE = PREFIX + "scalability_preference_page_context"; //$NON-NLS-1$

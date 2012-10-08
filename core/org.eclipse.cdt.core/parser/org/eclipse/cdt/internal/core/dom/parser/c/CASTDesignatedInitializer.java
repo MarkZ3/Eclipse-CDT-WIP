@@ -40,10 +40,12 @@ public class CASTDesignatedInitializer extends ASTNode implements ICASTDesignate
 		setOperand(init);
 	}
 
+	@Override
 	public CASTDesignatedInitializer copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 	
+	@Override
 	public CASTDesignatedInitializer copy(CopyStyle style) {
 		CASTDesignatedInitializer copy = new CASTDesignatedInitializer(rhs == null ? null
 				: rhs.copy(style));
@@ -56,28 +58,32 @@ public class CASTDesignatedInitializer extends ASTNode implements ICASTDesignate
 		return copy;
 	}
 
+	@Override
 	public void addDesignator(ICASTDesignator designator) {
         assertNotFrozen();
     	if (designator != null) {
     		designator.setParent(this);
     		designator.setPropertyInParent(DESIGNATOR);
-    		designators = (ICASTDesignator[]) ArrayUtil.append( ICASTDesignator.class, designators, ++designatorsPos, designator );
+    		designators = ArrayUtil.appendAt( ICASTDesignator.class, designators, ++designatorsPos, designator );
     	}
     }
 
     
-    public ICASTDesignator[] getDesignators() {
+    @Override
+	public ICASTDesignator[] getDesignators() {
         if( designators == null ) return ICASTDesignatedInitializer.EMPTY_DESIGNATOR_ARRAY;
-        designators = (ICASTDesignator[]) ArrayUtil.removeNullsAfter( ICASTDesignator.class, designators, designatorsPos );
+        designators = ArrayUtil.trimAt( ICASTDesignator.class, designators, designatorsPos );
         return designators;
     }
 
     
     
-    public IASTInitializerClause getOperand() {
+    @Override
+	public IASTInitializerClause getOperand() {
         return rhs;
 	}
 
+	@Override
 	public void setOperand(IASTInitializerClause operand) {
         assertNotFrozen();
         this.rhs = operand;
@@ -87,13 +93,14 @@ public class CASTDesignatedInitializer extends ASTNode implements ICASTDesignate
 		}
 	}
 
+	@Override
 	@Deprecated
 	public IASTInitializer getOperandInitializer() {
 		if (rhs instanceof IASTInitializer) {
 			return (IASTInitializer) rhs;
 		}
 		if (rhs instanceof IASTExpression) {
-			CASTEqualsInitializer init = new CASTEqualsInitializer(((IASTExpression)rhs).copy());
+			CASTEqualsInitializer init = new CASTEqualsInitializer(((IASTExpression) rhs).copy());
 			init.setParent(this);
 			init.setPropertyInParent(OPERAND);
 			return init;
@@ -101,7 +108,8 @@ public class CASTDesignatedInitializer extends ASTNode implements ICASTDesignate
         return null;
     }
 
-    @Deprecated
+    @Override
+	@Deprecated
     public void setOperandInitializer(IASTInitializer rhs) {
     	if (rhs instanceof IASTEqualsInitializer) {
     		setOperand(((IASTEqualsInitializer) rhs).getInitializerClause());
@@ -137,7 +145,8 @@ public class CASTDesignatedInitializer extends ASTNode implements ICASTDesignate
         return true;
     }
 
-    public void replace(IASTNode child, IASTNode other) {
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
     	if (child == rhs) {
     		other.setPropertyInParent(child.getPropertyInParent());
     		other.setParent(child.getParent());

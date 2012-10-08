@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 QNX Software Systems and others.
+ * Copyright (c) 2004, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *
  * Contributors:
  * QNX Software Systems - Initial API and implementation
+ * Mathias Kunter - Support for octal number format (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.debug.internal.core.model; 
 
@@ -23,6 +24,8 @@ import org.eclipse.cdt.debug.core.cdi.model.type.ICDIPointerValue;
 import org.eclipse.cdt.debug.core.cdi.model.type.ICDIType;
 import org.eclipse.cdt.debug.core.model.CVariableFormat;
 import org.eclipse.cdt.debug.core.model.ICType;
+import org.eclipse.cdt.utils.Addr32;
+import org.eclipse.cdt.utils.Addr64;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IIndexedValue;
 import org.eclipse.debug.core.model.IVariable;
@@ -72,6 +75,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.internal.core.model.AbstractCValue#setChanged(boolean)
 	 */
+	@Override
 	protected void setChanged( boolean changed ) {
 		for (IVariable var : fVariables.values()) {
 			((AbstractCVariable)var).setChanged( changed );
@@ -81,6 +85,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.internal.core.model.AbstractCValue#dispose()
 	 */
+	@Override
 	public void dispose() {
 		for (IVariable var : fVariables.values()) {
 			((AbstractCVariable)var).dispose();
@@ -90,6 +95,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.internal.core.model.AbstractCValue#reset()
 	 */
+	@Override
 	protected void reset() {
 		for (IVariable var : fVariables.values()) {
 			((AbstractCVariable)var).resetValue();
@@ -99,6 +105,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.internal.core.model.AbstractCValue#preserve()
 	 */
+	@Override
 	protected void preserve() {
 		resetStatus();
 		for (IVariable var : fVariables.values()) {
@@ -109,6 +116,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.core.model.ICValue#getType()
 	 */
+	@Override
 	public ICType getType() throws DebugException {
 		if ( fType == null ) {
 			synchronized( this ) {
@@ -130,6 +138,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IValue#getReferenceTypeName()
 	 */
+	@Override
 	public String getReferenceTypeName() throws DebugException {
 		ICType type = getType(); 
 		return ( type != null ) ? type.getName() : ""; //$NON-NLS-1$
@@ -142,6 +151,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	 * 
 	 * @see org.eclipse.debug.core.model.IValue#getValueString()
 	 */
+	@Override
 	public String getValueString() throws DebugException {
 		if ( fCDIValue instanceof ICDIPointerValue ) {
 			try {
@@ -155,9 +165,20 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 				CVariableFormat format = getParentVariable().getFormat();
 				if ( CVariableFormat.NATURAL.equals( format ) || CVariableFormat.HEXADECIMAL.equals( format ) )
 					return address.toHexAddressString();
-				if ( CVariableFormat.DECIMAL.equals( format ) )
+				else if ( CVariableFormat.DECIMAL.equals( format ) )
 					return address.toString();
-				if ( CVariableFormat.BINARY.equals( format ) )
+				else if ( CVariableFormat.OCTAL.equals( format ) ) {
+				    // Using the instanceof operator here to avoid API change
+				    // Add IAddress.toOctalAddressString() in a future CDT release
+				    if (address instanceof Addr32) {
+				        return ((Addr32)address).toOctalAddressString();
+				    } else if (address instanceof Addr64) {
+				        return ((Addr64)address).toOctalAddressString();
+				    } else {
+				        // Fall back to hexadecimal address format
+				        return address.toHexAddressString();
+				    }
+				} else if ( CVariableFormat.BINARY.equals( format ) )
 					return address.toBinaryAddressString();
 				return null;
 			} catch (CDIException e) {
@@ -170,6 +191,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IValue#isAllocated()
 	 */
+	@Override
 	public boolean isAllocated() throws DebugException {
 		return true;
 	}
@@ -177,6 +199,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IValue#getVariables()
 	 */
+	@Override
 	public IVariable[] getVariables() throws DebugException {
 		return getVariables0( getInitialOffset(), getSize() );
 	}
@@ -184,6 +207,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IValue#hasVariables()
 	 */
+	@Override
 	public boolean hasVariables() throws DebugException {
 		return getSize() > 0;
 	}
@@ -191,6 +215,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IIndexedValue#getVariable(int)
 	 */
+	@Override
 	public IVariable getVariable( int offset ) throws DebugException {
 		if ( offset >= getSize() ) {
 			requestFailed( CoreModelMessages.getString( "CIndexedValue.0" ), null ); //$NON-NLS-1$
@@ -201,6 +226,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IIndexedValue#getVariables(int, int)
 	 */
+	@Override
 	public IVariable[] getVariables( int offset, int length ) throws DebugException {
 		if ( offset >= getSize() ) {
 			requestFailed( CoreModelMessages.getString( "CIndexedValue.1" ), null ); //$NON-NLS-1$
@@ -214,6 +240,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IIndexedValue#getSize()
 	 */
+	@Override
 	public int getSize() throws DebugException {
 		return getSize0();
 	}
@@ -221,6 +248,7 @@ public class CIndexedValue extends AbstractCValue implements IIndexedValue {
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.model.IIndexedValue#getInitialOffset()
 	 */
+	@Override
 	public int getInitialOffset() {
 		return fOffset;
 	}

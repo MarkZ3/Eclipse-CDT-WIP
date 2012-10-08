@@ -13,7 +13,7 @@ package org.eclipse.cdt.internal.ui.refactoring.rename;
 
 import org.eclipse.osgi.util.NLS;
 
-public class RenameMessages extends NLS {
+class RenameMessages extends NLS {
     public static String ASTManager_error_macro_name_conflict;
 	public static String ASTManager_subtask_analyzing;
 	public static String ASTManager_task_analyze;
@@ -77,7 +77,6 @@ public class RenameMessages extends NLS {
 	public static String CRenameRefactoringInputPage_button_workingSet;
 	public static String CRenameRefactoringInputPage_errorInvalidIdentifier;
 	public static String CRenameRefactoringInputPage_label_newName;
-	public static String CRenameRefactoringInputPage_label_scope;
 	public static String CRenameRefactoringInputPage_label_updateWithin;
 	public static String CRenameRefactoringInputPage_renameBaseAndDerivedMethods;
 	public static String CRenameTopProcessor_enumerator;

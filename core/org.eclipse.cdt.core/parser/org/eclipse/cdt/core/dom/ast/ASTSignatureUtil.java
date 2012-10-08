@@ -48,7 +48,6 @@ import org.eclipse.cdt.internal.core.model.ASTStringUtil;
  */
 @Deprecated
 public class ASTSignatureUtil {
-
 	private static final String COMMA_SPACE = ", "; //$NON-NLS-1$
 	private static final String EMPTY_STRING = ""; //$NON-NLS-1$
 	private static final String SPACE = " "; //$NON-NLS-1$
@@ -510,7 +509,24 @@ public class ASTSignatureUtil {
 		}
 
 		if (declSpec instanceof ICPPASTDeclSpecifier) {
-			if (((ICPPASTDeclSpecifier) declSpec).isExplicit()) {
+			ICPPASTDeclSpecifier cppDeclSpec = (ICPPASTDeclSpecifier) declSpec;
+			if (cppDeclSpec.isThreadLocal()) {
+				if (needSpace) {
+					result.append(SPACE);
+					needSpace = false;
+				}
+				result.append(Keywords.THREAD_LOCAL);
+				needSpace = true;
+			}
+			if (cppDeclSpec.isConstexpr()) {
+				if (needSpace) {
+					result.append(SPACE);
+					needSpace = false;
+				}
+				result.append(Keywords.CONSTEXPR);
+				needSpace = true;
+			}
+			if (cppDeclSpec.isExplicit()) {
 				if (needSpace) {
 					result.append(SPACE);
 					needSpace = false;
@@ -518,7 +534,7 @@ public class ASTSignatureUtil {
 				result.append(Keywords.EXPLICIT);
 				needSpace = true;
 			}
-			if (((ICPPASTDeclSpecifier) declSpec).isFriend()) {
+			if (cppDeclSpec.isFriend()) {
 				if (needSpace) {
 					result.append(SPACE);
 					needSpace = false;
@@ -526,7 +542,7 @@ public class ASTSignatureUtil {
 				result.append(Keywords.FRIEND);
 				needSpace = true;
 			}
-			if (((ICPPASTDeclSpecifier) declSpec).isVirtual()) {
+			if (cppDeclSpec.isVirtual()) {
 				if (needSpace) {
 					result.append(SPACE);
 					needSpace = false;
@@ -1027,9 +1043,10 @@ public class ASTSignatureUtil {
 		if (!postOperator && !primaryBracketed)
 			buffer.append(getUnaryOperatorString(expression));
 
-		// need to add a space to the unary expression if it is a specific operator
+		// Need to add a space to the unary expression if it is a specific operator
 		switch (expression.getOperator()) {
 		case IASTUnaryExpression.op_sizeof:
+		case ICPPASTUnaryExpression.op_noexcept:
 		case ICPPASTUnaryExpression.op_throw:
 		case ICPPASTUnaryExpression.op_typeid:
 			buffer.append(SPACE);
@@ -1100,6 +1117,9 @@ public class ASTSignatureUtil {
 
 		if (ue instanceof ICPPASTUnaryExpression) {
 			switch (op) {
+			case ICPPASTUnaryExpression.op_noexcept:
+				opString = Keywords.NOEXCEPT;
+				break;
 			case ICPPASTUnaryExpression.op_throw:
 				opString = Keywords.THROW;
 				break;

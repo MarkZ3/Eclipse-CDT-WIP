@@ -30,6 +30,7 @@ public class DOMParserTestSuite extends TestCase {
 		suite.addTest(ASTCPPSpecDefectTests.suite());
 		suite.addTest(AST2CPPImplicitNameTests.suite());
 		suite.addTest(AST2TemplateTests.suite());
+		suite.addTest(TypeTraitsTests.suite());
 		suite.addTestSuite(QuickParser2Tests.class);
 		suite.addTest(CompleteParser2Tests.suite());
 		suite.addTest(DOMLocationTests.suite());
@@ -55,6 +56,7 @@ public class DOMParserTestSuite extends TestCase {
 		suite.addTest(LanguageExtensionsTest.suite());
 		suite.addTest(ASTInactiveCodeTests.suite());
 		suite.addTest(AccessControlTests.suite());
+		suite.addTest(VariableReadWriteFlagsTest.suite());
 		return suite;
 	}
 }

@@ -10,7 +10,6 @@
  *     Markus Schorn (Wind River Systems)
  *     Sergey Prigogin (Google)
  *******************************************************************************/
-
 package org.eclipse.cdt.internal.core.pdom.dom;
 
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
@@ -28,7 +27,6 @@ import org.eclipse.core.runtime.CoreException;
  * @author Doug Schaefer
  */
 public class PDOMInclude implements IIndexFragmentInclude {
-
 	private static final int INCLUDED_FILE		 	=  0;
 	private static final int INCLUDED_BY 			=  4;
 	private static final int INCLUDES_NEXT 			=  8;
@@ -55,13 +53,13 @@ public class PDOMInclude implements IIndexFragmentInclude {
 	// Cached fields
 	private String fName;
 
-	public PDOMInclude(PDOMLinkage pdom, long record) {
-		this.linkage = pdom;
+	public PDOMInclude(PDOMLinkage linkage, long record) {
+		this.linkage = linkage;
 		this.record = record;
 	}
 
-	public PDOMInclude(PDOMLinkage linkage, IASTPreprocessorIncludeStatement include, PDOMFile containerFile,
-			PDOMFile targetFile) throws CoreException {
+	public PDOMInclude(PDOMLinkage linkage, IASTPreprocessorIncludeStatement include,
+			PDOMFile containerFile, PDOMFile targetFile) throws CoreException {
 		this.linkage = linkage;
 		this.record = linkage.getDB().malloc(RECORD_SIZE);
 		IASTName name = include.getName();
@@ -136,6 +134,7 @@ public class PDOMInclude implements IIndexFragmentInclude {
 			nextInclude.setPrevInIncludedBy(prevInclude);
 	}
 
+	@Override
 	public IIndexFragmentFile getIncludes() throws CoreException {
 		long rec = linkage.getDB().getRecPtr(record + INCLUDED_FILE);
 		return rec != 0 ? new PDOMFile(linkage, rec) : null;
@@ -166,6 +165,7 @@ public class PDOMInclude implements IIndexFragmentInclude {
 		return true;
 	}
 
+	@Override
 	public IIndexFile getIncludedBy() throws CoreException {
 		long rec = linkage.getDB().getRecPtr(record + INCLUDED_BY);
 		return rec != 0 ? new PDOMFile(linkage, rec) : null;
@@ -210,15 +210,18 @@ public class PDOMInclude implements IIndexFragmentInclude {
 		linkage.getDB().putRecPtr(record + INCLUDED_BY_PREV, rec);
 	}
 
+	@Override
 	public IIndexFileLocation getIncludedByLocation() throws CoreException {
 		return getIncludedBy().getLocation();
 	}
 
+	@Override
 	public IIndexFileLocation getIncludesLocation() throws CoreException {
 		IIndexFragmentFile includes = getIncludes();
 		return includes != null ? includes.getLocation() : null;
 	}
 
+	@Override
 	public IIndexFragment getFragment() {
 		return linkage.getPDOM();
 	}
@@ -231,30 +234,37 @@ public class PDOMInclude implements IIndexFragmentInclude {
 		return linkage.getDB().getByte(record + FLAGS);
 	}
 
+	@Override
 	public boolean isSystemInclude() throws CoreException {
 		return (getFlag() & FLAG_SYSTEM_INCLUDE) != 0;
 	}
 
+	@Override
 	public boolean isActive() throws CoreException {
 		return (getFlag() & FLAG_INACTIVE_INCLUDE) == 0;
 	}
 
+	@Override
 	public boolean isResolved() throws CoreException {
 		return linkage.getDB().getRecPtr(record + INCLUDED_FILE) != 0;
 	}
 
+	@Override
 	public boolean isResolvedByHeuristics() throws CoreException {
 		return (getFlag() & FLAG_RESOLVED_BY_HEURISTICS) != 0;
 	}
 
+	@Override
 	public int getNameOffset() throws CoreException {
 		return linkage.getDB().get3ByteUnsignedInt(record + NODE_OFFSET);
 	}
 
+	@Override
 	public int getNameLength() throws CoreException {
 		return linkage.getDB().getShort(record + NODE_LENGTH) & 0xffff;
 	}	
 
+	@Override
 	public String getFullName() throws CoreException {
 		if (fName == null) {
 			final Database db = linkage.getDB();
@@ -272,6 +282,7 @@ public class PDOMInclude implements IIndexFragmentInclude {
 		return fName;
 	}
 
+	@Override
 	public String getName() throws CoreException {
 		final String fullName= getFullName();
 		final int idx= Math.max(fullName.lastIndexOf('/'), fullName.lastIndexOf('\\'));
@@ -290,5 +301,29 @@ public class PDOMInclude implements IIndexFragmentInclude {
 			}
 			db.putRecPtr(record + INCLUDED_FILE, 0);
 		}
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder buf = new StringBuilder();
+		try {
+			boolean isSystem = isSystemInclude();
+			buf.append(isSystem ? '<' : '"');
+			buf.append(getFullName());
+			buf.append(isSystem ? '>' : '"');
+			IIndexFile includedBy = getIncludedBy();
+			if (includedBy != null)
+				buf.append(" in " + includedBy); //$NON-NLS-1$
+			IIndexFragmentFile includes = getIncludes();
+			if (includes != null) {
+				buf.append(" resolved to " + includes); //$NON-NLS-1$
+			} else {
+				buf.append(" unresolved"); //$NON-NLS-1$
+			}
+		} catch (CoreException e) {
+			buf.append(" (incomplete due to " + e.getClass().getName() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+			e.printStackTrace();
+		}
+		return buf.toString();
 	}
 }

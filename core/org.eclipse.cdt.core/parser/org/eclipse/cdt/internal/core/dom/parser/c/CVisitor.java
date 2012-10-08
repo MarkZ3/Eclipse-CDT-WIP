@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2011 IBM Corporation and others.
+ * Copyright (c) 2005, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,6 +11,7 @@
  *     Bryan Wilkinson (QNX)
  *     Andrew Ferguson (Symbian)
  *     Jens Elmenthaler - http://bugs.eclipse.org/173458 (camel case completion)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.c;
 
@@ -22,6 +23,7 @@ import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.DOMException;
 import org.eclipse.cdt.core.dom.ast.IASTArrayDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTArrayModifier;
+import org.eclipse.cdt.core.dom.ast.IASTAttribute;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
 import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
@@ -68,6 +70,7 @@ import org.eclipse.cdt.core.dom.ast.ILabel;
 import org.eclipse.cdt.core.dom.ast.IParameter;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IScope;
+import org.eclipse.cdt.core.dom.ast.IScope.ScopeLookupData;
 import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
@@ -88,6 +91,7 @@ import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator;
 import org.eclipse.cdt.core.index.IIndexBinding;
 import org.eclipse.cdt.core.index.IIndexFileSet;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
+import org.eclipse.cdt.core.parser.util.AttributeUtil;
 import org.eclipse.cdt.core.parser.util.CharArraySet;
 import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.core.parser.util.IContentAssistMatcher;
@@ -98,15 +102,13 @@ import org.eclipse.cdt.internal.core.dom.parser.IASTInternalScope;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeContainer;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
+import org.eclipse.cdt.internal.core.dom.parser.SizeofCalculator;
 import org.eclipse.cdt.internal.core.parser.util.ContentAssistMatcherFactory;
 
 /**
  * Collection of methods to find information in an AST.
  */
 public class CVisitor extends ASTQueries {
-	/**
-	 * 
-	 */
 	private static final CBasicType UNSIGNED_LONG_INT = new CBasicType(Kind.eInt, IBasicType.IS_LONG | IBasicType.IS_UNSIGNED);
 
 	public static class CollectProblemsAction extends ASTVisitor {
@@ -355,7 +357,7 @@ public class CVisitor extends ASTQueries {
 	public static class CollectReferencesAction extends ASTVisitor {
 		private static final int DEFAULT_LIST_SIZE = 8;
 		private IASTName[] refs;
-		private IBinding binding;
+		private final IBinding binding;
 		private int idx = 0;
 		private int kind;
 		
@@ -443,9 +445,7 @@ public class CVisitor extends ASTQueries {
 	private static final String SIZE_T = "size_t"; //$NON-NLS-1$
 	private static final String PTRDIFF_T = "ptrdiff_t"; //$NON-NLS-1$
 	public static final String EMPTY_STRING = ""; //$NON-NLS-1$
-	public static final char[] EMPTY_CHAR_ARRAY = "".toCharArray(); //$NON-NLS-1$
-	
-	// definition lookup start location
+	// Definition lookup start location
 	protected static final int AT_BEGINNING = 1;
 	protected static final int AT_NEXT = 2; 
 
@@ -631,10 +631,10 @@ public class CVisitor extends ASTQueries {
 		IField[] fields = ct.getFields();
 		for (IField field : fields) {
 			if (matcher.match(field.getNameCharArray())) {
-		        result = (IBinding[]) ArrayUtil.append(IBinding.class, result, field);
+		        result = ArrayUtil.append(IBinding.class, result, field);
 		    }
 		}
-		return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+		return ArrayUtil.trim(IBinding.class, result);
 	}
 	
 	static IType getPtrDiffType(IASTBinaryExpression expr) {
@@ -1066,28 +1066,16 @@ public class CVisitor extends ASTQueries {
 		if (scope == null)
 			return null;
 		
-		IIndexFileSet fileSet= IIndexFileSet.EMPTY;
-		IASTTranslationUnit tu= name.getTranslationUnit();
-		if (tu == null && scope instanceof IASTInternalScope) {
-			tu= ((IASTInternalScope) scope).getPhysicalNode().getTranslationUnit();
-		}
-		if (tu != null) {
-			final IIndexFileSet fs= (IIndexFileSet) tu.getAdapter(IIndexFileSet.class);
-			if (fs != null) {
-				fileSet= fs;
-			}
-		}
-		
 		IBinding[] result = null;
 		CharArraySet handled= new CharArraySet(1);
 		while (scope != null) {
 			if (!(scope instanceof ICCompositeTypeScope)) {
-				IBinding[] bindings= scope.getBindings(name, true, true, fileSet);
+				IBinding[] bindings= scope.getBindings(new ScopeLookupData(name, true, true));
 				for (IBinding b : bindings) {
 					final char[] n= b.getNameCharArray();
 					// consider binding only if no binding with the same name was found in another scope.
 					if (!handled.containsKey(n)) {
-						result= (IBinding[]) ArrayUtil.append(IBinding.class, result, b);
+						result= ArrayUtil.append(IBinding.class, result, b);
 					}
 				}
 				// store names of bindings
@@ -1099,7 +1087,7 @@ public class CVisitor extends ASTQueries {
 			scope= scope.getParent();
 		}
 		
-		return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+		return ArrayUtil.trim(IBinding.class, result);
 	}
 
 	private static IBinding externalBinding(IASTTranslationUnit tu, IASTName name) {
@@ -1207,14 +1195,15 @@ public class CVisitor extends ASTQueries {
 			node = node.getParent();
 		}
 		
-		if (node instanceof IASTParameterDeclaration)
-			declSpec = ((IASTParameterDeclaration) node).getDeclSpecifier();
-		else if (node instanceof IASTSimpleDeclaration)
+		if (node instanceof IASTSimpleDeclaration) {
 			declSpec = ((IASTSimpleDeclaration) node).getDeclSpecifier();
-		else if (node instanceof IASTFunctionDefinition)
+		} else if (node instanceof IASTParameterDeclaration) {
+			declSpec = ((IASTParameterDeclaration) node).getDeclSpecifier();
+		} else if (node instanceof IASTFunctionDefinition) {
 			declSpec = ((IASTFunctionDefinition) node).getDeclSpecifier();
-		else if (node instanceof IASTTypeId)
+		} else if (node instanceof IASTTypeId) {
 		    declSpec = ((IASTTypeId) node).getDeclSpecifier();
+		}
 	
 		boolean isParameter = (node instanceof IASTParameterDeclaration || node.getParent() instanceof ICASTKnRFunctionDeclarator); 
 		
@@ -1254,6 +1243,7 @@ public class CVisitor extends ASTQueries {
 	        return createType(baseType, (IASTFunctionDeclarator) declarator);
 		
 		IType type = baseType;
+		type = applyAttributes(type, declarator);
 		type = setupPointerChain(declarator.getPointerOperators(), type);
 		type = setupArrayChain(declarator, type);
 		
@@ -1264,6 +1254,49 @@ public class CVisitor extends ASTQueries {
 	    return type;
 	}
 	
+	private static IType applyAttributes(IType type, IASTDeclarator declarator) {
+		if (type instanceof IBasicType) {
+			IBasicType basicType = (IBasicType) type;
+			if (basicType.getKind() == IBasicType.Kind.eInt) {
+			    IASTAttribute[] attributes = declarator.getAttributes();
+				for (IASTAttribute attribute : attributes) {
+					char[] name = attribute.getName();
+					if (CharArrayUtils.equals(name, "__mode__") || CharArrayUtils.equals(name, "mode")) { //$NON-NLS-1$ //$NON-NLS-2$
+						char[] mode = AttributeUtil.getSimpleArgument(attribute);
+						if (CharArrayUtils.equals(mode, "__QI__") || CharArrayUtils.equals(mode, "QI")) { //$NON-NLS-1$ //$NON-NLS-2$
+							type = new CBasicType(IBasicType.Kind.eChar,
+									basicType.isUnsigned() ? IBasicType.IS_UNSIGNED : IBasicType.IS_SIGNED);
+						} else if (CharArrayUtils.equals(mode, "__HI__") || CharArrayUtils.equals(mode, "HI")) { //$NON-NLS-1$ //$NON-NLS-2$
+							type = new CBasicType(IBasicType.Kind.eInt,
+									IBasicType.IS_SHORT | getSignModifiers(basicType));
+						} else if (CharArrayUtils.equals(mode, "__SI__") || CharArrayUtils.equals(mode, "SI")) { //$NON-NLS-1$ //$NON-NLS-2$
+							type = new CBasicType(IBasicType.Kind.eInt, getSignModifiers(basicType));
+						} else if (CharArrayUtils.equals(mode, "__DI__") || CharArrayUtils.equals(mode, "DI")) { //$NON-NLS-1$ //$NON-NLS-2$
+							SizeofCalculator sizeofs = new SizeofCalculator(declarator.getTranslationUnit());
+							int modifier;
+							if (sizeofs.sizeof_long != null && sizeofs.sizeof_int != null &&
+									sizeofs.sizeof_long.size == 2 * sizeofs.sizeof_int.size) {
+								modifier = IBasicType.IS_LONG;
+							} else {
+								modifier = IBasicType.IS_LONG_LONG;
+							}
+							type = new CBasicType(IBasicType.Kind.eInt,
+									modifier | getSignModifiers(basicType));
+						} else if (CharArrayUtils.equals(mode, "__word__") || CharArrayUtils.equals(mode, "word")) { //$NON-NLS-1$ //$NON-NLS-2$
+							type = new CBasicType(IBasicType.Kind.eInt,
+									IBasicType.IS_LONG | getSignModifiers(basicType));
+						}
+					}
+				}
+			}
+		}
+		return type;
+	}
+
+	private static int getSignModifiers(IBasicType type) {
+		return type.getModifiers() & (IBasicType.IS_SIGNED | IBasicType.IS_UNSIGNED);
+	}
+
 	public static IType createType(IType returnType, IASTFunctionDeclarator declarator) {
 	    IType[] pTypes = getParmTypes(declarator);
 	    returnType = setupPointerChain(declarator.getPointerOperators(), returnType);
@@ -1488,7 +1521,7 @@ public class CVisitor extends ASTQueries {
 			} catch (DOMException e) {
 	        }
         }
-        return (IBinding[]) ArrayUtil.trim(IBinding.class, result);
+        return ArrayUtil.trim(IBinding.class, result);
     }
     
 	private static IBinding[] findBindingForContentAssist(ICASTFieldDesignator fd, boolean isPrefix) {

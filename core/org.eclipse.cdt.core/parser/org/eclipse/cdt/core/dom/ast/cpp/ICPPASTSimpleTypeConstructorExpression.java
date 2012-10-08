@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast.cpp;
 
@@ -25,7 +25,7 @@ import org.eclipse.cdt.core.dom.ast.IASTInitializer;
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  */
-public interface ICPPASTSimpleTypeConstructorExpression extends IASTExpression {
+public interface ICPPASTSimpleTypeConstructorExpression extends ICPPASTExpression {
 	/**
 	 * @since 5.2
 	 */
@@ -53,11 +53,13 @@ public interface ICPPASTSimpleTypeConstructorExpression extends IASTExpression {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public ICPPASTSimpleTypeConstructorExpression copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public ICPPASTSimpleTypeConstructorExpression copy(CopyStyle style);
 
 	/**

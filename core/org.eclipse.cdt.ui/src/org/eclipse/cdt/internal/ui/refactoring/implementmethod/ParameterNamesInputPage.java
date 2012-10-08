@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik  
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0 
@@ -52,14 +52,15 @@ public class ParameterNamesInputPage extends UserInputWizardPage {
 	private MethodToImplementConfig config;
 	private TranslationUnitPreview translationUnitPreview;
 	private Job delayedPreviewUpdater;
-	private ImplementMethodRefactoringWizard wizard;
+	private ImplementMethodWizard wizard;
 
-	public ParameterNamesInputPage(MethodToImplementConfig config, ImplementMethodRefactoringWizard wizard) {
+	public ParameterNamesInputPage(MethodToImplementConfig config, ImplementMethodWizard wizard) {
 		super(Messages.ParameterNamesInputPage_Title);
 		this.config = config;
 		this.wizard = wizard;
 	}
 
+	@Override
 	public void createControl(Composite parent) {
 		
 		Composite superComposite = new Composite(parent, SWT.NONE);
@@ -128,7 +129,7 @@ public class ParameterNamesInputPage extends UserInputWizardPage {
 	public String createFunctionDefinitionSignature(IProgressMonitor monitor) {
 		try {
 			ModificationCollector collector = new ModificationCollector();
-			ImplementMethodRefactoring implementMethodRefactoring = (ImplementMethodRefactoring)wizard.getRefactoring();
+			ImplementMethodRefactoring implementMethodRefactoring = (ImplementMethodRefactoring) wizard.getRefactoring();
 			CCompositeChange finalChange = null;
 			// We can have multiple preview jobs. We don't
 			// want multiple jobs concurrently using the same ASTs
@@ -167,6 +168,7 @@ public class ParameterNamesInputPage extends UserInputWizardPage {
 			private void setPreviewText(final String text) {
 				if (getShell() != null && getShell().getDisplay() != null) {
 					getShell().getDisplay().asyncExec(new Runnable() {
+						@Override
 						public void run() {
 							if (translationUnitPreview.getControl() != null && !translationUnitPreview.getControl().isDisposed()) {
 								translationUnitPreview.setPreviewText(text);
@@ -195,7 +197,14 @@ public class ParameterNamesInputPage extends UserInputWizardPage {
 		}
 	}
 
+	/**
+	 * @return true if the preview job could still be running, false otherwise 
+	 */
 	protected boolean cancelPreviewJob() {
+		if (delayedPreviewUpdater == null) {
+			return false;
+		}
+
 		// We cannot rely on getState being accurate in all cases so we only use this
 		// as a hint to change the preview text
 		if (delayedPreviewUpdater.getState() != Job.NONE) {
@@ -205,6 +214,10 @@ public class ParameterNamesInputPage extends UserInputWizardPage {
 	}
 	
 	protected void joinPreviewJob() {
+		if (delayedPreviewUpdater == null) {
+			return;
+		}
+		
 		try {
 			delayedPreviewUpdater.join();
 		} catch (InterruptedException e1) {

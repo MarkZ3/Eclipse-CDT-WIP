@@ -12,7 +12,6 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.rewrite.astwriter;
 
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTEqualsInitializer;
 import org.eclipse.cdt.core.dom.ast.IASTInitializer;
 import org.eclipse.cdt.core.dom.ast.IASTInitializerClause;
@@ -36,7 +35,7 @@ import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
  */
 public class InitializerWriter extends NodeWriter{
 
-	public InitializerWriter(Scribe scribe, ASTVisitor visitor, NodeCommentMap commentMap) {
+	public InitializerWriter(Scribe scribe, ASTWriterVisitor visitor, NodeCommentMap commentMap) {
 		super(scribe, visitor, commentMap);
 	}
 	
@@ -52,8 +51,8 @@ public class InitializerWriter extends NodeWriter{
 		} else if (initializer instanceof ICPPASTConstructorChainInitializer) {
 			writeConstructorChainInitializer((ICPPASTConstructorChainInitializer) initializer);
 		}
-		if (hasTrailingComments(initializer))
-			writeTrailingComments(initializer, false);
+
+		writeTrailingComments(initializer, false);
 	}
 	
 	private void writeEqualsInitializer(IASTEqualsInitializer initializer) {

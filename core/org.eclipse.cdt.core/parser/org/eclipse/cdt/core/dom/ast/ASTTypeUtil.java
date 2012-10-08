@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 IBM Corporation and others.
+ * Copyright (c) 2005, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     Rational Software - initial implementation
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -40,13 +41,13 @@ import org.eclipse.cdt.internal.core.dom.parser.c.ICInternalBinding;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTypeId;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPInternalBinding;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownClassInstance;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownMemberClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
 
 /**
- * This is a utility class to help convert AST elements to Strings corresponding to the
- * AST element's type.
+ * This is a utility class to help convert AST elements to Strings corresponding to
+ * the AST element's type.
  * 
  * @noextend This class is not intended to be subclassed by clients.
  * @noinstantiate This class is not intended to be instantiated by clients.
@@ -58,9 +59,9 @@ public class ASTTypeUtil {
 	private static final int DEAULT_ITYPE_SIZE = 2;
 
 	/**
-	 * Returns a string representation for the parameters of the given function type. The 
-	 * representation contains the comma-separated list of the normalized parameter type
-	 * representations wrapped in parentheses. 
+	 * Returns a string representation for the parameters of the given function type. 
+	 * The representation contains the comma-separated list of the normalized parameter
+	 * type representations wrapped in parentheses. 
 	 */
 	public static String getParameterTypeString(IFunctionType type) {
 		StringBuilder result = new StringBuilder();
@@ -336,6 +337,10 @@ public class ASTTypeUtil {
 				if (needSpace) result.append(SPACE);
 				result.append(Keywords.CHAR32_T);
 				break;
+			case eNullPtr:
+				if (needSpace) result.append(SPACE);
+				result.append("std::nullptr_t"); //$NON-NLS-1$
+				break;
 			case eUnspecified:
 				break;
 			}
@@ -346,7 +351,8 @@ public class ASTTypeUtil {
 				result.append(Keywords.ENUM);
 				result.append(SPACE);
 			}
-			appendCppName((ICPPBinding) type, normalize, normalize, result);
+			boolean qualify = normalize || (type instanceof ITypedef && type instanceof ICPPSpecialization);
+			appendCppName((ICPPBinding) type, normalize, qualify, result);
 		} else if (type instanceof ICompositeType) {
 //			101114 fix, do not display class, and for consistency don't display struct/union as well
 			appendNameCheckAnonymous((ICompositeType) type, result);
@@ -465,31 +471,31 @@ public class ASTTypeUtil {
 	public static void appendType(IType type, boolean normalize, StringBuilder result) {
 		IType[] types = new IType[DEAULT_ITYPE_SIZE];
 		
-		// push all of the types onto the stack
+		// Push all of the types onto the stack
 		int i = 0;
 		IQualifierType cvq= null;
 		ICPPReferenceType ref= null;
 		while (type != null && ++i < 100) {
 			if (type instanceof ITypedef) {
-				if (normalize || type instanceof ICPPSpecialization) {
+				if (normalize) {
 					// Skip the typedef and proceed with its target type.
 				} else {
 					// Output reference, qualifier and typedef, then stop.
 					if (ref != null) {
-						types = (IType[]) ArrayUtil.append(IType.class, types, ref);
+						types = ArrayUtil.append(IType.class, types, ref);
 						ref= null;
 					}
 					if (cvq != null) {
-						types = (IType[]) ArrayUtil.append(IType.class, types, cvq);
+						types = ArrayUtil.append(IType.class, types, cvq);
 						cvq= null;
 					}
-					types = (IType[]) ArrayUtil.append(IType.class, types, type);
+					types = ArrayUtil.append(IType.class, types, type);
 					type= null; 
 				}
 			} else {
 				if (type instanceof ICPPReferenceType) {
 					// reference types ignore cv-qualifiers
-					cvq=null;
+					cvq= null;
 					// lvalue references win over rvalue references
 					if (ref == null || ref.isRValueReference()) {
 						// delay reference to see if there are more
@@ -509,14 +515,14 @@ public class ASTTypeUtil {
 					} else {
 						// no reference, no cv qualifier: output reference and cv-qualifier
 						if (ref != null) {
-							types = (IType[]) ArrayUtil.append(IType.class, types, ref);
+							types = ArrayUtil.append(IType.class, types, ref);
 							ref= null;
 						}
 						if (cvq != null) {
-							types = (IType[]) ArrayUtil.append(IType.class, types, cvq);
+							types = ArrayUtil.append(IType.class, types, cvq);
 							cvq= null;
 						}
-						types = (IType[]) ArrayUtil.append(IType.class, types, type);
+						types = ArrayUtil.append(IType.class, types, type);
 					} 
 				}
 			}
@@ -595,26 +601,23 @@ public class ASTTypeUtil {
 	 *  
 	 * @noreference This method is not intended to be referenced by clients.
 	 */
-	public static String getType(IASTDeclarator decltor) {
+	public static String getType(IASTDeclarator declarator) {
 		// get the most nested declarator
-		while (decltor.getNestedDeclarator() != null)
-			decltor = decltor.getNestedDeclarator();
+		while (declarator.getNestedDeclarator() != null) {
+			declarator = declarator.getNestedDeclarator();
+		}
 		
-		IBinding binding = decltor.getName().resolveBinding();
+		IBinding binding = declarator.getName().resolveBinding();
 		IType type = null;
 		
-		try {
-			if (binding instanceof IEnumerator) {
-				type = ((IEnumerator)binding).getType();
-			} else if (binding instanceof IFunction) {
-				type = ((IFunction)binding).getType();
-			} else if (binding instanceof ITypedef) {
-				type = ((ITypedef)binding).getType();
-			} else if (binding instanceof IVariable) {
-				type = ((IVariable)binding).getType();
-			}
-		} catch (DOMException e) {
-			return EMPTY_STRING;
+		if (binding instanceof IEnumerator) {
+			type = ((IEnumerator)binding).getType();
+		} else if (binding instanceof IFunction) {
+			type = ((IFunction)binding).getType();
+		} else if (binding instanceof ITypedef) {
+			type = ((ITypedef)binding).getType();
+		} else if (binding instanceof IVariable) {
+			type = ((IVariable)binding).getType();
 		}
 		
 		if (type != null) {
@@ -724,8 +727,8 @@ public class ASTTypeUtil {
 		
 		if (binding instanceof ICPPTemplateInstance) {
 			appendArgumentList(((ICPPTemplateInstance) binding).getTemplateArguments(), normalize, result);
-		} else if (binding instanceof ICPPUnknownClassInstance) {
-			appendArgumentList(((ICPPUnknownClassInstance) binding).getArguments(), normalize, result);
+		} else if (binding instanceof ICPPUnknownMemberClassInstance) {
+			appendArgumentList(((ICPPUnknownMemberClassInstance) binding).getArguments(), normalize, result);
 		}
 	}
 	

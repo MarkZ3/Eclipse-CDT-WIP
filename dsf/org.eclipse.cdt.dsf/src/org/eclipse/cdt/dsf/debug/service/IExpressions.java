@@ -44,6 +44,30 @@ public interface IExpressions extends IFormattedValues {
     }
 
     /**
+     * To avoid SWT performance issues large arrays are divided into partitions. 
+     * This interface represents the context of such a partition.
+     * 
+     * @since 2.3
+     */
+    public interface IIndexedPartitionDMContext extends IExpressionDMContext {
+
+		/**
+		 * Returns the expression string of the parent array.
+		 */
+		public String getParentExpression();
+
+		/**
+		 * Returns the index of the partition's first element in the parent array. 
+		 */
+		public int getIndex();
+		
+		/**
+		 * Returns the number of array's elements in the partition.
+		 */
+		public int getLength();
+	}
+
+    /**
      * The address and size of an expression.
      */
     public interface IExpressionDMAddress {
@@ -74,19 +98,19 @@ public interface IExpressions extends IFormattedValues {
          * valid address can be returned for a given expression location.  
          */
         public static final IAddress INVALID_ADDRESS = new IAddress() {
-            public IAddress add(BigInteger offset) { return this; }
-            public IAddress add(long offset) { return this; }
-            public BigInteger getMaxOffset() { return BigInteger.ZERO; }
-            public BigInteger distanceTo(IAddress other) { return BigInteger.ZERO; }
-            public BigInteger getValue() { return BigInteger.ZERO; }
-            public boolean isZero() { return false; }
-            public boolean isMax() { return false; }
-            public String toString(int radix) { return "INVALID"; }
-            public String toHexAddressString() { return toString(); }
-            public String toBinaryAddressString()  { return toString(); }
-            public int getCharsNum() { return 0; }
-            public int getSize() { return 0; }
-            public int compareTo(Object o) { return 0; }
+            @Override public IAddress add(BigInteger offset) { return this; }
+            @Override public IAddress add(long offset) { return this; }
+            @Override public BigInteger getMaxOffset() { return BigInteger.ZERO; }
+            @Override public BigInteger distanceTo(IAddress other) { return BigInteger.ZERO; }
+            @Override public BigInteger getValue() { return BigInteger.ZERO; }
+            @Override public boolean isZero() { return false; }
+            @Override public boolean isMax() { return false; }
+            @Override public String toString(int radix) { return "INVALID"; }
+            @Override public String toHexAddressString() { return toString(); }
+            @Override public String toBinaryAddressString()  { return toString(); }
+            @Override public int getCharsNum() { return 0; }
+            @Override public int getSize() { return 0; }
+            @Override public int compareTo(Object o) { return 0; }
         };
         
         /**

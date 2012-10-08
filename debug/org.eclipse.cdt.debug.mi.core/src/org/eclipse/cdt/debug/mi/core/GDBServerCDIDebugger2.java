@@ -11,7 +11,9 @@
 package org.eclipse.cdt.debug.mi.core; 
 
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
+import org.eclipse.cdt.debug.core.cdi.CDIException;
 import org.eclipse.cdt.debug.core.cdi.model.ICDITarget;
+import org.eclipse.cdt.debug.mi.core.cdi.CdiResources;
 import org.eclipse.cdt.debug.mi.core.cdi.Session;
 import org.eclipse.cdt.debug.mi.core.cdi.model.Target;
 import org.eclipse.cdt.debug.mi.core.command.CommandFactory;
@@ -32,8 +34,10 @@ public class GDBServerCDIDebugger2 extends GDBCDIDebugger2 {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.mi.core.GDBCDIDebugger2#doStartSession(org.eclipse.debug.core.ILaunch, org.eclipse.cdt.debug.mi.core.cdi.Session, org.eclipse.core.runtime.IProgressMonitor)
 	 */
+	@Override
 	protected void doStartSession( ILaunch launch, Session session, IProgressMonitor monitor ) throws CoreException {
 		ILaunchConfiguration config = launch.getLaunchConfiguration();
+		setAsyncMode( config, session );
 		initializeLibraries( config, session );
 		if ( monitor.isCanceled() ) {
 			throw new OperationCanceledException();
@@ -129,7 +133,29 @@ public class GDBServerCDIDebugger2 extends GDBCDIDebugger2 {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.debug.mi.core.AbstractGDBCDIDebugger#usePty(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	protected boolean usePty( ILaunchConfiguration config ) throws CoreException {
 		return false;
+	}
+
+	private void setAsyncMode( ILaunchConfiguration config, Session session ) throws CoreException {
+		ICDITarget[] dtargets = session.getTargets();
+		for( int i = 0; i < dtargets.length; ++i ) {
+			MISession miSession = ((Target)dtargets[i]).getMISession();
+			try {
+				MIGDBSet setAsyncMode = miSession.getCommandFactory().createMIGDBSet( 
+						new String[] { 
+							"target-async",  //$NON-NLS-1$
+							"0"  //$NON-NLS-1$
+						} );
+				miSession.postCommand( setAsyncMode );
+				MIInfo info = setAsyncMode.getMIInfo();
+				if (info == null) {
+					throw newCoreException(new CDIException(CdiResources.getString( "cdi.Common.No_answer"))); //$NON-NLS-1$
+				}
+			} catch (MIException e) {
+				// Earlier versions of GDB don't support "target-async".
+			}
+		}
 	}
 }

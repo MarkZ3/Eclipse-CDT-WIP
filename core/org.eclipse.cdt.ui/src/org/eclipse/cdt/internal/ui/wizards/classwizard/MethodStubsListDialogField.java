@@ -33,7 +33,6 @@ import org.eclipse.cdt.internal.ui.wizards.dialogfields.IListAdapter;
 import org.eclipse.cdt.internal.ui.wizards.dialogfields.ListDialogField;
 
 public class MethodStubsListDialogField extends CheckedListDialogField<IMethodStub> {
-    
     // column properties
     private static final String CP_NAME = "name"; //$NON-NLS-1$
     private static final String CP_ACCESS = "access"; //$NON-NLS-1$
@@ -46,7 +45,8 @@ public class MethodStubsListDialogField extends CheckedListDialogField<IMethodSt
     static final Integer INDEX_PRIVATE = new Integer(2);
     
     private final class CellHandler implements ICellModifier {
-        public boolean canModify(Object element, String property) {
+        @Override
+		public boolean canModify(Object element, String property) {
             if (element instanceof IMethodStub) {
                 IMethodStub stub = (IMethodStub) element;
                 if (property.equals(CP_ACCESS)) {
@@ -60,7 +60,8 @@ public class MethodStubsListDialogField extends CheckedListDialogField<IMethodSt
             return false;
         }
         
-        public Object getValue(Object element, String property) {
+        @Override
+		public Object getValue(Object element, String property) {
             if (!(element instanceof IMethodStub))
                 return null;
             
@@ -85,7 +86,8 @@ public class MethodStubsListDialogField extends CheckedListDialogField<IMethodSt
             return null;
         }
         
-        public void modify(Object element, String property, Object value) {
+        @Override
+		public void modify(Object element, String property, Object value) {
             IMethodStub stub = null;
             if (element instanceof IMethodStub) {
                 stub = (IMethodStub)element;
@@ -151,7 +153,7 @@ public class MethodStubsListDialogField extends CheckedListDialogField<IMethodSt
             new AccessibleAdapter() {                       
                 @Override
 				public void getName(AccessibleEvent e) {
-                        e.result = NewClassWizardMessages.NewClassCreationWizardPage_methodStubs_label; 
+                	e.result = NewClassWizardMessages.NewClassCreationWizardPage_methodStubs_label; 
                 }
             }
         );

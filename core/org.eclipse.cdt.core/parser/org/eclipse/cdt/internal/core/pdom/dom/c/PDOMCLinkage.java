@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 QNX Software Systems and others.
+ * Copyright (c) 2006, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.index.IIndexBinding;
+import org.eclipse.cdt.internal.core.dom.parser.ISerializableEvaluation;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeMarshalBuffer;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CArrayType;
@@ -62,10 +63,12 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 		return LINKAGE;
 	}
 	
+	@Override
 	public String getLinkageName() {
 		return C_LINKAGE_NAME;
 	}
 
+	@Override
 	public int getLinkageID() {
 		return C_LINKAGE_ID;
 	}
@@ -226,8 +229,8 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 	}
 
 	@Override
-	public final PDOMBinding adaptBinding(final IBinding inputBinding) throws CoreException {
-		return adaptBinding(null, inputBinding, FILE_LOCAL_REC_DUMMY);
+	public final PDOMBinding adaptBinding(final IBinding inputBinding, boolean includeLocal) throws CoreException {
+		return adaptBinding(null, inputBinding, includeLocal ? FILE_LOCAL_REC_DUMMY : null);
 	}
 	
 	private final PDOMBinding adaptBinding(final PDOMNode parent, IBinding inputBinding, long[] localToFileHolder) throws CoreException {
@@ -264,6 +267,9 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 			final int[] bindingTypes = new int[] {getBindingType(binding)};
 			final char[] nameChars = binding.getNameCharArray();
 			PDOMBinding nonLocal= FindBinding.findBinding(getIndex(), this, nameChars, bindingTypes, 0);
+			if (localToFileHolder == null)
+				return nonLocal;
+			
 			long localToFileRec= getLocalToFileRec(parent, binding, nonLocal);
 			if (localToFileRec == 0)
 				return nonLocal;
@@ -274,6 +280,9 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 			final int[] bindingTypes = new int[] {getBindingType(binding)};
 			final char[] nameChars = binding.getNameCharArray();
 			PDOMBinding nonLocal= FindBinding.findBinding(parent, this, nameChars, bindingTypes, 0);
+			if (localToFileHolder == null)
+				return nonLocal;
+
 			long localToFileRec= getLocalToFileRec(parent, binding, nonLocal);
 			if (localToFileRec == 0)
 				return nonLocal;
@@ -316,25 +325,35 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 		return addBinding(type, null);
 	}
 
+	@Override
+	public IBinding unmarshalBinding(ITypeMarshalBuffer buffer) throws CoreException {
+		throw new CoreException(CCorePlugin.createStatus("Cannot unmarshal a binding, first byte=" + buffer.getByte())); //$NON-NLS-1$
+	}
 	
 	@Override
 	public IType unmarshalType(ITypeMarshalBuffer buffer) throws CoreException {
 		int firstByte= buffer.getByte();
 		switch((firstByte & ITypeMarshalBuffer.KIND_MASK)) {
-		case ITypeMarshalBuffer.ARRAY:
+		case ITypeMarshalBuffer.ARRAY_TYPE:
 			return CArrayType.unmarshal(firstByte, buffer);
 		case ITypeMarshalBuffer.BASIC_TYPE:
 			return CBasicType.unmarshal(firstByte, buffer);
-		case ITypeMarshalBuffer.CVQUALIFIER:
+		case ITypeMarshalBuffer.CVQUALIFIER_TYPE:
 			return CQualifierType.unmarshal(firstByte, buffer);
 		case ITypeMarshalBuffer.FUNCTION_TYPE:
 			return CFunctionType.unmarshal(firstByte, buffer);
-		case ITypeMarshalBuffer.POINTER:
+		case ITypeMarshalBuffer.POINTER_TYPE:
 			return CPointerType.unmarshal(firstByte, buffer);
 		case ITypeMarshalBuffer.PROBLEM_TYPE:
 			return ProblemType.unmarshal(firstByte, buffer);
 		}
 		
 		throw new CoreException(CCorePlugin.createStatus("Cannot unmarshal a type, first byte=" + firstByte)); //$NON-NLS-1$
+	}
+	
+	@Override
+	public ISerializableEvaluation unmarshalEvaluation(ITypeMarshalBuffer buffer)
+			throws CoreException {
+		throw new CoreException(CCorePlugin.createStatus("Cannot unmarshal an evaluation, first byte=" + buffer.getByte())); //$NON-NLS-1$
 	}
 }

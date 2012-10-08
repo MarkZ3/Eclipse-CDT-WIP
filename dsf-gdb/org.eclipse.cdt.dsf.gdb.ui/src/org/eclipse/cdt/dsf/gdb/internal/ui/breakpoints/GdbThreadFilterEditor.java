@@ -20,7 +20,7 @@ import java.util.concurrent.RejectedExecutionException;
 import org.eclipse.cdt.debug.ui.CDebugUIPlugin;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
 import org.eclipse.cdt.dsf.datamodel.IDMContext;
@@ -72,6 +72,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.ICheckStateListener#checkStateChanged(org.eclipse.jface.viewers.CheckStateChangedEvent)
          */
+        @Override
         public void checkStateChanged(CheckStateChangedEvent event) {
             Object element = event.getElement();
             if (element instanceof IContainerDMContext) {
@@ -140,6 +141,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.ITreeContentProvider#getChildren(java.lang.Object)
          */
+        @Override
         public Object[] getChildren(Object parent) {
             if (parent instanceof IContainerDMContext) {
                 return syncGetThreads((IContainerDMContext) parent);
@@ -165,6 +167,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.ITreeContentProvider#getParent(java.lang.Object)
          */
+        @Override
         public Object getParent(Object element) {
             if (element instanceof IContainerDMContext) {
                 return DebugPlugin.getDefault().getLaunchManager();
@@ -180,6 +183,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.ITreeContentProvider#hasChildren(java.lang.Object)
          */
+        @Override
         public boolean hasChildren(Object element) {
             return getChildren(element).length > 0;
         }
@@ -189,6 +193,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.IStructuredContentProvider#getElements(java.lang.Object)
          */
+        @Override
         public Object[] getElements(Object inputElement) {
             return getChildren(inputElement);
         }
@@ -198,6 +203,7 @@ public class GdbThreadFilterEditor {
          * 
          * @see org.eclipse.jface.viewers.IContentProvider#dispose()
          */
+        @Override
         public void dispose() {
         }
 
@@ -207,6 +213,7 @@ public class GdbThreadFilterEditor {
          * @see org.eclipse.jface.viewers.IContentProvider#inputChanged(org.eclipse.jface.viewers.Viewer,
          *      java.lang.Object, java.lang.Object)
          */
+        @Override
         public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
         }
     }
@@ -464,7 +471,7 @@ public class GdbThreadFilterEditor {
                 if (processService != null && procDmc != null) {
                 	processService.getExecutionData(
                             procDmc,
-                            new DataRequestMonitor<IThreadDMData>(ImmediateExecutor.getInstance(), rm) {
+                            new ImmediateDataRequestMonitor<IThreadDMData>(rm) {
                                 @Override
                                 public void handleSuccess() {
                                     final StringBuilder builder = new StringBuilder(getData().getName());
@@ -517,8 +524,7 @@ public class GdbThreadFilterEditor {
                 IProcesses procService = tracker.getService(IProcesses.class);
                 if (procService != null) {
                     IThreadDMContext threadDmc = DMContexts.getAncestorOfType(thread, IThreadDMContext.class);
-                	procService.getExecutionData(threadDmc, new DataRequestMonitor<IThreadDMData>(
-                        ImmediateExecutor.getInstance(), rm) {
+                	procService.getExecutionData(threadDmc, new ImmediateDataRequestMonitor<IThreadDMData>(rm) {
                         @Override
                         protected void handleSuccess() {
                             final StringBuilder builder = new StringBuilder(Messages.GdbThreadFilterEditor_Thread);

@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     Doug Schaefer - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -24,10 +24,7 @@ import org.eclipse.cdt.core.parser.IToken;
  * @noextend This interface is not intended to be extended by clients.
  */
 public interface IASTNode {
-
-	/**
-	 * @since 5.3
-	 */
+	/** @since 5.3 */
 	public enum CopyStyle {
 		/**
 		 * Copy without location, this copy is independent of the index and can be shared.
@@ -42,7 +39,7 @@ public interface IASTNode {
 		withLocations
 	}
 	
-	public static final IASTNode[] EMPTY_NODE_ARRAY = new IASTNode[0];
+	public static final IASTNode[] EMPTY_NODE_ARRAY = {};
 	
 	/**
 	 * Get the translation unit (master) node that is the ancestor of all nodes
@@ -278,4 +275,11 @@ public interface IASTNode {
 	 *             if this node or one of its descendants does not support copying
 	 */
 	public IASTNode copy(CopyStyle style);
+
+	/**
+	 * If the node is a copy of some other node, returns the original node.
+	 * Otherwise returns the node itself.
+	 * @since 5.4
+	 */
+	public IASTNode getOriginalNode();
 }

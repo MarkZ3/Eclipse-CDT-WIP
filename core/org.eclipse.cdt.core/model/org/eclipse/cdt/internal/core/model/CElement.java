@@ -10,7 +10,6 @@
  *     Markus Schorn (Wind River Systems)
  *     Anton Leherbauer (Wind River Systems)
  *******************************************************************************/
-
 package org.eclipse.cdt.internal.core.model;
 
 import java.net.URI;
@@ -41,7 +40,6 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.PlatformObject;
 
 public abstract class CElement extends PlatformObject implements ICElement {
-	
 	public static final char CEM_ESCAPE = '\\';
 	public static final char CEM_CPROJECT = '=';
 	public static final char CEM_SOURCEROOT = '/';
@@ -51,11 +49,10 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	public static final char CEM_PARAMETER = '(';
 	public static final char CEM_ELEMENTTYPE = '#';
 
-	protected static final CElement[] NO_ELEMENTS = new CElement[0];
-	protected int fType;
-	
-	protected ICElement fParent;
+	protected static final CElement[] NO_ELEMENTS = {};
 
+	protected int fType;
+	protected ICElement fParent;
 	protected String fName;
 
 	protected CElement(ICElement parent, String name, int type) {
@@ -63,7 +60,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		fName= name;
 		fType= type;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.core.runtime.PlatformObject#getAdapter(java.lang.Class)
 	 */
@@ -79,8 +76,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		return super.getAdapter(adapter);
 	}
-	
-	
+
 	// setters
 
 	public void setElementType (int type) {
@@ -90,50 +86,48 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	public void setElementName(String name) {
 		fName = name;
 	}
-	
+
 	public void setParent (ICElement parent) {
 		fParent = parent;
 	}
-	
+
 	// getters
-	
+
+	@Override
 	public int getElementType() {
 		return fType;
-	}	
+	}
 
+	@Override
 	public String getElementName() {
 		return fName;
 	}
-	
+
+	@Override
 	public ICElement getParent() {
 		return fParent;
 	}
 
+	@Override
 	public IPath getPath() {
 		IResource res = getUnderlyingResource();
 		if (res != null)
 			return res.getFullPath();
 		return new Path(getElementName());
 	}
-	
+
+	@Override
 	public URI getLocationURI() {
 		IResource res = getUnderlyingResource();
-		
-		if(res != null) {
-			return res.getLocationURI();
-		}
-		
-		else {
-			return null;
-		}
+		return res == null ? null : res.getLocationURI();
 	}
 
+	@Override
 	public boolean exists() {
 		try {
 			return getElementInfo() != null;
 		} catch (CModelException e) {
-			// Do not log it, it will fil the .log alarming the user.
-			//CCorePlugin.log(e);
+			// Do not log it, otherwise it would fill the .log alarming the user.
 			return false;
 		}
 	}
@@ -147,7 +141,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	 */
 	protected ICElement getSourceElementAtOffset(int offset) throws CModelException {
 		if (this instanceof ISourceReference && this instanceof Parent) {
-			ICElement[] children = ((Parent)this).getChildren();
+			ICElement[] children = ((Parent) this).getChildren();
 			for (ICElement aChild : children) {
 				if (aChild instanceof ISourceReference) {
 					ISourceReference child = (ISourceReference) aChild;
@@ -156,9 +150,9 @@ public abstract class CElement extends PlatformObject implements ICElement {
 					int endPos = startPos + range.getLength();
 					if (offset < endPos && offset >= startPos) {
 						if (child instanceof Parent) {
-							return ((Parent)child).getSourceElementAtOffset(offset);
+							return ((Parent) child).getSourceElementAtOffset(offset);
 						}
-						return (ICElement)child;
+						return (ICElement) child;
 					}
 				}
 			}
@@ -179,7 +173,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	protected ICElement[] getSourceElementsAtOffset(int offset) throws CModelException {
 		if (this instanceof ISourceReference && this instanceof Parent) {
 			ArrayList<Object> list = new ArrayList<Object>();
-			ICElement[] children = ((Parent)this).getChildren();
+			ICElement[] children = ((Parent) this).getChildren();
 			for (ICElement aChild : children) {
 				if (aChild instanceof ISourceReference) {
 					ISourceReference child = (ISourceReference) aChild;
@@ -188,7 +182,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 					int endPos = startPos + range.getLength();
 					if (offset < endPos && offset >= startPos) {
 						if (child instanceof Parent) {
-							ICElement[] elements = ((Parent)child).getSourceElementsAtOffset(offset);
+							ICElement[] elements = ((Parent) child).getSourceElementsAtOffset(offset);
 							list.addAll(Arrays.asList(elements));
 						}
 						list.add(child);
@@ -201,7 +195,8 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		return new ICElement[]{this};
 	}
-	
+
+	@Override
 	public boolean isReadOnly () {
 		IResource r = getUnderlyingResource();
 		if (r != null) {
@@ -209,14 +204,16 @@ public abstract class CElement extends PlatformObject implements ICElement {
 			if (attributes != null) {
 				return attributes.isReadOnly();
 			}
-		}			
+		}
 		return false;
 	}
 
+	@Override
 	public boolean isStructureKnown() throws CModelException {
 		return getElementInfo().isStructureKnown();
 	}
 
+	@Override
 	public ICModel getCModel () {
 		ICElement current = this;
 		do {
@@ -225,10 +222,12 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		return null;
 	}
 
+	@Override
 	public ICProject getCProject() {
 		ICElement current = this;
 		do {
-			if (current instanceof ICProject) return (ICProject) current;
+			if (current instanceof ICProject)
+				return (ICProject) current;
 		} while ((current = current.getParent()) != null);
 		return null;
 	}
@@ -236,6 +235,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	protected void addChild(ICElement e) throws CModelException {
 	}
 
+	@Override
 	public IResource getUnderlyingResource() {
 		IResource res = getResource();
 		if (res == null) {
@@ -247,6 +247,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		return res;
 	}
 
+	@Override
 	public abstract IResource getResource() ;
 
 	protected abstract CElementInfo createElementInfo();
@@ -263,7 +264,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		return false;
 	}
-	
+
 	public static boolean equals(ICElement lhs, ICElement rhs) {
 		if (lhs == rhs) {
 			return true;
@@ -273,23 +274,23 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		String lhsName= lhs.getElementName();
 		String rhsName= rhs.getElementName();
-		if( lhsName == null || rhsName == null || lhsName.length() != rhsName.length() ||
+		if (lhsName == null || rhsName == null || lhsName.length() != rhsName.length() ||
 				!lhsName.equals(rhsName)) {
 			return false;
 		}
-		
+
 		if (lhs instanceof ISourceReference && rhs instanceof ISourceReference) {
 			if (((ISourceReference) lhs).getIndex() != ((ISourceReference) rhs).getIndex()) {
 				return false;
 			}
 		}
-			
+
 		ICElement lhsParent= lhs.getParent();
 		ICElement rhsParent= rhs.getParent();
 		if (lhsParent == rhsParent) {
 			return true;
 		}
-		
+
 		return lhsParent != null && lhsParent.equals(rhsParent);
 	}
 
@@ -299,7 +300,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 
 	public CElementInfo getElementInfo (IProgressMonitor monitor) throws CModelException {
 		CModelManager manager = CModelManager.getDefault();
-		CElementInfo info = (CElementInfo)manager.getInfo(this);
+		CElementInfo info = (CElementInfo) manager.getInfo(this);
 		if (info != null) {
 			return info;
 		}
@@ -314,7 +315,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	}
 
 	public String toDebugString() {
-			return getElementName() + " " + getTypeString(); //$NON-NLS-1$
+		return getElementName() + " " + getTypeString(); //$NON-NLS-1$
 	}
 
 	// util
@@ -355,11 +356,11 @@ public abstract class CElement extends PlatformObject implements ICElement {
 			case C_FIELD:
 				return "C_FIELD";  //$NON-NLS-1$
 			case C_METHOD:
-				return "C_METHOD"; 						 //$NON-NLS-1$
+				return "C_METHOD"; 	//$NON-NLS-1$
 			case C_NAMESPACE:
-				return "C_NAMESPACE"; 						 //$NON-NLS-1$
+				return "C_NAMESPACE";  //$NON-NLS-1$
 			case C_USING:
-				return "C_USING"; 						 //$NON-NLS-1$
+				return "C_USING";  //$NON-NLS-1$
 			case C_VCONTAINER:
 				return "C_CONTAINER"; //$NON-NLS-1$
 			case C_BINARY:
@@ -370,7 +371,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 				return "UNKNOWN"; //$NON-NLS-1$
 		}
 	}
-	
+
 	/**
 	 * Close the C Element
 	 * @throws CModelException
@@ -398,8 +399,8 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	 * <p>Subclasses that are not IOpenable's must override this method.
 	 */
 	public IOpenable getOpenableParent() {
-		if (fParent instanceof IOpenable) {		
-			return (IOpenable)fParent;
+		if (fParent instanceof IOpenable) {
+			return (IOpenable) fParent;
 		}
 		return null;
 	}
@@ -414,7 +415,8 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	 * if successful, or false if an error is encountered while determining
 	 * the structure of this element.
 	 */
-	protected abstract void generateInfos(CElementInfo info, Map<ICElement, CElementInfo> newElements, IProgressMonitor monitor) throws CModelException;
+	protected abstract void generateInfos(CElementInfo info, Map<ICElement, CElementInfo> newElements,
+			IProgressMonitor monitor) throws CModelException;
 
 	/**
 	 * Open a <code>IOpenable</code> that is known to be closed (no check for
@@ -429,13 +431,14 @@ public abstract class CElement extends PlatformObject implements ICElement {
 			if (info == null) {
 				info = newElements.get(this);
 			}
-			if (info == null) { // a source ref element could not be opened
-				// close any buffer that was opened for the openable parent
+			if (info == null) {
+				// A source ref element could not be opened.
+				// Close any buffer that was opened for the openable parent.
 				Iterator<ICElement> iterator = newElements.keySet().iterator();
 				while (iterator.hasNext()) {
 					ICElement element = iterator.next();
 					if (element instanceof Openable) {
-						((Openable)element).closeBuffer();
+						((Openable) element).closeBuffer();
 					}
 				}
 				throw newNotPresentException();
@@ -443,7 +446,6 @@ public abstract class CElement extends PlatformObject implements ICElement {
 			if (!hadTemporaryCache) {
 				manager.putInfos(this, newElements);
 			}
-
 		} finally {
 			if (!hadTemporaryCache) {
 				manager.resetTemporaryCache();
@@ -451,10 +453,10 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 	}
 
-
 	/**
 	 * @see ICElement
 	 */
+	@Override
 	public ICElement getAncestor(int ancestorType) {
 		ICElement element = this;
 		while (element != null) {
@@ -477,14 +479,14 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		return parent != null;
 	}
-	
+
 	/**
 	 * Creates and returns and not present exception for this element.
 	 */
 	protected CModelException newNotPresentException() {
 		return new CModelException(new CModelStatus(ICModelStatusConstants.ELEMENT_DOES_NOT_EXIST, this));
 	}
-	
+
 	/**
 	 * Returns the hash code for this Java element. By default,
 	 * the hash code for an element is a combination of its name
@@ -497,7 +499,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	public int hashCode() {
 		return hashCode(this);
 	}
-	
+
 	public static int hashCode(ICElement elem) {
 		ICElement parent= elem.getParent();
 		if (parent == null) {
@@ -505,18 +507,16 @@ public abstract class CElement extends PlatformObject implements ICElement {
 		}
 		return Util.combineHashCodes(elem.getElementName().hashCode(), parent.hashCode());
 	}
-	
-	/*
-	 * Test to see if two objects are identical
+
+	/**
+	 * Checks if two objects are identical
 	 * Subclasses should override accordingly
 	 */
 	public boolean isIdentical(CElement otherElement){
 		return this.equals(otherElement);
 	}
-	
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.core.model.ICElement#accept(org.eclipse.cdt.core.model.ICElementVisitor)
-	 */
+
+	@Override
 	public void accept(ICElementVisitor visitor) throws CoreException {
 		// Visit me, return right away if the visitor doesn't want to visit my children
 		if (!visitor.visit(this))
@@ -524,22 +524,21 @@ public abstract class CElement extends PlatformObject implements ICElement {
 
 		// If I am a Parent, visit my children
 		if (this instanceof IParent) {
-			ICElement [] children = ((IParent)this).getChildren();
-			for (int i = 0; i < children.length; ++i)
+			ICElement [] children = ((IParent) this).getChildren();
+			for (int i = 0; i < children.length; ++i) {
 				children[i].accept(visitor);
+			}
 		}
 	}
 
-	/*
-	 * @see org.eclipse.cdt.core.model.ICElement#getHandleIdentifier()
-	 */
+	@Override
 	public String getHandleIdentifier() {
 		return getHandleMemento();
 	}
 
 	/**
 	 * Builds a string representation of this element.
-	 * 
+	 *
 	 * @return  the string representation
 	 */
 	public String getHandleMemento(){
@@ -550,11 +549,11 @@ public abstract class CElement extends PlatformObject implements ICElement {
 
 	/**
 	 * Append this elements memento string to the given buffer.
-	 * 
+	 *
 	 * @param buff  the buffer building the memento string
 	 */
 	public void getHandleMemento(StringBuilder buff) {
-		((CElement)getParent()).getHandleMemento(buff);
+		((CElement) getParent()).getHandleMemento(buff);
 		buff.append(getHandleMementoDelimiter());
 		escapeMementoName(buff, getElementName());
 	}
@@ -567,7 +566,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 
 	/**
 	 * Creates a C element handle from the given memento.
-	 * 
+	 *
 	 * @param memento  the memento tokenizer
 	 */
 	public ICElement getHandleFromMemento(MementoTokenizer memento) {
@@ -579,7 +578,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 	/**
 	 * Creates a C element handle from the given memento.
 	 * The given token is the current delimiter indicating the type of the next token(s).
-	 * 
+	 *
 	 * @param token  the curren memento token
 	 * @param memento  the memento tokenizer
 	 */
@@ -587,7 +586,7 @@ public abstract class CElement extends PlatformObject implements ICElement {
 
 	/**
 	 * Escape special characters in the given name and append the result to buffer.
-	 * 
+	 *
 	 * @param buffer  the buffer to build the memento string
 	 * @param mementoName  the name to escape
 	 */

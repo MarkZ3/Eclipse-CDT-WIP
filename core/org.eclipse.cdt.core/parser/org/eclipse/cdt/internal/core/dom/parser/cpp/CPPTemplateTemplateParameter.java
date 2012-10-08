@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 IBM Corporation and others.
+ * Copyright (c) 2005, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     Andrew Niefer (IBM Corporation) - initial API and implementation
  *     Markus Schorn (Wind River Systems)
  *     Sergey Prigogin (Google)
+ *     Thomas Corbat (IFS)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -57,37 +58,41 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		fIsParameterPack= isPack;
 	}
 
+	@Override
 	public final boolean isParameterPack() {
 		return fIsParameterPack;
 	}
 
+	@Override
 	public ICPPScope asScope() {
 	    if (unknownScope == null) {
 	    	IASTName n = null;
 	    	IASTNode[] nodes = getDeclarations();
 	    	if (nodes != null && nodes.length > 0)
 	    		n = (IASTName) nodes[0];
-	        unknownScope = new CPPUnknownScope(this, n);
+	        unknownScope = new CPPUnknownTypeScope(this, n);
 	    }
 	    return unknownScope;
 	}
 	
+	@Override
 	public ICPPTemplateParameter[] getTemplateParameters() {
 		if (templateParameters == null) {
 			ICPPASTTemplatedTypeTemplateParameter template = (ICPPASTTemplatedTypeTemplateParameter) getPrimaryDeclaration().getParent();
 			ICPPASTTemplateParameter[] params = template.getTemplateParameters();
-			ICPPTemplateParameter[] result = null;
+			ICPPTemplateParameter[] result = ICPPTemplateParameter.EMPTY_TEMPLATE_PARAMETER_ARRAY;
 			for (ICPPASTTemplateParameter param : params) {
 				IBinding binding = CPPTemplates.getTemplateParameterName(param).resolvePreBinding();
 				if (binding instanceof ICPPTemplateParameter) {
-					result = (ICPPTemplateParameter[]) ArrayUtil.append(ICPPTemplateParameter.class, result, binding);
+					result = ArrayUtil.append(result, (ICPPTemplateParameter) binding);
 				}
 			}
-			templateParameters = (ICPPTemplateParameter[]) ArrayUtil.trim(ICPPTemplateParameter.class, result);
+			templateParameters = ArrayUtil.trim(result);
 		}
 		return templateParameters;
 	}
 
+	@Override
 	public IBinding resolveTemplateParameter(ICPPTemplateParameter templateParameter) {
 		return templateParameter;
 	}
@@ -96,6 +101,7 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		return ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY;
 	}
 
+	@Override
 	public IType getDefault() {
 		IASTName[] nds = getDeclarations();
 		if (nds == null || nds.length == 0)
@@ -120,54 +126,68 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		return null;
 	}
 	
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		IType d= getDefault();
 		if (d == null)
 			return null;
 		
-		return new CPPTemplateArgument(d);
+		return new CPPTemplateTypeArgument(d);
 	}
 
+	@Override
 	public ICPPBase[] getBases() {
 		return ICPPBase.EMPTY_BASE_ARRAY;
 	}
+	@Override
 	public IField[] getFields() {
 		return IField.EMPTY_FIELD_ARRAY;
 	}
+	@Override
 	public IField findField(String name) {
 		return null;
 	}
+	@Override
 	public ICPPField[] getDeclaredFields() {
 		return ICPPField.EMPTY_CPPFIELD_ARRAY;
 	}
+	@Override
 	public ICPPMethod[] getMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
+	@Override
 	public ICPPMethod[] getAllDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
+	@Override
 	public ICPPMethod[] getDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
+	@Override
 	public ICPPConstructor[] getConstructors() {
 		return ICPPConstructor.EMPTY_CONSTRUCTOR_ARRAY;
 	}
+	@Override
 	public IBinding[] getFriends() {
 		return IBinding.EMPTY_BINDING_ARRAY;
 	}
+	@Override
 	public ICPPClassType[] getNestedClasses() {
 		return ICPPClassType.EMPTY_CLASS_ARRAY;
 	}
 
+	@Override
 	public int getKey() {
 		return 0;
 	}
 
+	@Override
 	public IScope getCompositeScope() {
 		return null;
 	}
 
-    public boolean isSameType(IType type) {
+    @Override
+	public boolean isSameType(IType type) {
 		if (type == this)
 			return true;
 		if (type instanceof ITypedef)
@@ -178,10 +198,12 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		return getParameterID() == ((ICPPTemplateParameter) type).getParameterID();
 	}
 
-	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() throws DOMException {
+	@Override
+	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() {
 		return ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY;
 	}
 
+	@Override
 	public final void addInstance(ICPPTemplateArgument[] arguments, ICPPTemplateInstance instance) {
 		if (instances == null)
 			instances = new ObjectMap(2);
@@ -189,6 +211,7 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		instances.put(key, instance);
 	}
 
+	@Override
 	public final ICPPTemplateInstance getInstance(ICPPTemplateArgument[] arguments) {
 		if (instances != null) {
 			String key= ASTTypeUtil.getArgumentListString(arguments, true);
@@ -197,6 +220,7 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		return null;
 	}
 
+	@Override
 	public ICPPTemplateInstance[] getAllInstances() {
 		if (instances != null) {
 			ICPPTemplateInstance[] result= new ICPPTemplateInstance[instances.size()];
@@ -208,15 +232,18 @@ public class CPPTemplateTemplateParameter extends CPPTemplateParameter implement
 		return ICPPTemplateInstance.EMPTY_TEMPLATE_INSTANCE_ARRAY;
 	}
 	
-	public IASTName getUnknownName() {
-		return new CPPASTName(getNameCharArray());
-	}
-
+	@Override
 	public boolean isAnonymous() {
 		return false;
 	}
 	
+	@Override
 	public ICPPDeferredClassInstance asDeferredInstance() {
 		return null;
+	}
+
+	@Override
+	public boolean isFinal() {
+		return false;
 	}
 }

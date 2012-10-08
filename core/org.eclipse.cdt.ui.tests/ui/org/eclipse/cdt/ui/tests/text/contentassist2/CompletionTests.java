@@ -26,10 +26,8 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.text.IDocument;
 
-import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.testplugin.TestScannerProvider;
 import org.eclipse.cdt.core.testplugin.util.BaseTestCase;
-import org.eclipse.cdt.core.testplugin.util.TestSourceReader;
 
 /**
  * A collection of code completion tests.
@@ -863,11 +861,11 @@ public class CompletionTests extends AbstractContentAssistTest {
 		};
 		String disturbContent= readTaggedComment(DISTURB_FILE_NAME);
 		IFile dfile= createFile(fProject, DISTURB_FILE_NAME, disturbContent);
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(8000, npm()));
+		waitForIndexer(fCProject);
 		assertCompletionResults(fCursorOffset, expected, AbstractContentAssistTest.COMPARE_REP_STRINGS);
 		
 		dfile.delete(true, npm());
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(8000, npm()));
+		waitForIndexer(fCProject);
 		assertCompletionResults(fCursorOffset, expected2, AbstractContentAssistTest.COMPARE_REP_STRINGS);
 	}
 	
@@ -959,8 +957,7 @@ public class CompletionTests extends AbstractContentAssistTest {
 		createFile(fProject, "header191315.h", content[0].toString());
 		createFile(fProject, "source191315.c", content[1].toString());
 		createFile(fProject, "source191315.cpp", content[1].toString());
-		IFile dfile= createFile(fProject, "header191315.h", content[0].toString());
-		TestSourceReader.waitUntilFileIsIndexed(CCorePlugin.getIndexManager().getIndex(fCProject), dfile, 8000);
+		waitForIndexer(fCProject);
 		final String[] expected= {
 			"c_linkage()"
 		};
@@ -1331,7 +1328,7 @@ public class CompletionTests extends AbstractContentAssistTest {
 	//	    v.push_back(/*cursor*/);
 	//	} 
 	public void testTypedefSpecialization_Bug307818() throws Exception {
-		final String[] expected= { "push_back(const int & value) : void" };
+		final String[] expected= { "push_back(const vector<int>::value_type & value) : void" };
 		assertParameterHint(expected);
 	}
 	

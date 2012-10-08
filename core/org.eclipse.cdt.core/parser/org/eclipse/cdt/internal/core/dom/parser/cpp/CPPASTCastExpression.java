@@ -12,29 +12,30 @@
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.LVALUE;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.typeFromReturnType;
-import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.valueCategoryFromReturnType;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTTypeId;
+import org.eclipse.cdt.core.dom.ast.IProblemType;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCastExpression;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalTypeId;
 
 /**
  * Cast expression for C++
  */
 public class CPPASTCastExpression extends ASTNode implements ICPPASTCastExpression, IASTAmbiguityParent {
     private int op;
-    private IASTExpression operand;
+    private ICPPASTExpression operand;
 	private IASTTypeId typeId;
-	private IType fType;
-	private ValueCategory fValueCategory;
-	
+	private ICPPEvaluation fEvaluation;
+
     public CPPASTCastExpression() {
 	}
     
@@ -44,10 +45,12 @@ public class CPPASTCastExpression extends ASTNode implements ICPPASTCastExpressi
 		setTypeId(typeId);
 	}
     
+	@Override
 	public CPPASTCastExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
     
+	@Override
 	public CPPASTCastExpression copy(CopyStyle style) {
 		CPPASTCastExpression copy = new CPPASTCastExpression();
 		copy.setOperator(getOperator());
@@ -61,6 +64,7 @@ public class CPPASTCastExpression extends ASTNode implements ICPPASTCastExpressi
 		return copy;
 	}
 
+	@Override
 	public void setTypeId(IASTTypeId typeId) {
         assertNotFrozen();
         this.typeId = typeId;
@@ -70,26 +74,31 @@ public class CPPASTCastExpression extends ASTNode implements ICPPASTCastExpressi
 		}
     }
 
-    public IASTTypeId getTypeId() {
+    @Override
+	public IASTTypeId getTypeId() {
         return typeId;
     }
     
+	@Override
 	public int getOperator() {
         return op;
     }
 
-    public void setOperator(int operator) {
+    @Override
+	public void setOperator(int operator) {
         assertNotFrozen();
         op = operator;
     }
 
-    public IASTExpression getOperand() {
+    @Override
+	public IASTExpression getOperand() {
         return operand;
     }
 
-    public void setOperand(IASTExpression expression) {
+    @Override
+	public void setOperand(IASTExpression expression) {
         assertNotFrozen();
-        operand = expression;
+        operand = (ICPPASTExpression) expression;
         if (expression != null) {
 			expression.setParent(this);
 			expression.setPropertyInParent(OPERAND);
@@ -120,30 +129,46 @@ public class CPPASTCastExpression extends ASTNode implements ICPPASTCastExpressi
         return true;
     }
 
-    public void replace(IASTNode child, IASTNode other) {
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
         if (child == operand) {
             other.setPropertyInParent(child.getPropertyInParent());
             other.setParent(child.getParent());
-            operand  = (IASTExpression) other;
+            operand  = (ICPPASTExpression) other;
         }
     }
     
+    
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEvaluation == null) 
+			fEvaluation= computeEvaluation();
+		
+		return fEvaluation;
+	}
+	
+	private ICPPEvaluation computeEvaluation() {
+		if (operand == null)
+			return EvalFixed.INCOMPLETE;
+		
+		IType type= CPPVisitor.createType(getTypeId());
+		if (type == null || type instanceof IProblemType)
+			return EvalFixed.INCOMPLETE;
+		
+		return new EvalTypeId(type, operand.getEvaluation());
+	}
+
+    @Override
 	public IType getExpressionType() {
-		if (fType == null) {
-			IType t= CPPVisitor.createType(typeId.getAbstractDeclarator());
-			fValueCategory= valueCategoryFromReturnType(t);
-			fType= typeFromReturnType(t);
-		}
-		return fType;
-	}
+    	return getEvaluation().getTypeOrFunctionSet(this);
+    }
 
+	@Override
 	public ValueCategory getValueCategory() {
-		if (fValueCategory == null) {
-			getExpressionType(); // as a side effect fValueCategory is computed
-		}
-		return fValueCategory;
+    	return getEvaluation().getValueCategory(this);
 	}
 
+	@Override
 	public boolean isLValue() {
 		return getValueCategory() == LVALUE;
 	}

@@ -6,20 +6,24 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- * Markus Schorn - initial API and implementation 
+ *     Markus Schorn - initial API and implementation 
  ******************************************************************************/ 
-
 package org.eclipse.cdt.ui.tests.refactoring.rename;
 
-import org.eclipse.core.runtime.*;
-import org.eclipse.ltk.core.refactoring.*;
-import org.eclipse.ltk.core.refactoring.participants.*;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
+import org.eclipse.ltk.core.refactoring.participants.RenameArguments;
+import org.eclipse.ltk.core.refactoring.participants.RenameParticipant;
 
 public class TestRenameParticipant extends RenameParticipant {
-    private static Object sElement= null;
-    private static RenameArguments sArguments= null;
-    private static int sConditionCheck= 0;
-    private static int sCreateChange= 0;
+    private static Object sElement;
+    private static RenameArguments sArguments;
+    private static int sConditionCheck;
+    private static int sCreateChange;
     
     public static int getConditionCheckCount() {
         return sConditionCheck;
@@ -40,25 +44,30 @@ public class TestRenameParticipant extends RenameParticipant {
     public static void reset() {
         sElement= null;
         sArguments= null;
-        sConditionCheck= sCreateChange= 0;
+        sConditionCheck= 0;
+        sCreateChange= 0;
     }
 
-    protected boolean initialize(Object element) {
+    @Override
+	protected boolean initialize(Object element) {
         sElement= element;
         return true;
     }
 
-    public String getName() {
+    @Override
+	public String getName() {
         return "TestRenameParticipant"; //$NON-NLS-1$
     }
 
-    public RefactoringStatus checkConditions(IProgressMonitor pm, CheckConditionsContext context) throws OperationCanceledException {
+    @Override
+	public RefactoringStatus checkConditions(IProgressMonitor pm, CheckConditionsContext context) throws OperationCanceledException {
         sConditionCheck++;
         sArguments= getArguments();
         return new RefactoringStatus();
     }
 
-    public Change createChange(IProgressMonitor pm) throws CoreException, OperationCanceledException {
+    @Override
+	public Change createChange(IProgressMonitor pm) throws CoreException, OperationCanceledException {
         sCreateChange++;
         return null;
     }

@@ -10,6 +10,8 @@
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
+import static org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory.PRVALUE;
+
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTImplicitName;
@@ -19,6 +21,8 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLambdaExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.Value;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.EvalFixed;
 
 /**
  * Implementation for lambda expressions.
@@ -32,9 +36,10 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 
 	private IASTCompoundStatement fBody;
 	
-	private CPPClosureType fClosureType;
 	private IASTImplicitName fClosureTypeName;
 	private IASTImplicitName fImplicitFunctionCallName;
+
+	private ICPPEvaluation fEvaluation;
 
 	public CPPASTLambdaExpression() {
 		fCaptureDefault= CaptureDefault.UNSPECIFIED;
@@ -43,10 +48,12 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.dom.ast.IASTExpression#copy()
 	 */
+	@Override
 	public CPPASTLambdaExpression copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTLambdaExpression copy(CopyStyle style) {
 		CPPASTLambdaExpression result = new CPPASTLambdaExpression();
 		result.fCaptureDefault = fCaptureDefault;
@@ -71,10 +78,12 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 		return result;
 	}
 
-    public IASTImplicitName[] getImplicitNames() {
+    @Override
+	public IASTImplicitName[] getImplicitNames() {
     	return new IASTImplicitName[] {getFunctionCallOperatorName()};
     }
 
+	@Override
 	public IASTImplicitName getClosureTypeName() {
 		if (fClosureTypeName == null) {
     		final CPPClosureType closureType = getExpressionType();
@@ -88,6 +97,7 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 		return fClosureTypeName;
 	}
 
+	@Override
 	public IASTImplicitName getFunctionCallOperatorName() {
 		if (fImplicitFunctionCallName == null) {
     		final CPPClosureType closureType = getExpressionType();
@@ -140,24 +150,29 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
         return true;
     }
 
+	@Override
 	public IASTCompoundStatement getBody() {
 		return fBody;
 	}
 
+	@Override
 	public CaptureDefault getCaptureDefault() {
 		return fCaptureDefault;
 	}
 
+	@Override
 	public ICPPASTCapture[] getCaptures() {
 		if (fCaptures == null)
 			return NO_CAPTURES;
 		return fCaptures= ArrayUtil.trim(fCaptures);
 	}
 
+	@Override
 	public ICPPASTFunctionDeclarator getDeclarator() {
 		return fDeclarator;
 	}
 
+	@Override
 	public void addCapture(ICPPASTCapture capture) {
 		assertNotFrozen();
 		capture.setParent(this);
@@ -169,6 +184,7 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 		}
 	}
 
+	@Override
 	public void setBody(IASTCompoundStatement body) {
 		assertNotFrozen();
 		body.setParent(this);
@@ -176,10 +192,12 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 		fBody= body;
 	}
 
+	@Override
 	public void setCaptureDefault(CaptureDefault value) {
 		fCaptureDefault= value;
 	}
 
+	@Override
 	public void setDeclarator(ICPPASTFunctionDeclarator dtor) {
 		assertNotFrozen();
 		dtor.setParent(this);
@@ -187,17 +205,25 @@ public class CPPASTLambdaExpression extends ASTNode implements ICPPASTLambdaExpr
 		fDeclarator= dtor;
 	}
 
+	@Override
+	public ICPPEvaluation getEvaluation() {
+		if (fEvaluation == null) {
+			fEvaluation= new EvalFixed(new CPPClosureType(this), PRVALUE, Value.UNKNOWN);
+		}
+		return fEvaluation;
+	}
+	
+	@Override
 	public CPPClosureType getExpressionType() {
-		if (fClosureType == null)
-			fClosureType= new CPPClosureType(this);
-
-		return fClosureType;
+		return (CPPClosureType) getEvaluation().getTypeOrFunctionSet(this);
 	}
 
+	@Override
 	public boolean isLValue() {
 		return false;
 	}
 	
+	@Override
 	public ValueCategory getValueCategory() {
 		return ValueCategory.PRVALUE;
 	}

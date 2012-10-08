@@ -6,7 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * IBM - Initial API and implementation
+ *     IBM - Initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -17,85 +18,90 @@ import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPScope;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * @author jcamelon
  */
-public class CPPASTCompoundStatement extends ASTNode implements
-        IASTCompoundStatement, IASTAmbiguityParent {
+public class CPPASTCompoundStatement extends ASTAttributeOwner
+		implements IASTCompoundStatement, IASTAmbiguityParent {
+    private IASTStatement[] statements = new IASTStatement[2];
+    private ICPPScope scope;
 
-    private IASTStatement [] statements = new IASTStatement[2];
-    private ICPPScope scope = null;
-
-    
-    public CPPASTCompoundStatement copy() {
+    @Override
+	public CPPASTCompoundStatement copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTCompoundStatement copy(CopyStyle style) {
 		CPPASTCompoundStatement copy = new CPPASTCompoundStatement();
-		for (IASTStatement statement : getStatements())
-			copy.addStatement(statement == null ? null : statement.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
+		for (IASTStatement statement : getStatements()) {
+			if (statement == null)
+				break;
+			copy.addStatement(statement.copy(style));
 		}
-		return copy;
+		return copy(copy, style);
 	}
 
-    public IASTStatement[] getStatements() {
-        if( statements == null ) return IASTStatement.EMPTY_STATEMENT_ARRAY;
-        return (IASTStatement[]) ArrayUtil.trim( IASTStatement.class, statements );
+    @Override
+	public IASTStatement[] getStatements() {
+    	statements = ArrayUtil.trim(statements);
+        return statements;
     }
 
-    public void addStatement(IASTStatement statement) {
+    @Override
+	public void addStatement(IASTStatement statement) {
         assertNotFrozen();
-        statements = (IASTStatement[]) ArrayUtil.append( IASTStatement.class, statements, statement );
+        statements = ArrayUtil.append(statements, statement);
         if (statement != null) {
 			statement.setParent(this);
 			statement.setPropertyInParent(NESTED_STATEMENT);
 		}
     }
 
-    public IScope getScope() {
-    	if( scope == null )
-    		scope = new CPPBlockScope( this );
+    @Override
+	public IScope getScope() {
+    	if (scope == null)
+    		scope = new CPPBlockScope(this);
         return scope;
     }
 
     @Override
-	public boolean accept( ASTVisitor action ){
-        if( action.shouldVisitStatements ){
-		    switch( action.visit( this ) ){
-	            case ASTVisitor.PROCESS_ABORT : return false;
-	            case ASTVisitor.PROCESS_SKIP  : return true;
-	            default : break;
+	public boolean accept(ASTVisitor action) {
+        if (action.shouldVisitStatements) {
+		    switch (action.visit(this)) {
+	            case ASTVisitor.PROCESS_ABORT: return false;
+	            case ASTVisitor.PROCESS_SKIP: return true;
+	            default: break;
 	        }
 		}
-        IASTStatement [] s = getStatements();
-        for ( int i = 0; i < s.length; i++ ) {
-            if( !s[i].accept( action ) ) return false;
+
+        if (!acceptByAttributes(action)) return false;
+        for (IASTStatement statement : statements) {
+        	if (statement == null)
+        		break;
+            if (!statement.accept(action))
+            	return false;
         }
-        if( action.shouldVisitStatements ){
-        	switch( action.leave( this ) ){
-        		case ASTVisitor.PROCESS_ABORT : return false;
-        		case ASTVisitor.PROCESS_SKIP  : return true;
-        		default : break;
+
+        if (action.shouldVisitStatements) {
+        	switch (action.leave(this)) {
+        		case ASTVisitor.PROCESS_ABORT: return false;
+        		case ASTVisitor.PROCESS_SKIP: return true;
+        		default: break;
         	}
         }
         return true;
     }
     
-    public void replace(IASTNode child, IASTNode other) {
-        if( statements == null ) return;
-        for( int i = 0; i < statements.length; ++i )
-        {
-            if( statements[i] == child )
-            {
-                other.setParent( statements[i].getParent() );
-                other.setPropertyInParent( statements[i].getPropertyInParent() );
+    @Override
+	public void replace(IASTNode child, IASTNode other) {
+        for (int i = 0; i < statements.length; ++i) {
+            if (statements[i] == child) {
+                other.setParent(statements[i].getParent());
+                other.setPropertyInParent(statements[i].getPropertyInParent());
                 statements[i] = (IASTStatement) other;
             }
         }

@@ -1,13 +1,14 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2011 Intel Corporation and others.
+ * Copyright (c) 2007, 2012 Intel Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * Intel Corporation - Initial API and implementation
- * IBM Corporation
+ *     Intel Corporation - Initial API and implementation
+ *     IBM Corporation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.settings.model;
 
@@ -56,7 +57,7 @@ public class DescriptionScannerInfoProvider implements IScannerInfoProvider, ICP
 	DescriptionScannerInfoProvider(IProject project){
 		fProject = project;
 
-		CProjectDescriptionManager.getInstance().addCProjectDescriptionListener(this, CProjectDescriptionEvent.APPLIED | CProjectDescriptionEvent.LOADED);
+		CProjectDescriptionManager.getInstance().addCProjectDescriptionListener(this, CProjectDescriptionEvent.DATA_APPLIED | CProjectDescriptionEvent.LOADED);
 	}
 
 	private void updateProjCfgInfo(ICProjectDescription des){
@@ -75,6 +76,7 @@ public class DescriptionScannerInfoProvider implements IScannerInfoProvider, ICP
 		return fProject;
 	}
 
+	@Override
 	public IScannerInfo getScannerInformation(IResource resource) {
 		if(!fInited)
 			updateProjCfgInfo(CProjectDescriptionManager.getInstance().getProjectDescription(fProject, false));
@@ -262,12 +264,14 @@ public class DescriptionScannerInfoProvider implements IScannerInfoProvider, ICP
 		return values;
 	}
 
+	@Override
 	public void subscribe(IResource resource,
 			IScannerInfoChangeListener listener) {
 		// TODO Auto-generated method stub
 
 	}
 
+	@Override
 	public void unsubscribe(IResource resource,
 			IScannerInfoChangeListener listener) {
 		// TODO Auto-generated method stub
@@ -278,6 +282,7 @@ public class DescriptionScannerInfoProvider implements IScannerInfoProvider, ICP
 		CProjectDescriptionManager.getInstance().removeCProjectDescriptionListener(this);
 	}
 
+	@Override
 	public void handleEvent(CProjectDescriptionEvent event) {
 		if(!event.getProject().equals(fProject))
 			return;

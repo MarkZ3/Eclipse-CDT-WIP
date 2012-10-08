@@ -15,7 +15,6 @@ package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMVisitor;
 import org.eclipse.cdt.core.dom.ast.DOMException;
-import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
@@ -24,7 +23,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTypeParameter;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateArgument;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateTypeArgument;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownBinding;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownType;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
@@ -80,20 +79,24 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		return IIndexCPPBindingConstants.CPP_TEMPLATE_TYPE_PARAMETER;
 	}
 	
+	@Override
 	public short getParameterPosition() {
 		return (short) getParameterID();
 	}
 	
+	@Override
 	public short getTemplateNestingLevel() {
 		readParamID();
 		return (short)(getParameterID() >> 16);
 	}
 	
+	@Override
 	public boolean isParameterPack() {
 		readParamID();
 		return (fCachedParamID & PACK_BIT) != 0;
 	}
 
+	@Override
 	public int getParameterID() {
 		readParamID();
 		return fCachedParamID & ~PACK_BIT;
@@ -123,6 +126,7 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		list.accept(visitor);
 	}
 	
+	@Override
 	public boolean isSameType(IType type) {
 		if (type instanceof ITypedef) {
 			return type.isSameType(this);
@@ -134,6 +138,7 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
         return getParameterID() == ((ICPPTemplateParameter) type).getParameterID();
 	}
 
+	@Override
 	public IType getDefault() {
 		try {
 			return getLinkage().loadType(record + DEFAULT_TYPE);
@@ -143,12 +148,13 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		return null;
 	}
 		
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		IType d= getDefault();
 		if (d == null)
 			return null;
 		
-		return new CPPTemplateArgument(d);
+		return new CPPTemplateTypeArgument(d);
 	}
 	
 	@Override
@@ -156,6 +162,7 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		throw new UnsupportedOperationException(); 
 	}
 
+	@Override
 	public ICPPScope asScope() {
 		if (fUnknownScope == null) {
 			fUnknownScope= new PDOMCPPUnknownScope(this, new CPPASTName(getNameCharArray()));
@@ -163,10 +170,7 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		return fUnknownScope;
 	}
 
-	public IASTName getUnknownName() {
-		return new CPPASTName(getNameCharArray());
-	}
-
+	@Override
 	public void configure(ICPPTemplateParameter param) {
 		try {
 			ICPPTemplateArgument val= param.getDefaultValue();
@@ -198,6 +202,7 @@ class PDOMCPPTemplateTypeParameter extends PDOMCPPBinding implements IPDOMMember
 		}
 	}
 	
+	@Override
 	public void forceDelete(PDOMLinkage linkage) throws CoreException {
 		getDBName().delete();
 		getLinkage().storeType(record + DEFAULT_TYPE, null);

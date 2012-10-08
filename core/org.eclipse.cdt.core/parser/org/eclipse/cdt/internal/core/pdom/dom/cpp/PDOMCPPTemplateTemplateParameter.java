@@ -1,19 +1,19 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
+ *     Thomas Corbat (IFS)
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMVisitor;
 import org.eclipse.cdt.core.dom.ast.DOMException;
-import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IField;
 import org.eclipse.cdt.core.dom.ast.IScope;
@@ -32,7 +32,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTypeParameter;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateArgument;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTemplateTypeArgument;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownBinding;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPUnknownType;
@@ -50,7 +50,6 @@ import org.eclipse.core.runtime.CoreException;
 public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding 
 		implements ICPPTemplateTemplateParameter, ICPPUnknownBinding, ICPPUnknownType, IIndexType, 
 		IPDOMCPPTemplateParameter, IPDOMCPPTemplateParameterOwner {
-
 	private static final int PACK_BIT = 1 << 31;
 
 	private static final int DEFAULT_TYPE = PDOMCPPBinding.RECORD_SIZE;	
@@ -94,20 +93,24 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		return IIndexCPPBindingConstants.CPP_TEMPLATE_TEMPLATE_PARAMETER;
 	}
 	
+	@Override
 	public short getParameterPosition() {
 		return (short) getParameterID();
 	}
 	
+	@Override
 	public short getTemplateNestingLevel() {
 		readParamID();
 		return (short)(getParameterID() >> 16);
 	}
 	
+	@Override
 	public boolean isParameterPack() {
 		readParamID();
 		return (fCachedParamID & PACK_BIT) != 0;
 	}
 
+	@Override
 	public int getParameterID() {
 		readParamID();
 		return fCachedParamID & ~PACK_BIT;
@@ -137,6 +140,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		list.accept(visitor);
 	}
 	
+	@Override
 	public boolean isSameType(IType type) {
 		if (type instanceof ITypedef) {
 			return type.isSameType(this);
@@ -148,6 +152,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
         return getParameterID() == ((ICPPTemplateParameter) type).getParameterID();
 	}
 
+	@Override
 	public IType getDefault() {
 		try {
 			return getLinkage().loadType(record + DEFAULT_TYPE);
@@ -157,12 +162,13 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		return null;
 	}
 		
+	@Override
 	public ICPPTemplateArgument getDefaultValue() {
 		IType d= getDefault();
 		if (d == null)
 			return null;
 		
-		return new CPPTemplateArgument(d);
+		return new CPPTemplateTypeArgument(d);
 	}
 	
 	@Override
@@ -171,6 +177,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 	}
 
 
+	@Override
 	public ICPPScope asScope() {
 		if (fUnknownScope == null) {
 			fUnknownScope= new PDOMCPPUnknownScope(this, new CPPASTName(getNameCharArray()));
@@ -178,10 +185,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		return fUnknownScope;
 	}
 
-	public IASTName getUnknownName() {
-		return new CPPASTName(getNameCharArray());
-	}
-
+	@Override
 	public void configure(ICPPTemplateParameter param) {
 		try {
 			ICPPTemplateArgument val= param.getDefaultValue();
@@ -227,6 +231,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		}
 	}
 
+	@Override
 	public void forceDelete(PDOMLinkage linkage) throws CoreException {
 		getDBName().delete();
 		linkage.storeType(record + DEFAULT_TYPE, null);
@@ -241,6 +246,7 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		} 
 	}
 
+	@Override
 	public IPDOMCPPTemplateParameter[] getTemplateParameters() {
 		if (params == null) {
 			try {
@@ -258,62 +264,82 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		return params;
 	}
 
+	@Override
 	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() {
 		return ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY;
 	}
 
+	@Override
 	public IField findField(String name) {
 		return null;
 	}
 
+	@Override
 	public ICPPMethod[] getAllDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
 
+	@Override
 	public ICPPBase[] getBases() {
 		return ICPPBase.EMPTY_BASE_ARRAY;
 	}
 
+	@Override
 	public ICPPConstructor[] getConstructors() {
 		return ICPPConstructor.EMPTY_CONSTRUCTOR_ARRAY;
 	}
 
+	@Override
 	public ICPPField[] getDeclaredFields() {
 		return ICPPField.EMPTY_CPPFIELD_ARRAY;
 	}
 
+	@Override
 	public ICPPMethod[] getDeclaredMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
 
+	@Override
 	public IField[] getFields() {
 		return ICPPField.EMPTY_CPPFIELD_ARRAY;
 	}
 
+	@Override
 	public IBinding[] getFriends() {
 		return IBinding.EMPTY_BINDING_ARRAY;
 	}
 
+	@Override
 	public ICPPMethod[] getMethods() {
 		return ICPPMethod.EMPTY_CPPMETHOD_ARRAY;
 	}
 
+	@Override
 	public ICPPClassType[] getNestedClasses() {
 		return ICPPClassType.EMPTY_CLASS_ARRAY;
 	}
 
+	@Override
 	public IScope getCompositeScope() {
 		return asScope();
 	}
 
+	@Override
 	public int getKey() {
 		return 0;
 	}
 
+	@Override
 	public boolean isAnonymous() {
 		return false;
 	}
 
+	@Override
+	public boolean isFinal() {
+		return false;
+	}
+
+	@Override
 	public ICPPTemplateParameter adaptTemplateParameter(ICPPTemplateParameter param) {
 		int pos = param.getParameterPosition();
 		ICPPTemplateParameter[] pars = getTemplateParameters();
@@ -335,7 +361,8 @@ public class PDOMCPPTemplateTemplateParameter extends PDOMCPPBinding
 		return null;
 	}
 
-	public ICPPDeferredClassInstance asDeferredInstance() throws DOMException {
+	@Override
+	public ICPPDeferredClassInstance asDeferredInstance() {
 		return null;
 	}
 }

@@ -47,18 +47,22 @@ class PDOMCPPEnumScope implements ICPPScope, IIndexScope {
 		fBinding= binding;
 	}
 	
+	@Override
 	public EScopeKind getKind() {
 		return EScopeKind.eEnumeration;
 	}
 
+	@Override
 	public IBinding getBinding(IASTName name, boolean resolve) {
 		return getBinding(name, resolve, null);
 	}
 
+	@Override
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup) {
-		return getBindings(name, resolve, prefixLookup, null);
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
 	}
 
+	@Override
 	public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet fileSet) {
 		try {
 			CharArrayMap<PDOMCPPEnumerator> map= getBindingMap(fBinding);
@@ -69,12 +73,18 @@ class PDOMCPPEnumScope implements ICPPScope, IIndexScope {
 		}
 	}
 
+	@Deprecated	@Override
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+	}
+
+	@Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
 		try {
 			CharArrayMap<PDOMCPPEnumerator> map= getBindingMap(fBinding);
-			if (prefixLookup) {
+			if (lookup.isPrefixLookup()) {
 				final List<IBinding> result= new ArrayList<IBinding>();
-				final char[] nc= name.toCharArray();
+				final char[] nc= lookup.getLookupKey();
 				IContentAssistMatcher matcher = ContentAssistMatcherFactory.getInstance().createMatcher(nc);
 				for (char[] key : map.keys()) {
 					if (matcher.match(key)) {
@@ -83,7 +93,7 @@ class PDOMCPPEnumScope implements ICPPScope, IIndexScope {
 				}
 				return result.toArray(new IBinding[result.size()]);
 			} 
-			IBinding b= map.get(name.toCharArray());
+			IBinding b= map.get(lookup.getLookupKey());
 			if (b != null) {
 				return new IBinding[] {b};
 			}
@@ -93,18 +103,22 @@ class PDOMCPPEnumScope implements ICPPScope, IIndexScope {
 		return IBinding.EMPTY_BINDING_ARRAY;
 	}
 
+	@Override
 	public IBinding[] find(String name) {
 		return CPPSemantics.findBindings(this, name, false);
 	}
 	
+	@Override
 	public IIndexBinding getScopeBinding() {
 		return fBinding;
 	}
 
+	@Override
 	public IIndexScope getParent() {
 		return fBinding.getScope();
 	}
 
+	@Override
 	public IIndexName getScopeName() {
 		return fBinding.getScopeName();
 	}

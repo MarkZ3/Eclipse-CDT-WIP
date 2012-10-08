@@ -11,15 +11,23 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.settings.model;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.eclipse.cdt.core.CCorePlugin;
+import org.eclipse.cdt.core.language.settings.providers.ILanguageSettingsBroadcastingProvider;
+import org.eclipse.cdt.core.language.settings.providers.ILanguageSettingsProvider;
+import org.eclipse.cdt.core.language.settings.providers.ILanguageSettingsProvidersKeeper;
+import org.eclipse.cdt.core.language.settings.providers.LanguageSettingsManager;
+import org.eclipse.cdt.core.language.settings.providers.LanguageSettingsStorage;
 import org.eclipse.cdt.core.settings.model.CExternalSetting;
 import org.eclipse.cdt.core.settings.model.ICBuildSetting;
 import org.eclipse.cdt.core.settings.model.ICConfigExtensionReference;
@@ -37,6 +45,8 @@ import org.eclipse.cdt.internal.core.COwner;
 import org.eclipse.cdt.internal.core.COwnerConfiguration;
 import org.eclipse.cdt.internal.core.cdtvariables.StorableCdtVariables;
 import org.eclipse.cdt.internal.core.envvar.EnvironmentVariableManager;
+import org.eclipse.cdt.internal.core.language.settings.providers.LanguageSettingsDelta;
+import org.eclipse.cdt.internal.core.language.settings.providers.LanguageSettingsProvidersSerializer;
 import org.eclipse.cdt.utils.envvar.StorableEnvironment;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.QualifiedName;
@@ -48,7 +58,7 @@ import org.eclipse.core.runtime.QualifiedName;
  * This corresponds to the <cconfiguration id="....> elements within
  * the org.eclipse.cdt.core.settings storageModule in the project xml file
  */
-public class CConfigurationSpecSettings implements ICSettingsStorage{
+public class CConfigurationSpecSettings implements ICSettingsStorage, ILanguageSettingsProvidersKeeper {
 	static final String BUILD_SYSTEM_ID = "buildSystemId";	//$NON-NLS-1$
 //	private final static String ELEMENT_REFERENCES = "references";  //$NON-NLS-1$
 	private static final String PROJECT_EXTENSION_ATTR_POINT = "point"; //$NON-NLS-1$
@@ -86,6 +96,11 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 	private COwner fOwner;
 //	private CConfigBasedDescriptor fDescriptor;
 //	private Map fExternalSettingsProviderMap;
+
+	private List<ILanguageSettingsProvider> fLanguageSettingsProviders = new ArrayList<ILanguageSettingsProvider>(0);
+	private LinkedHashMap<String /*provider*/, LanguageSettingsStorage> lspPersistedState = new LinkedHashMap<String, LanguageSettingsStorage>();
+	private String[] defaultLanguageSettingsProvidersIds = null;
+
 
 	private class DeltaSet {
 		public Set<ICConfigExtensionReference> extSet;
@@ -179,6 +194,21 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		fOwner = base.fOwner;
 
 		copyExtensionInfo(base);
+
+		fLanguageSettingsProviders = LanguageSettingsProvidersSerializer.cloneProviders(base.getLanguageSettingProviders());
+		for (String providerId : base.lspPersistedState.keySet()) {
+			try {
+				LanguageSettingsStorage clone = base.lspPersistedState.get(providerId).clone();
+				lspPersistedState.put(providerId, clone);
+			} catch (CloneNotSupportedException e) {
+				CCorePlugin.log("Not able to clone language settings storage:" + e); //$NON-NLS-1$
+			}
+		}
+		if (base.defaultLanguageSettingsProvidersIds != null) {
+			defaultLanguageSettingsProvidersIds = base.defaultLanguageSettingsProvidersIds.clone();
+		} else {
+			defaultLanguageSettingsProvidersIds = null;
+		}
 	}
 
 //	private void copyRefInfos(Map infosMap){
@@ -267,10 +297,12 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		return fSettingsStorageElement;
 	}
 
+	@Override
 	public ICStorageElement getStorage(String id,boolean create) throws CoreException {
 		return getStorageBase().getStorage(id, create);
 	}
 
+	@Override
 	public void removeStorage(String id) throws CoreException {
 		getStorageBase().removeStorage(id);
 	}
@@ -389,10 +421,12 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		encodeProjectExtensions(extEl);
 	}
 
+	@Override
 	public boolean isReadOnly(){
 		return fCfg.isReadOnly();
 	}
 
+	@Override
 	public void setReadOnly(boolean readOnly, boolean keepModify) {
 		fCfg.setReadOnly(readOnly, keepModify);
 	}
@@ -499,6 +533,7 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		fExtSettingsProvider.removeExternalSettings();
 	}
 
+	@Override
 	public boolean isModified(){
 		if(fIsModified)
 			return true;
@@ -838,6 +873,7 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		}
 	}
 
+	@Override
 	public ICStorageElement importStorage(String id, ICStorageElement el) throws CoreException {
 		return getStorageBase().importStorage(id, el);
 	}
@@ -902,7 +938,7 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 		}
 		return null;
 	}
-	
+
 
 	private DeltaSet getReferenceDelta(ICConfigExtensionReference refs[], String[] extIds){
 		if(refs == null || refs.length == 0){
@@ -913,16 +949,16 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 			Map<String, ICConfigExtensionReference> map = createRefMap(refs);
 			return new DeltaSet(new HashSet<ICConfigExtensionReference>(map.values()), null);
 		}
-		
+
 		Set<String> idSet = new HashSet<String>(Arrays.asList(extIds));
 		Set<String> idSetCopy = new HashSet<String>(idSet);
 		Map<String, ICConfigExtensionReference> refsMap = createRefMap(refs);
-		
+
 		idSet.removeAll(refsMap.keySet());
 		refsMap.keySet().removeAll(idSetCopy);
-		
+
 		Set<ICConfigExtensionReference> extSet = new HashSet<ICConfigExtensionReference>(refsMap.values());
-		
+
 		return new DeltaSet(extSet, idSet);
 	}
 
@@ -971,4 +1007,73 @@ public class CConfigurationSpecSettings implements ICSettingsStorage{
 	public void updateExternalSettingsProviders(String[] ids){
 		ExtensionContainerFactory.updateReferencedProviderIds(fCfg, ids);
 	}
+
+	/**
+	 * Adds list of {@link ILanguageSettingsProvider} to the specs.
+	 * Note that only unique IDs are accepted.
+	 *
+	 * @param providers - list of providers to keep in the specs.
+	 */
+	@Override
+	public void setLanguageSettingProviders(List<ILanguageSettingsProvider> providers) {
+		fLanguageSettingsProviders = new ArrayList<ILanguageSettingsProvider>(0);
+		Set<String> ids = new HashSet<String>();
+		for (ILanguageSettingsProvider provider : providers) {
+			String id = provider.getId();
+			if (provider==LanguageSettingsProvidersSerializer.getRawWorkspaceProvider(id)) {
+				throw new IllegalArgumentException("Error: Attempt to add to the configuration raw global provider " + id); //$NON-NLS-1$
+			}
+			if (!ids.contains(id)) {
+				fLanguageSettingsProviders.add(provider);
+				ids.add(id);
+			} else {
+				throw new IllegalArgumentException("Language Settings Providers must have unique ID. Duplicate ID=" + id); //$NON-NLS-1$
+			}
+		}
+		fIsModified = true;
+	}
+
+	@Override
+	public List<ILanguageSettingsProvider> getLanguageSettingProviders() {
+		return Collections.unmodifiableList(fLanguageSettingsProviders);
+	}
+
+	@Override
+	public void setDefaultLanguageSettingsProvidersIds(String[] ids) {
+		defaultLanguageSettingsProvidersIds = ids;
+	}
+
+	@Override
+	public String[] getDefaultLanguageSettingsProvidersIds() {
+		return defaultLanguageSettingsProvidersIds;
+	}
+
+	/**
+	 * Returns delta and updates last persisted state to the new state.
+	 * That implies that the delta needs to be used to fire an event of it will
+	 * be lost.
+	 */
+	public LanguageSettingsDelta dropDelta() {
+		LanguageSettingsDelta languageSettingsDelta = null;
+		LinkedHashMap<String, LanguageSettingsStorage> newState = new LinkedHashMap<String, LanguageSettingsStorage>();
+		for (ILanguageSettingsProvider provider : fLanguageSettingsProviders) {
+			if (LanguageSettingsManager.isWorkspaceProvider(provider)) {
+				provider = LanguageSettingsManager.getRawProvider(provider);
+			}
+			if (provider instanceof ILanguageSettingsBroadcastingProvider) {
+				LanguageSettingsStorage store = ((ILanguageSettingsBroadcastingProvider) provider).copyStorage();
+				// avoid triggering event if empty provider was added
+				if (store != null && !store.isEmpty()) {
+					newState.put(provider.getId(), store);
+				}
+			}
+		}
+		if (!newState.equals(lspPersistedState)) {
+			languageSettingsDelta = new LanguageSettingsDelta(lspPersistedState, newState);
+			lspPersistedState = newState;
+		}
+
+		return languageSettingsDelta;
+	}
+
 }

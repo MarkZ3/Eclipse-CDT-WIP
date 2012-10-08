@@ -30,11 +30,10 @@ import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.ICompositeType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConversionName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassScope;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassTemplatePartialSpecialization;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassSpecialization;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPSpecialization;
 import org.eclipse.cdt.core.index.IIndexBinding;
 import org.eclipse.cdt.core.index.IIndexFileSet;
 import org.eclipse.cdt.core.index.IIndexName;
@@ -65,6 +64,7 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 			fResult = result;
 		}
 
+		@Override
 		public boolean visit(IPDOMNode node) throws CoreException {
 			if (node instanceof PDOMBinding) {
 				final PDOMBinding binding= (PDOMBinding) node;
@@ -82,6 +82,7 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 			return false;
 		}
 
+		@Override
 		public void leave(IPDOMNode node){}
 	}
 
@@ -100,22 +101,27 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 		fBinding= binding;
 	}
 	
+	@Override
 	public EScopeKind getKind() {
 		return EScopeKind.eClassType;
 	}
 
+	@Override
 	public ICPPClassType getClassType() {
 		return fBinding;
 	}
 
+	@Override
 	public IBinding getBinding(IASTName name, boolean resolve) {
 		return getBinding(name, resolve, null);
 	}
 
+	@Override
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup) {
-		return getBindings(name, resolve, prefixLookup, null);
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
 	}
 
+	@Override
 	public IBinding getBinding(IASTName name, boolean resolve, IIndexFileSet fileSet) {
 		try {
 		    final char[] nameChars = name.getSimpleID();
@@ -133,26 +139,31 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 	}
 
 	private IBinding getClassNameBinding() {
-		if (fBinding instanceof ICPPClassTemplatePartialSpecialization)
-			return ((ICPPClassTemplatePartialSpecialization) fBinding).getPrimaryClassTemplate();
-		if (fBinding instanceof ICPPSpecialization)
-			return ((ICPPSpecialization) fBinding).getSpecializedBinding();
 		return fBinding;
 	}
 	
+	@Deprecated	@Override
 	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefixLookup, IIndexFileSet fileSet) {
+		return getBindings(new ScopeLookupData(name, resolve, prefixLookup));
+	}
+
+	@Override
+	public IBinding[] getBindings(ScopeLookupData lookup) {
 		try {
-			if (name instanceof ICPPASTConversionName) {
+			if (lookup.getLookupName() instanceof ICPPASTConversionName) {
 				BindingCollector visitor = new BindingCollector(fBinding.getLinkage(), Keywords.cOPERATOR, CONVERSION_FILTER, true, false, true);
 				acceptViaCache(fBinding, visitor, true);
 				return visitor.getBindings();
 			} 
 
-			final char[] nameChars = name.getSimpleID();
-			if (!prefixLookup) {
+			final char[] nameChars = lookup.getLookupKey();
+			if (!lookup.isPrefixLookup()) {
 				if (CharArrayUtils.equals(fBinding.getNameCharArray(), nameChars)) {
-			        if (CPPClassScope.shallReturnConstructors(name, prefixLookup)){
-			            return fBinding.getConstructors();
+			        if (CPPClassScope.shallReturnConstructors(lookup.getLookupName(), false)){
+			        	if (fBinding instanceof ICPPClassSpecialization) {
+			        		return ((ICPPClassSpecialization) fBinding).getConstructors(lookup.getLookupPoint());
+			        	}
+			        	return fBinding.getConstructors();
 			        }
 			        return new IBinding[] {getClassNameBinding()};
 				}
@@ -160,7 +171,7 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 			}
 			
 			// prefix lookup
-			BindingCollector visitor = new BindingCollector(fBinding.getLinkage(), nameChars, IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE, prefixLookup, prefixLookup, !prefixLookup);
+			BindingCollector visitor = new BindingCollector(fBinding.getLinkage(), nameChars, IndexFilter.CPP_DECLARED_OR_IMPLICIT_NO_INSTANCE, true, true, !true);
 			if (ContentAssistMatcherFactory.getInstance().match(nameChars, fBinding.getNameCharArray())) {
 				// add the class itself, constructors will be found during the visit
 		        visitor.visit((IPDOMNode) getClassNameBinding());
@@ -243,14 +254,17 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 		return map;
 	}
 
+	@Override
 	public IBinding[] find(String name) {
 		return CPPSemantics.findBindings( this, name, false );
 	}
 	
+	@Override
 	public IIndexBinding getScopeBinding() {
 		return fBinding;
 	}
 
+	@Override
 	public ICPPMethod[] getImplicitMethods() {
 		try {
 			PDOMClassUtil.MethodCollector methods = new PDOMClassUtil.MethodCollector(true, false);
@@ -261,14 +275,17 @@ class PDOMCPPClassScope implements ICPPClassScope, IIndexScope {
 		}
 	}
 
+	@Override
 	public ICPPConstructor[] getConstructors() {
 		return fBinding.getConstructors();
 	}
 
+	@Override
 	public IIndexScope getParent() {
 		return fBinding.getScope();
 	}
 
+	@Override
 	public IIndexName getScopeName() {
 		return fBinding.getScopeName();
 	}

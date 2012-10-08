@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Ericsson and others.
+ * Copyright (c) 2008, 2012 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,6 +11,9 @@
  *     IBM Corporation 
  *     Jens Elmenthaler (Verigy) - Added Full GDB pretty-printing support (bug 302121)
  *     Sergey Prigogin (Google)
+ *     Marc Khouzam (Ericsson) - No longer call method to check non-stop for GDB < 7.0 (Bug 365471)
+ *     Mathias Kunter - Support for different charsets (bug 370462)
+ *     Anton Gorenkov - A preference to use RTTI for variable types determination (Bug 377536)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.launching;
 
@@ -19,9 +22,10 @@ import java.util.Map;
 
 import org.eclipse.cdt.debug.core.CDebugUtils;
 import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
+import org.eclipse.cdt.debug.core.model.IConnectHandler;
 import org.eclipse.cdt.debug.internal.core.sourcelookup.CSourceLookupDirector;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.ReflectionSequence;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitorWithProgress;
@@ -78,8 +82,9 @@ public class FinalLaunchSequence extends ReflectionSequence {
 					"stepSetEnvironmentDirectory",   //$NON-NLS-1$
 					"stepSetBreakpointPending",    //$NON-NLS-1$
 					"stepEnablePrettyPrinting",    //$NON-NLS-1$
+					"stepSetPrintObject",    //$NON-NLS-1$
+					"stepSetCharset",    //$NON-NLS-1$
 					"stepSourceGDBInitFile",   //$NON-NLS-1$
-					"stepSetNonStop",   //$NON-NLS-1$
 					"stepSetAutoLoadSharedLibrarySymbols",   //$NON-NLS-1$
 					"stepSetSharedLibraryPaths",   //$NON-NLS-1$
 					
@@ -212,6 +217,60 @@ public class FinalLaunchSequence extends ReflectionSequence {
 			fCommandControl.setPrintPythonErrors(false, requestMonitor);
 		}
 	}
+	
+	/**
+	 * Turn on RTTI usage, if enabled in preferences.
+	 * @since 4.1
+	 */
+	@Execute
+	public void stepSetPrintObject(final RequestMonitor requestMonitor) {
+		// Enable or disable variables type determination based on RTTI.
+		// See bug 377536 for details.
+		boolean useRtti = Platform.getPreferencesService().getBoolean(
+				GdbPlugin.PLUGIN_ID,
+				IGdbDebugPreferenceConstants.PREF_USE_RTTI, false, null);
+		fCommandControl.queueCommand(
+				fCommandControl.getCommandFactory().createMIGDBSetPrintObject(fCommandControl.getContext(), useRtti),
+				new DataRequestMonitor<MIInfo>(getExecutor(), requestMonitor) {
+					@Override
+					protected void handleCompleted() {
+						// Not an essential command, so accept errors
+						requestMonitor.done();
+					}					
+				}
+		);
+	}
+	
+	/**
+	 * Set the charsets.
+	 * @since 4.1
+	 */
+	@Execute
+	public void stepSetCharset(final RequestMonitor requestMonitor) {
+		// Enable printing of sevenbit-strings. This is required to avoid charset issues.
+		// See bug 307311 for details.
+		fCommandControl.queueCommand(
+			fCommandFactory.createMIGDBSetPrintSevenbitStrings(fCommandControl.getContext(), true),
+			new ImmediateDataRequestMonitor<MIInfo>(requestMonitor) {
+				@Override
+				protected void handleCompleted() {
+					// Set the charset to ISO-8859-1. We have to do this here because GDB earlier than
+					// 7.0 has no proper Unicode support. Note that we can still handle UTF-8 though, as
+					// we can determine and decode UTF-8 encoded strings on our own. This makes ISO-8859-1
+					// the most suitable option here. See the MIStringHandler class and bug 307311 for
+					// details.
+					fCommandControl.queueCommand(
+							fCommandFactory.createMIGDBSetCharset(fCommandControl.getContext(), "ISO-8859-1"), //$NON-NLS-1$
+							new ImmediateDataRequestMonitor<MIInfo>(requestMonitor) {
+								@Override
+								protected void handleCompleted() {
+									// Not an essential command, so accept errors
+									requestMonitor.done();
+								}
+							});
+				}
+			});
+	}
 
 	/**
 	 * Source the gdbinit file specified in the launch.
@@ -251,6 +310,9 @@ public class FinalLaunchSequence extends ReflectionSequence {
 	 * Enable non-stop mode if requested.
 	 * @since 4.0 
 	 */
+	// Keep this method in this class for backwards-compatibility, although
+	// it is called only by sub-classes.
+	// It could be moved to FinalLaunchSequence_7_0, otherwise.
 	@Execute
 	public void stepSetNonStop(final RequestMonitor requestMonitor) {
 		boolean isNonStop = CDebugUtils.getAttribute(
@@ -280,7 +342,17 @@ public class FinalLaunchSequence extends ReflectionSequence {
 						}
 					});
 		} else {
-			requestMonitor.done();
+			// Explicitly set target-async to off for all-stop mode.
+			fCommandControl.queueCommand(
+					fCommandFactory.createMIGDBSetTargetAsync(fCommandControl.getContext(), false),
+					new DataRequestMonitor<MIInfo>(getExecutor(), requestMonitor) {
+						@Override
+						protected void handleError() {
+							// We should only be calling this for GDB >= 7.0,
+							// but just in case, accept errors for older GDBs
+							requestMonitor.done();
+						}
+					});
 		}
 	}
 
@@ -375,7 +447,7 @@ public class FinalLaunchSequence extends ReflectionSequence {
 				fCommandControl.queueCommand(
 						fCommandFactory.createMITargetSelect(fCommandControl.getContext(), 
 								remoteTcpHost, remoteTcpPort, true), 
-								new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm));
+								new ImmediateDataRequestMonitor<MIInfo>(rm));
 			} else {
 				String serialDevice = CDebugUtils.getAttribute(
 						fAttributes,
@@ -384,7 +456,7 @@ public class FinalLaunchSequence extends ReflectionSequence {
 				fCommandControl.queueCommand(
 						fCommandFactory.createMITargetSelect(fCommandControl.getContext(), 
 								serialDevice, true), 
-								new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm));
+								new ImmediateDataRequestMonitor<MIInfo>(rm));
 			}
 		} else {
 			rm.done();
@@ -414,7 +486,17 @@ public class FinalLaunchSequence extends ReflectionSequence {
 			// Even if binary is null, we must call this to do all the other steps
 			// necessary to create a process.  It is possible that the binary is not needed
 			fProcService.debugNewProcess(fCommandControl.getContext(), binary, fAttributes, 
-					new DataRequestMonitor<IDMContext>(getExecutor(), rm));
+					new DataRequestMonitor<IDMContext>(getExecutor(), rm) {
+				@Override
+				protected void handleCancel() {
+					// If this step is cancelled, cancel the current sequence.
+					// This is to allow the user to press the cancel button
+					// when prompted for a post-mortem file.
+					// Bug 362105
+					rm.cancel();
+        			rm.done();
+				}
+			});
 		} else {
 			rm.done();
 		}
@@ -439,9 +521,9 @@ public class FinalLaunchSequence extends ReflectionSequence {
 						fProcService.createProcessContext(fCommandControl.getContext(), Integer.toString(pid)),
 						new DataRequestMonitor<IDMContext>(getExecutor(), requestMonitor));
 			} else {
-				IConnect connectCommand = (IConnect)fSession.getModelAdapter(IConnect.class);
-				if (connectCommand != null) {
-					connectCommand.connect(requestMonitor);
+				IConnectHandler connectCommand = (IConnectHandler)fSession.getModelAdapter(IConnectHandler.class);
+				if (connectCommand instanceof IConnect) {
+					((IConnect)connectCommand).connect(requestMonitor);
 				} else {
 					requestMonitor.done();
 				}

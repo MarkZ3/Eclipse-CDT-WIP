@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.Assert;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.concurrent.ThreadSafeAndProhibitedFromDsfExecutor;
 import org.eclipse.cdt.dsf.datamodel.DMContexts;
@@ -80,7 +80,8 @@ public class SyncUtil {
     	fSession = session;
     	
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
 	        	DsfServicesTracker tracker = 
 	        		new DsfServicesTracker(TestsPlugin.getBundleContext(), 
 	        				fSession.getId());
@@ -135,6 +136,7 @@ public class SyncUtil {
 					MIStoppedEvent.class);
 
 		fRunControl.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				// No need for a RequestMonitor since we will wait for the
 				// ServiceEvent telling us the program has been suspended again
@@ -172,6 +174,7 @@ public class SyncUtil {
                     MIStoppedEvent.class);
 		
 		fRunControl.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				// No need for a RequestMonitor since we will wait for the
 				// ServiceEvent telling us the program has been suspended again
@@ -289,6 +292,7 @@ public class SyncUtil {
                     MIStoppedEvent.class);
 
 		fRunControl.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				// No need for a RequestMonitor since we will wait for the
 				// ServiceEvent telling us the program has been suspended again
@@ -318,6 +322,7 @@ public class SyncUtil {
                     MIRunningEvent.class);
 
 		fRunControl.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				// No need for a RequestMonitor since we will wait for the
 				// ServiceEvent telling us the program has been resumed
@@ -378,7 +383,7 @@ public class SyncUtil {
     	Query<IFrameDMContext> query = new Query<IFrameDMContext>() {
             @Override
             protected void execute(final DataRequestMonitor<IFrameDMContext> rm) {
-                fStack.getFrames(execCtx, new DataRequestMonitor<IFrameDMContext[]>(ImmediateExecutor.getInstance(), rm) {
+                fStack.getFrames(execCtx, new ImmediateDataRequestMonitor<IFrameDMContext[]>(rm) {
                     @Override
                     protected void handleSuccess() {
                         if (getData().length > level) {
@@ -400,7 +405,7 @@ public class SyncUtil {
       	Query<IFrameDMData> query = new Query<IFrameDMData>() {
     		@Override
     		protected void execute(final DataRequestMonitor<IFrameDMData> rm) {
-    			fStack.getFrames(execCtx, level, level, new DataRequestMonitor<IFrameDMContext[]>(ImmediateExecutor.getInstance(), rm) {
+    			fStack.getFrames(execCtx, level, level, new ImmediateDataRequestMonitor<IFrameDMContext[]>(rm) {
     				@Override
     				protected void handleSuccess() {
     					IFrameDMContext[] frameDmcs = getData();
@@ -419,7 +424,8 @@ public class SyncUtil {
     public static IExpressionDMContext createExpression(final IDMContext parentCtx, final String expression)
         throws Throwable {
         Callable<IExpressionDMContext> callable = new Callable<IExpressionDMContext>() {
-            public IExpressionDMContext call() throws Exception {
+            @Override
+			public IExpressionDMContext call() throws Exception {
                 return fExpressions.createExpression(parentCtx, expression);
             }
         };
@@ -430,7 +436,8 @@ public class SyncUtil {
         final IFormattedValues service, final IFormattedDataDMContext dmc, final String formatId) throws Throwable 
     {
         Callable<FormattedValueDMContext> callable = new Callable<FormattedValueDMContext>() {
-            public FormattedValueDMContext call() throws Exception {
+            @Override
+			public FormattedValueDMContext call() throws Exception {
                 return service.getFormattedValueContext(dmc, formatId);
             }
         };
@@ -439,7 +446,8 @@ public class SyncUtil {
     
     public static IMIExecutionDMContext createExecutionContext(final IContainerDMContext parentCtx, final int threadId) throws Throwable {
 	    Callable<IMIExecutionDMContext> callable = new Callable<IMIExecutionDMContext>() {
-	        public IMIExecutionDMContext call() throws Exception {
+	        @Override
+			public IMIExecutionDMContext call() throws Exception {
 	        	String threadIdStr = Integer.toString(threadId);
 	        	IProcessDMContext processDmc = DMContexts.getAncestorOfType(parentCtx, IProcessDMContext.class);
 	        	IThreadDMContext threadDmc = fProcessesService.createThreadContext(processDmc, threadIdStr);
@@ -557,7 +565,7 @@ public class SyncUtil {
 			protected void execute(final DataRequestMonitor<IContainerDMContext> rm) {
 				fProcessesService.getProcessesBeingDebugged(
             			fGdbControl.getContext(), 
-            			new DataRequestMonitor<IDMContext[]>(ImmediateExecutor.getInstance(), null) {
+            			new ImmediateDataRequestMonitor<IDMContext[]>() {
                     @Override
                     protected void handleCompleted() {
                     	if (isSuccess()) {
@@ -585,29 +593,26 @@ public class SyncUtil {
 	}
 
 	/**
-	 * Utility method to return the execution DM context.
+	 * Utility method to return all thread execution contexts.
 	 */
 	@ThreadSafeAndProhibitedFromDsfExecutor("fSession.getExecutor()")
-	public static IMIExecutionDMContext getExecutionContext(final int threadIndex) throws InterruptedException {
+	public static IMIExecutionDMContext[] getExecutionContexts() throws InterruptedException {
 		assert !fProcessesService.getExecutor().isInExecutorThread();
 
         final IContainerDMContext containerDmc = SyncUtil.getContainerContext();
 
-		Query<IMIExecutionDMContext> query = new Query<IMIExecutionDMContext>() {
+		Query<IMIExecutionDMContext[]> query = new Query<IMIExecutionDMContext[]>() {
 			@Override
-			protected void execute(final DataRequestMonitor<IMIExecutionDMContext> rm) {
+			protected void execute(final DataRequestMonitor<IMIExecutionDMContext[]> rm) {
 				fProcessesService.getProcessesBeingDebugged(
             			containerDmc, 
-            			new DataRequestMonitor<IDMContext[]>(ImmediateExecutor.getInstance(), null) {
+            			new ImmediateDataRequestMonitor<IDMContext[]>() {
                     @Override
                     protected void handleCompleted() {
                     	if (isSuccess()) {
                     		IDMContext[] threads = getData();
                     		Assert.assertNotNull("invalid return value from service", threads);
-                    		Assert.assertTrue("unexpected number of threads", threadIndex < threads.length);
-                    		IDMContext thread = threads[threadIndex];    
-                    		Assert.assertNotNull("unexpected thread context type ", thread);
-                    		rm.setData((IMIExecutionDMContext)thread);
+                    		rm.setData((IMIExecutionDMContext[])threads);
                     	} else {
                             rm.setStatus(getStatus());
                     	}
@@ -625,11 +630,21 @@ public class SyncUtil {
 		}
 		return null;
 	}
+	/**
+	 * Utility method to return a specific execution DM context.
+	 */
+	@ThreadSafeAndProhibitedFromDsfExecutor("fSession.getExecutor()")
+	public static IMIExecutionDMContext getExecutionContext(int threadIndex) throws InterruptedException {
+		IMIExecutionDMContext[] threads = getExecutionContexts();
+		Assert.assertTrue("unexpected number of threads", threadIndex < threads.length);
+		Assert.assertNotNull("unexpected thread context type ", threads[threadIndex]);
+		return threads[threadIndex];
+	}
 
-    /**
-     * Restart the program.
-     */
-	public static MIStoppedEvent restart(final GdbLaunch launch) throws Throwable {	
+	/** 
+	 * Check if the restart operation is supported 
+	 */
+	public static boolean canRestart() throws Throwable {	
 		final IContainerDMContext containerDmc = getContainerContext();
 
 		// Check if restart is allowed
@@ -638,7 +653,7 @@ public class SyncUtil {
 			protected void execute(final DataRequestMonitor<Boolean> rm) {
 				fProcessesService.canRestart(
             			containerDmc,
-            			new DataRequestMonitor<Boolean>(ImmediateExecutor.getInstance(), rm) {
+            			new ImmediateDataRequestMonitor<Boolean>(rm) {
             				@Override
             				protected void handleSuccess() {
             					rm.setData(getData());
@@ -651,7 +666,17 @@ public class SyncUtil {
 
         fGdbControl.getExecutor().execute(query);
         boolean canRestart = query.get(500, TimeUnit.MILLISECONDS);
-        if (!canRestart) {
+        return canRestart;
+	}
+
+    /**
+     * Restart the program.
+     */
+	public static MIStoppedEvent restart(final GdbLaunch launch) throws Throwable {	
+		final IContainerDMContext containerDmc = getContainerContext();
+
+		// If we are calling this method, the restart operation should be allowed
+		if (!canRestart()) {
         	throw new CoreException(new Status(IStatus.ERROR, TestsPlugin.PLUGIN_ID, "Unable to restart"));
         }
 

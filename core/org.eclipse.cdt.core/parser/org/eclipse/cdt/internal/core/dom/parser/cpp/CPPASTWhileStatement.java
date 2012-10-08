@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     John Camelon (IBM) - Initial API and implementation
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -18,17 +19,17 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTWhileStatement;
-import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * While statement in C++.
  */
-public class CPPASTWhileStatement extends ASTNode
+public class CPPASTWhileStatement extends ASTAttributeOwner
 		implements ICPPASTWhileStatement, IASTAmbiguityParent {
     private IASTExpression condition;
-    private IASTStatement body;
     private IASTDeclaration condition2;
+    private IASTStatement body;
     private IScope scope;
 
     public CPPASTWhileStatement() {
@@ -44,27 +45,27 @@ public class CPPASTWhileStatement extends ASTNode
 		setBody(body);
 	}
 
-    public CPPASTWhileStatement copy() {
+    @Override
+	public CPPASTWhileStatement copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
     
+	@Override
 	public CPPASTWhileStatement copy(CopyStyle style) {
 		CPPASTWhileStatement copy = new CPPASTWhileStatement();
 		copy.setConditionDeclaration(condition2 == null ? null : condition2.copy(style));
 		copy.setCondition(condition == null ? null : condition.copy(style));
 		copy.setBody(body == null ? null : body.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
 
+	@Override
 	public IASTExpression getCondition() {
         return condition;
     }
 
-    public void setCondition(IASTExpression condition) {
+    @Override
+	public void setCondition(IASTExpression condition) {
         assertNotFrozen();
         this.condition = condition;
         if (condition != null) {
@@ -74,11 +75,13 @@ public class CPPASTWhileStatement extends ASTNode
 		}
     }
 
-    public IASTStatement getBody() {
+    @Override
+	public IASTStatement getBody() {
         return body;
     }
 
-    public void setBody(IASTStatement body) {
+    @Override
+	public void setBody(IASTStatement body) {
         assertNotFrozen();
         this.body = body;
         if (body != null) {
@@ -87,10 +90,12 @@ public class CPPASTWhileStatement extends ASTNode
 		}
     }
 
+	@Override
 	public IASTDeclaration getConditionDeclaration() {
 		return condition2;
 	}
 
+	@Override
 	public void setConditionDeclaration(IASTDeclaration declaration) {
         assertNotFrozen();
 		condition2 = declaration;
@@ -110,20 +115,22 @@ public class CPPASTWhileStatement extends ASTNode
 	            default: break;
 	        }
 		}
-        if (condition != null && !condition.accept(action)) return false;
-        if (condition2 != null && !condition2.accept(action)) return false;
-        if (body != null && !body.accept(action)) return false;
+
+        if (!acceptByAttributes(action)) return false;
+        if (condition != null && !condition.accept(action)) 
+        	return false;
+        if (condition2 != null && !condition2.accept(action)) 
+        	return false;
+        if (body != null && !body.accept(action)) 
+        	return false;
         
-        if (action.shouldVisitExpressions) {
-		    switch (action.leave(this)) {
-	            case ASTVisitor.PROCESS_ABORT: return false;
-	            case ASTVisitor.PROCESS_SKIP: return true;
-	            default: break;
-	        }
-		}
+        if (action.shouldVisitStatements && action.leave(this) == ASTVisitor.PROCESS_ABORT)
+        	return false;
+
         return true;
     }
     
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (body == child) {
 			other.setPropertyInParent(child.getPropertyInParent());
@@ -139,6 +146,7 @@ public class CPPASTWhileStatement extends ASTNode
 		}
 	}
 
+	@Override
 	public IScope getScope() {
 		if (scope == null)
             scope = new CPPBlockScope(this);

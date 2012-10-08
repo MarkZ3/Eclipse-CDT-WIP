@@ -16,7 +16,6 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPSpecialization;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeContainer;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPTypedefSpecialization;
 import org.eclipse.cdt.internal.core.index.CPPTypedefClone;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
 import org.eclipse.cdt.internal.core.index.IIndexType;
@@ -38,24 +37,9 @@ class PDOMCPPTypedefSpecialization extends PDOMCPPSpecialization implements ITyp
 			throws CoreException {
 		super(linkage, parent, (ICPPSpecialization) typedef, specialized);
 
-		// The following may try to add the same typedef specialization to the index again.
-		// We protect against infinite recursion using a counter inside typedef.
-		try {
-			if (typedef instanceof CPPTypedefSpecialization) {
-				if (((CPPTypedefSpecialization) typedef).incResolutionDepth(1) >
-						CPPTypedefSpecialization.MAX_RESOLUTION_DEPTH) {
-					return;
-				}
-			}
-			linkage.storeType(record + TYPE_OFFSET, typedef.getType());
-			if (PDOMCPPTypedef.introducesRecursion(getType(), getParentNodeRec(), getNameCharArray())) {
-				linkage.storeType(record + TYPE_OFFSET, null);
-			}
-
-		} finally {
-			if (typedef instanceof CPPTypedefSpecialization) {
-				((CPPTypedefSpecialization) typedef).incResolutionDepth(-1);
-			}
+		linkage.storeType(record + TYPE_OFFSET, typedef.getType());
+		if (PDOMCPPTypedef.introducesRecursion(getType(), getParentNodeRec(), getNameCharArray())) {
+			linkage.storeType(record + TYPE_OFFSET, null);
 		}
 	}
 
@@ -73,6 +57,7 @@ class PDOMCPPTypedefSpecialization extends PDOMCPPSpecialization implements ITyp
 		return IIndexCPPBindingConstants.CPP_TYPEDEF_SPECIALIZATION;
 	}
 
+	@Override
 	public IType getType() {
 		try {
 			return getLinkage().loadType(record + TYPE_OFFSET);
@@ -82,6 +67,7 @@ class PDOMCPPTypedefSpecialization extends PDOMCPPSpecialization implements ITyp
 		}
 	}
 
+	@Override
 	public boolean isSameType(IType o) {
         if( this.equals(o) )
             return true;
@@ -98,6 +84,7 @@ class PDOMCPPTypedefSpecialization extends PDOMCPPSpecialization implements ITyp
 	    return false;
 	}
 
+	@Override
 	public void setType(IType type) { 
 		throw new UnsupportedOperationException(); 
 	}

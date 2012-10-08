@@ -40,10 +40,6 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.cdt.utils.Addr64;
 import org.eclipse.debug.core.model.MemoryByte;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -81,24 +77,19 @@ public class MIMemoryTest extends BaseTestCase {
 	// Housekeeping stuff
 	// ========================================================================
 
-	@BeforeClass
-	public static void testSuiteInitialization() {
-		// Select the binary to run the tests against
-		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "data/launch/bin/MemoryTestApp.exe");
-	}
 
-	@AfterClass
-	public static void testSuiteCleanup() {
-	}
 
-	@Before
-	public void testCaseInitialization() throws Throwable {
+	@Override
+	public void doBeforeTest() throws Exception {
+		super.doBeforeTest();
+		
 	    fSession = getGDBLaunch().getSession();
 	    fMemoryDmc = (IMemoryDMContext)SyncUtil.getContainerContext();
 	    assert(fMemoryDmc != null);
 
 	    Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
        	    // Get a reference to the memory service
         		fServicesTracker = new DsfServicesTracker(TestsPlugin.getBundleContext(), fSession.getId());
         		assert(fServicesTracker != null);
@@ -120,11 +111,22 @@ public class MIMemoryTest extends BaseTestCase {
         fSession.getExecutor().submit(runnable).get();
 	}
 
-	@After
-	public void testCaseCleanup() throws Exception {
+	@Override
+	protected void setLaunchAttributes() {
+		super.setLaunchAttributes();
+		
+		// Select the binary to run the tests against
+		setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "data/launch/bin/MemoryTestApp.exe");
+	}
+
+	@Override
+	public void doAfterTest() throws Exception {
+		super.doAfterTest();
+		
 		// Clear the references (not strictly necessary)
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fSession.removeServiceEventListener(MIMemoryTest.this);
             }
         };
@@ -232,6 +234,7 @@ public class MIMemoryTest extends BaseTestCase {
 
 		// Evaluate the expression (asynchronously)
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fExpressionService.getFormattedExpressionValue(formattedValueDMC, drm);
 			}
@@ -284,6 +287,7 @@ public class MIMemoryTest extends BaseTestCase {
 
 		// Issue the get memory request
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fMemoryService.getMemory(dmc, address, offset, word_size, count, drm);
 			}
@@ -326,6 +330,7 @@ public class MIMemoryTest extends BaseTestCase {
 
 		// Issue the get memory request
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fMemoryService.getMemory(dmc, address, offset, word_size, count, drm);
 			}
@@ -365,6 +370,7 @@ public class MIMemoryTest extends BaseTestCase {
 
 		// Issue the get memory request
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fMemoryService.setMemory(dmc, address, offset, word_size, count, buffer, rm);
 			}
@@ -404,6 +410,7 @@ public class MIMemoryTest extends BaseTestCase {
 
 		// Issue the fill memory request
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fMemoryService.fillMemory(dmc, address, offset, word_size, count, pattern, rm);
 			}
@@ -1146,9 +1153,14 @@ public class MIMemoryTest extends BaseTestCase {
 		fillMemory(fMemoryDmc, fBaseAddress, offset, word_size, count, pattern);
 		fWait.waitUntilDone(AsyncCompletionWaitor.WAIT_FOREVER);
 		assertFalse(fWait.getMessage(), fWait.isOK());
-		String expected = "Cannot access memory at address";	// Error msg returned by gdb
-		assertTrue("Wrong error message: expected '" + expected + "', received '" + fWait.getMessage() + "'",
-				fWait.getMessage().contains(expected));
+		
+		// Depending on the GDB, a different command can be used.  Both error message are valid.
+		// Error message for -data-write-memory command
+		String expected = "Cannot access memory at address";
+		// Error message for new -data-write-memory-bytes command
+		String expected2 = "Could not write memory";
+		assertTrue("Wrong error message: expected '" + expected + ", or '" + expected2 + "', received '" + fWait.getMessage() + "'",
+				fWait.getMessage().contains(expected) || fWait.getMessage().contains(expected2));
 
 		// Ensure no MemoryChangedEvent event was received
 		assertTrue("MemoryChangedEvent problem: expected " + 0 + ", received " + getEventCount(), getEventCount() == 0);

@@ -13,41 +13,44 @@ package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTExpression;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
 import org.eclipse.cdt.internal.core.dom.parser.ASTAmbiguousNode;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguousExpression;
 
-public class CPPASTAmbiguousExpression extends ASTAmbiguousNode implements
-        IASTAmbiguousExpression {
-
-    private IASTExpression [] exp = new IASTExpression[2];
-    private int expPos=-1;
+public class CPPASTAmbiguousExpression extends ASTAmbiguousNode
+		implements IASTAmbiguousExpression, ICPPASTExpression {
+    private IASTExpression[] exp = new IASTExpression[2];
+    private int expPos= -1;
     
     public CPPASTAmbiguousExpression(IASTExpression... expressions) {
 		for(IASTExpression e : expressions)
 			addExpression(e);
 	}
-
     
-    public IASTExpression copy() {
+    @Override
+	public IASTExpression copy() {
 		throw new UnsupportedOperationException();
 	}
     
+	@Override
 	public IASTExpression copy(CopyStyle style) {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public void addExpression(IASTExpression e) {
         assertNotFrozen();
     	if (e != null) {
-    		exp = (IASTExpression[]) ArrayUtil.append( IASTExpression.class, exp, ++expPos, e );
+    		exp = ArrayUtil.appendAt(IASTExpression.class, exp, ++expPos, e);
     		e.setParent(this);
 			e.setPropertyInParent(SUBEXPRESSION);
     	}
     }
 
-    public IASTExpression[] getExpressions() {
-        exp = (IASTExpression[]) ArrayUtil.removeNullsAfter( IASTExpression.class, exp, expPos );
+    @Override
+	public IASTExpression[] getExpressions() {
+        exp = ArrayUtil.trimAt(IASTExpression.class, exp, expPos);
     	return exp;
     }
 

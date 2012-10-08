@@ -1,17 +1,18 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2010 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.core.index;
 
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.internal.core.index.IIndexFragment;
 import org.eclipse.cdt.internal.core.index.IndexFileSet;
 import org.eclipse.core.runtime.CoreException;
 
@@ -54,4 +55,17 @@ public interface IIndexFileSet {
 	 * @noreference This method is not intended to be referenced by clients.
 	 */
 	void add(IIndexFile indexFile);
+
+	/**
+	 * Removes a file from this set.
+	 * @noreference This method is not intended to be referenced by clients.
+	 */
+	void remove(IIndexFile indexFile);
+
+	/**
+	 * Checks whether the given binding has a non-local declaration in
+	 * another index fragment.
+	 * @noreference This method is not intended to be referenced by clients.
+	 */
+	boolean containsNonLocalDeclaration(IBinding binding, IIndexFragment ignore);
 }

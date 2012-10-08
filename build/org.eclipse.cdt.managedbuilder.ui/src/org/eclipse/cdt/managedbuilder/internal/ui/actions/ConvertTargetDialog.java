@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 Intel Corporation and others.
+ * Copyright (c) 2005, 2012 Intel Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,16 +7,21 @@
  *
  * Contributors:
  *     Intel Corporation - initial API and implementation
+ *     Anna Dushistova (MontaVista) - [366771]Converter fails to convert a CDT makefile project
  *******************************************************************************/
 package org.eclipse.cdt.managedbuilder.internal.ui.actions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Vector;
 
+import org.eclipse.cdt.managedbuilder.core.IBuildObject;
+import org.eclipse.cdt.managedbuilder.core.IConfiguration;
 import org.eclipse.cdt.managedbuilder.core.IConvertManagedBuildObject;
 import org.eclipse.cdt.managedbuilder.core.IManagedBuildInfo;
 import org.eclipse.cdt.managedbuilder.core.IManagedProject;
 import org.eclipse.cdt.managedbuilder.core.IProjectType;
+import org.eclipse.cdt.managedbuilder.core.IToolChain;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuildManager;
 import org.eclipse.cdt.managedbuilder.internal.ui.Messages;
 import org.eclipse.core.resources.IProject;
@@ -46,30 +51,42 @@ public class ConvertTargetDialog extends Dialog {
 	private Map<String, IConfigurationElement> conversionElements;
 	private IConfigurationElement selectedConversionElement;
 	private static boolean isConversionSuccessful = false;
-	
+
 	public static final String PREFIX = "ProjectConvert";	//$NON-NLS-1$
 	public static final String CONVERTERS_LIST = PREFIX +".convertersList";	//$NON-NLS-1$
-	
-	
+
+
 	/**
 	 * @param parentShell
-	 * @param project	  
+	 * @param project
 	 * @param title The title of the dialog
 	 */
 	protected ConvertTargetDialog(Shell parentShell, IProject project, String title) {
 		super(parentShell);
 		this.title = title;
 		setProject(project);
-		
-		conversionElements = ManagedBuildManager.getConversionElements(getProjectType());
-		
-		setShellStyle(getShellStyle()|SWT.RESIZE);		
+
+		if (getProjectType() != null) {
+			conversionElements = ManagedBuildManager.getConversionElements(getProjectType());
+		}
+		for (IBuildObject tc : getProjectToolchains()) {
+			Map<String, IConfigurationElement> converters = ManagedBuildManager.getConversionElements(tc);
+			if (converters != null) {
+				if (conversionElements == null) {
+					conversionElements = converters;
+				} else {
+					conversionElements.putAll(converters);
+				}
+			}
+		}
+
+		setShellStyle(getShellStyle()|SWT.RESIZE);
 	}
-	
+
 	@Override
 	protected void buttonPressed(int buttonId) {
 		if (buttonId == IDialogConstants.OK_ID) {
-		
+
 			handleConverterSelection();
 			IConvertManagedBuildObject convertBuildObject = null;
 			try {
@@ -84,7 +101,7 @@ public class ConvertTargetDialog extends Dialog {
 						"fromId");	//$NON-NLS-1$
 				String toId = getSelectedConversionElement().getAttribute(
 						"toId");	//$NON-NLS-1$
-				
+
 				IManagedBuildInfo info = ManagedBuildManager.getBuildInfo(getProject());
 				if (info != null) {
 					IManagedProject managedProject = info.getManagedProject();
@@ -100,15 +117,15 @@ public class ConvertTargetDialog extends Dialog {
 					}
 				} else {
 					setConversionSuccessful(false);
-				}				
+				}
 			} else {
 				setConversionSuccessful(false);
 			}
-		} 
+		}
 		super.buttonPressed(buttonId);
 	}
 
-	
+
 	@Override
 	protected void configureShell(Shell shell) {
 		super.configureShell(shell);
@@ -118,45 +135,47 @@ public class ConvertTargetDialog extends Dialog {
 
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		
+
 		Composite comp = new Composite(parent, SWT.NULL);
 		comp.setFont(parent.getFont());
 		comp.setLayout(new GridLayout(1, true));
 		comp.setLayoutData(new GridData(GridData.FILL_BOTH));
-		
+
 		// Create the converters list group area
 		final Group convertersListGroup = new Group(comp, SWT.NONE);
 		convertersListGroup.setFont(parent.getFont());
 		convertersListGroup.setText(Messages.ProjectConvert_convertersList);
 		convertersListGroup.setLayout(new GridLayout(1, false));
 		convertersListGroup.setLayoutData(new GridData(GridData.FILL_BOTH));
-	
+
 		// Create the current config List
 		convertersList = new List(convertersListGroup, SWT.SINGLE|SWT.V_SCROLL|SWT.H_SCROLL|SWT.BORDER);
 		convertersList.setFont(convertersListGroup.getFont());
 		GridData data = new GridData(GridData.FILL_BOTH);
 		convertersList.setLayoutData(data);
 		convertersList.addDisposeListener(new DisposeListener() {
+			@Override
 			public void widgetDisposed(DisposeEvent event) {
 				convertersList = null;
 			}
 		});
 		convertersList.addListener (SWT.Selection, new Listener () {
+			@Override
 			public void handleEvent(Event e) {
 				validateState();
-			}			
+			}
 		});
 		Object [] objs = getConversionElements().keySet().toArray();
 		String [] names = new String[objs.length];
 		for (int i = 0; i < objs.length; i++) {
 			Object object = objs[i];
-			names[i] = (String)object;			
+			names[i] = (String)object;
 		}
 	    convertersList.setItems(names);
 	    validateState();
 		return comp;
 	}
-	
+
 	private void handleConverterSelection() {
 		// Determine which configuration was selected
 		int selectionIndex = convertersList.getSelectionIndex();
@@ -168,16 +187,16 @@ public class ConvertTargetDialog extends Dialog {
 		setSelectedConversionElement(selectedElement);
 		return;
 	}
-	
+
 	private void validateState() {
 		Button b = getButton(IDialogConstants.OK_ID);
 		if (b != null)
-			b.setEnabled(convertersList.getSelectionIndex() != -1); 
+			b.setEnabled(convertersList.getSelectionIndex() != -1);
 	}
-	
+
 	private Map<String, IConfigurationElement> getConversionElements() {
 		if (conversionElements == null) {
-			conversionElements = new HashMap<String, IConfigurationElement>(); 
+			conversionElements = new HashMap<String, IConfigurationElement>();
 		}
 		return conversionElements;
 	}
@@ -195,7 +214,7 @@ public class ConvertTargetDialog extends Dialog {
 		}
 		return projectType;
 	}
-	
+
 	public IProject getProject() {
 		return project;
 	}
@@ -220,5 +239,23 @@ public class ConvertTargetDialog extends Dialog {
 	public void setConversionSuccessful(boolean isConversionSuccessful) {
 		ConvertTargetDialog.isConversionSuccessful = isConversionSuccessful;
 	}
+	
+	private Vector<IBuildObject> getProjectToolchains() {
+		Vector<IBuildObject> projectToolchains = new Vector<IBuildObject>();
+
+		// Get the projectType from project.
+		IManagedBuildInfo info = ManagedBuildManager.getBuildInfo(getProject());
+		if (info != null) {
+			IConfiguration[] configs = info.getManagedProject().getConfigurations();
+			for (IConfiguration config : configs) {
+				IToolChain tc = config.getToolChain();
+				if (tc != null) {
+					projectToolchains.add(tc);
+				}
+			}
+		}
+		return projectToolchains;
+	}
+
 }
 

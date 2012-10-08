@@ -25,7 +25,6 @@ import org.eclipse.ui.part.IWorkbenchPartOrientation;
  * @since 5.0
  */
 public class CMacroExpansionHover extends AbstractCEditorTextHover {
-
 	@Override
 	public String getHoverInfo(ITextViewer textViewer, IRegion hoverRegion) {
 		Object hoverInfo= getHoverInfo2(textViewer, hoverRegion);
@@ -33,7 +32,7 @@ public class CMacroExpansionHover extends AbstractCEditorTextHover {
 	}
 	
 	/*
-	 * @see org.eclipse.cdt.internal.ui.text.c.hover.AbstractCEditorTextHover#getHoverInfo2(org.eclipse.jface.text.ITextViewer, org.eclipse.jface.text.IRegion)
+	 * @see AbstractCEditorTextHover#getHoverInfo2(ITextViewer, IRegion)
 	 */
 	@Override
 	public Object getHoverInfo2(ITextViewer textViewer, IRegion hoverRegion) {
@@ -47,6 +46,7 @@ public class CMacroExpansionHover extends AbstractCEditorTextHover {
 	@Override
 	public IInformationControlCreator getHoverControlCreator() {
 		return new IInformationControlCreator() {
+			@Override
 			public IInformationControl createInformationControl(Shell parent) {
 				return new CMacroExpansionControl(parent, getTooltipAffordanceString());
 			}
@@ -54,11 +54,12 @@ public class CMacroExpansionHover extends AbstractCEditorTextHover {
 	}
 
 	/*
-	 * @see org.eclipse.cdt.internal.ui.text.c.hover.AbstractCEditorTextHover#getInformationPresenterControlCreator()
+	 * @see AbstractCEditorTextHover#getInformationPresenterControlCreator()
 	 */
 	@Override
 	public IInformationControlCreator getInformationPresenterControlCreator() {
 		return new IInformationControlCreator() {
+			@Override
 			public IInformationControl createInformationControl(Shell parent) {
 				IEditorPart editor= getEditor();
 				int orientation= SWT.NONE;
@@ -68,5 +69,4 @@ public class CMacroExpansionHover extends AbstractCEditorTextHover {
 			}
 		};
 	}
-
 }

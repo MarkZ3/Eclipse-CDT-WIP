@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010 Freescale Semiconductor and others.
+ * Copyright (c) 2010, 2012 Freescale Semiconductor and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -32,6 +32,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -105,6 +106,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ISourceFinder#toLocalPath(java.lang.String)
 	 */
+	@Override
 	synchronized public String toLocalPath(String compilationPath) {
 		try {
 			Object foundElement = null;
@@ -191,6 +193,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ISourceFinder#toLocalPath(org.eclipse.core.runtime.IAdaptable, java.lang.String)
 	 */
+	@Override
 	public String toLocalPath(IAdaptable _launch, String compilationPath) {
 		Object foundElement = null;
 		
@@ -273,6 +276,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 				String programNameConfig = config.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, ""); //$NON-NLS-1$
 				IProject project = resource.getProject();
 				if (project != null && project.getName().equals(projectNameConfig)) {
+					programNameConfig = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programNameConfig);
 					Path path = new Path(programNameConfig);
 					if (!path.isEmpty()) {
 						IFile file = project.getFile(path);
@@ -326,6 +330,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchConfigurationListener#launchConfigurationAdded(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	public void launchConfigurationAdded(ILaunchConfiguration config) {
 		// Don't care.  
 	}
@@ -333,6 +338,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchConfigurationListener#launchConfigurationChanged(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	synchronized public void launchConfigurationChanged(ILaunchConfiguration config) {
 		// We don't care if it's a working copy.
 		if (config.isWorkingCopy()) {
@@ -349,6 +355,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchConfigurationListener#launchConfigurationRemoved(org.eclipse.debug.core.ILaunchConfiguration)
 	 */
+	@Override
 	synchronized public void launchConfigurationRemoved(ILaunchConfiguration config) {
 		// We don't care if it's a working copy.
 		if (config.isWorkingCopy()) {
@@ -364,6 +371,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchesListener#launchesRemoved(org.eclipse.debug.core.ILaunch[])
 	 */
+	@Override
 	synchronized public void launchesRemoved(ILaunch[] launches) {
 		for (ILaunch launch : launches) {
 			if (launch.getSourceLocator() == fLaunchLocator) {
@@ -376,6 +384,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchesListener#launchesAdded(org.eclipse.debug.core.ILaunch[])
 	 */
+	@Override
 	public void launchesAdded(ILaunch[] launches) {
 		// If there's a new launch in town, we need to take it into
 		// consideration. E.g., if it targets our binary, and we're currently
@@ -394,6 +403,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.ILaunchesListener#launchesChanged(org.eclipse.debug.core.ILaunch[])
 	 */
+	@Override
 	public void launchesChanged(ILaunch[] launches) {
 		// don't care. I don't think setting a new locator in a launch would result in us getting notified
 	}
@@ -401,6 +411,7 @@ public class CSourceFinder implements ISourceFinder, ILaunchConfigurationListene
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ISourceFinder#dispose()
 	 */
+	@Override
 	public void dispose() {
 		ILaunchManager lmgr = DebugPlugin.getDefault().getLaunchManager();
 		lmgr.removeLaunchConfigurationListener(this);

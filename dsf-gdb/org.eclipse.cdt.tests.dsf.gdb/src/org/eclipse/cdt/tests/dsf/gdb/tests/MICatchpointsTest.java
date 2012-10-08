@@ -61,10 +61,6 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.BaseTestCase;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.core.runtime.Platform;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -148,23 +144,15 @@ public class MICatchpointsTest extends BaseTestCase {
     // Housekeeping stuff
     // ========================================================================
 
-    @BeforeClass
-    public static void testSuiteInitialization() {
-        // Select the binary to run the tests against
-        setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, TEST_APPL);
-    }
-
-    @AfterClass
-    public static void testSuiteCleanup() {
-    }
-
-    @Before
-    public void testCaseInitialization() throws Exception {
+    @Override
+	public void doBeforeTest() throws Exception {
+		super.doBeforeTest();
 
         // Get a reference to the breakpoint service
         fSession = getGDBLaunch().getSession();
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fServicesTracker = new DsfServicesTracker(TestsPlugin.getBundleContext(), fSession.getId());
                 assertNotNull(fServicesTracker);
         		    
@@ -189,13 +177,23 @@ public class MICatchpointsTest extends BaseTestCase {
         IContainerDMContext containerDmc = SyncUtil.getContainerContext();
         fBreakpointsDmc = DMContexts.getAncestorOfType(containerDmc, IBreakpointsTargetDMContext.class);
         assertNotNull(fBreakpointsDmc);
-
     }
 
-    @After
-    public void testCaseCleanup() throws Exception {
+    @Override
+    protected void setLaunchAttributes() {
+    	super.setLaunchAttributes();
+    	
+    	// Select the binary to run the tests against
+    	setLaunchAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, TEST_APPL);
+    }
+    
+	@Override
+	public void doAfterTest() throws Exception {
+		super.doAfterTest();
+		
         Runnable runnable = new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
             	fRunControl.getSession().removeServiceEventListener(MICatchpointsTest.this);
             }
         };
@@ -353,6 +351,7 @@ public class MICatchpointsTest extends BaseTestCase {
 		// Evaluate the expression (asynchronously)
 		fWait.waitReset();
 		fSession.getExecutor().submit(new Runnable() {
+			@Override
 			public void run() {
 				fExpressionService.getFormattedExpressionValue(formattedValueDMC, drm);
 			}
@@ -398,7 +397,8 @@ public class MICatchpointsTest extends BaseTestCase {
         // Issue the breakpoint request
         fWait.waitReset();
         fBreakpointService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fBreakpointService.getBreakpoints(context, drm);
             }
         });
@@ -440,7 +440,8 @@ public class MICatchpointsTest extends BaseTestCase {
         // Issue the breakpoint request
         fWait.waitReset();
         fBreakpointService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fBreakpointService.getBreakpointDMData(breakpoint, drm);
             }
         });
@@ -483,7 +484,8 @@ public class MICatchpointsTest extends BaseTestCase {
 
         // Issue the remove breakpoint request
         fBreakpointService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fBreakpointService.insertBreakpoint(context, attributes, drm);
             }
         });
@@ -522,7 +524,8 @@ public class MICatchpointsTest extends BaseTestCase {
 
         // Issue the add breakpoint request
         fBreakpointService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fBreakpointService.removeBreakpoint(breakpoint, rm);
             }
         });
@@ -561,7 +564,8 @@ public class MICatchpointsTest extends BaseTestCase {
 
         // Issue the update breakpoint request
         fBreakpointService.getExecutor().submit(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 fBreakpointService.updateBreakpoint(breakpoint, delta, rm);
             }
         });

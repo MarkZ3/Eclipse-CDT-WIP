@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * Symbian - Initial implementation
+ *     Symbian - Initial implementation
  *******************************************************************************/
 package org.eclipse.cdt.internal.pdom.tests;
 
@@ -33,7 +33,6 @@ import org.eclipse.core.runtime.NullProgressMonitor;
  * See bugzilla
  */
 public class FilesOnReindexTests extends PDOMTestBase {
-
 	protected ICProject project;
 	protected IIndex pdom;
 
@@ -41,6 +40,7 @@ public class FilesOnReindexTests extends PDOMTestBase {
 		return suite(FilesOnReindexTests.class);
 	}
 
+	@Override
 	protected void setUp() throws Exception {
 		if (pdom == null) {
 			project = createProject("filesOnReindex");
@@ -49,6 +49,7 @@ public class FilesOnReindexTests extends PDOMTestBase {
 		pdom.acquireReadLock();
 	}
 
+	@Override
 	protected void tearDown() throws Exception {
 		pdom.releaseReadLock();
 		if (project != null) {
@@ -63,14 +64,14 @@ public class FilesOnReindexTests extends PDOMTestBase {
 		CCoreInternals.getPDOMManager().reindex(project);
 		
 		// wait until the indexer is done
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(360000, new NullProgressMonitor()));
+        waitForIndexer(project);
 		pdom.acquireReadLock();
 		performAssertions(file);
 	}
 	
 	void performAssertions(IFile file) throws CoreException {
 		IIndex index = CCorePlugin.getIndexManager().getIndex(project);
-		assertNotNull(index.getFile(ILinkage.CPP_LINKAGE_ID, IndexLocationFactory.getWorkspaceIFL(file)));
+		assertTrue(index.getFiles(ILinkage.CPP_LINKAGE_ID, IndexLocationFactory.getWorkspaceIFL(file)).length != 0);
 		
 		IBinding[] bs = index.findBindings(Pattern.compile("C"), true, IndexFilter.ALL, new NullProgressMonitor());
 		assertEquals(1, bs.length);

@@ -39,7 +39,8 @@ public class CCompositeTypeScope extends CScope implements ICCompositeTypeScope 
     /* (non-Javadoc)
      * @see org.eclipse.cdt.core.dom.ast.c.ICCompositeTypeScope#getBinding(char[])
      */
-    public IBinding getBinding( char[] name ) {
+    @Override
+	public IBinding getBinding( char[] name ) {
         return super.getBinding( NAMESPACE_TYPE_OTHER, name );
     }
 
@@ -58,14 +59,15 @@ public class CCompositeTypeScope extends CScope implements ICCompositeTypeScope 
             if( b == null ) continue;
             try {
                 if( b.getScope() == this )
-                    result = (IBinding[]) ArrayUtil.append( IBinding.class, result, b );
+                    result = ArrayUtil.append( IBinding.class, result, b );
             } catch ( DOMException e ) {
             }
         }
             
-        return (IBinding[]) ArrayUtil.trim( IBinding.class, result );
+        return ArrayUtil.trim( IBinding.class, result );
     }
 
+	@Override
 	public ICompositeType getCompositeType() {
 		ICASTCompositeTypeSpecifier compSpec = (ICASTCompositeTypeSpecifier) getPhysicalNode();
 		IBinding binding = compSpec.getName().resolveBinding();
@@ -93,10 +95,10 @@ public class CCompositeTypeScope extends CScope implements ICCompositeTypeScope 
 					}
 					// anonymous structures and unions
 					if (declarators.length == 0 && ((IASTSimpleDeclaration) node).getDeclSpecifier() instanceof IASTCompositeTypeSpecifier) {
-						IASTCompositeTypeSpecifier declSpec = (IASTCompositeTypeSpecifier) ((IASTSimpleDeclaration) node).getDeclSpecifier();
+						ICASTCompositeTypeSpecifier declSpec = (ICASTCompositeTypeSpecifier) ((IASTSimpleDeclaration) node).getDeclSpecifier();
 						IASTName n = declSpec.getName();
 						if (n.toCharArray().length == 0) {
-							specStack = (ICASTCompositeTypeSpecifier[]) ArrayUtil.append(ICASTCompositeTypeSpecifier.class, specStack, declSpec);
+							specStack = ArrayUtil.append(ICASTCompositeTypeSpecifier.class, specStack, declSpec);
 						}
 					}
 				}

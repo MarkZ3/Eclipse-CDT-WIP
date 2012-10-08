@@ -37,6 +37,7 @@ import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMAddress;
 import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMContext;
 import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMData;
 import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMLocation;
+import org.eclipse.cdt.dsf.debug.service.IExpressions.IIndexedPartitionDMContext;
 import org.eclipse.cdt.dsf.debug.service.IExpressions2;
 import org.eclipse.cdt.dsf.debug.service.IExpressions3;
 import org.eclipse.cdt.dsf.debug.service.IExpressions3.IExpressionDMDataExtension;
@@ -135,6 +136,11 @@ public class VariableVMNode extends AbstractExpressionVMNode
      */    
     public static final String PROP_VARIABLE_ADDRESS_CHANGED = ICachingVMProvider.PROP_IS_CHANGED_PREFIX + PROP_VARIABLE_ADDRESS;
 
+    /**
+     * 'PROP_VARIABLE_BASIC_TYPE' property value for indexed partitions
+     */
+    private static final String INDEXED_PARTITION_TYPE = "indexed_partition_type"; //$NON-NLS-1$
+    
     private final SyncVariableDataAccess fSyncVariableDataAccess;
     
     /**
@@ -208,10 +214,12 @@ public class VariableVMNode extends AbstractExpressionVMNode
     
     protected class VariableExpressionFactory implements IWatchExpressionFactoryAdapter2 {
 
+        @Override
         public boolean canCreateWatchExpression(Object element) {
             return element instanceof VariableExpressionVMC;
         }
 
+        @Override
         public String createWatchExpression(Object element) throws CoreException {
             
             VariableExpressionVMC exprVmc = (VariableExpressionVMC) element;
@@ -328,6 +336,16 @@ public class VariableVMNode extends AbstractExpressionVMNode
         };
     };
     
+    public final static  LabelImage PARTITION_LABEL_IMAGE = new LabelImage(CDebugImages.DESC_OBJS_ARRAY_PARTITION) {
+        { setPropertyNames(new String[] { PROP_VARIABLE_BASIC_TYPE }); }
+        
+        @Override
+        public boolean isEnabled(IStatus status, java.util.Map<String,Object> properties) {
+            String type = (String)properties.get(PROP_VARIABLE_BASIC_TYPE);
+            return INDEXED_PARTITION_TYPE.equals(type);
+        };
+    };
+    
     protected IElementLabelProvider createLabelProvider() {
     	
     	//
@@ -382,6 +400,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
     	}
 
     	fPreferenceChangeListener = new IPropertyChangeListener() {
+    	    @Override
     		public void propertyChange(PropertyChangeEvent event) {
     			if ( event.getProperty().equals(IDebugUIConstants.PREF_CHANGED_VALUE_BACKGROUND) ) {
     				columnIdValueBackground.setBackground(DebugUITools.getPreferenceColor(IDebugUIConstants.PREF_CHANGED_VALUE_BACKGROUND).getRGB());
@@ -404,6 +423,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
                     new String[] { PROP_NAME }),
                 POINTER_LABEL_IMAGE,
                 AGGREGATE_LABEL_IMAGE, 
+                PARTITION_LABEL_IMAGE,
                 SIMPLE_LABEL_IMAGE,
                 new StaleDataLabelForeground(),
                 new VariableLabelFont(),
@@ -419,6 +439,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
                     new String[] { PROP_ELEMENT_EXPRESSION }),
                 POINTER_LABEL_IMAGE,
                 AGGREGATE_LABEL_IMAGE, 
+                PARTITION_LABEL_IMAGE,
                 SIMPLE_LABEL_IMAGE,
                 new StaleDataLabelForeground(),
                 new VariableLabelFont(),
@@ -650,7 +671,8 @@ public class VariableVMNode extends AbstractExpressionVMNode
     }
     
     
-    public void update(final ILabelUpdate[] updates) {
+    @Override
+	public void update(final ILabelUpdate[] updates) {
         fLabelProvider.update(updates);
     }
 
@@ -664,7 +686,8 @@ public class VariableVMNode extends AbstractExpressionVMNode
      * 
      * @since 2.0
      */    
-    public void update(final IPropertiesUpdate[] updates) {
+    @Override
+	public void update(final IPropertiesUpdate[] updates) {
         final CountingRequestMonitor countingRm = new CountingRequestMonitor(ImmediateExecutor.getInstance(), null) {
             @Override
             protected void handleCompleted() {
@@ -688,7 +711,8 @@ public class VariableVMNode extends AbstractExpressionVMNode
 
         try {
             getSession().getExecutor().execute(new DsfRunnable() {
-                public void run() {
+                @Override
+				public void run() {
                     updatePropertiesInSessionThread(subUpdates);
                 }});
         } catch (RejectedExecutionException e) {
@@ -764,10 +788,13 @@ public class VariableVMNode extends AbstractExpressionVMNode
                                 // In case of an error fill in the expression text in the name column and expressions columns.
                                 IExpressionDMContext dmc = findDmcInPath(update.getViewerInput(), update.getElementPath(), IExpressions.IExpressionDMContext.class);
                                 if (dmc != null && dmc.getExpression() != null) {
-                                    update.setProperty(PROP_NAME, dmc.getExpression());
+                                	String displayName = getExpressionDisplayName(dmc, dmc.getExpression());
+                                    update.setProperty(PROP_NAME, displayName);
                                     if (expression == null) {
-                                        update.setProperty(PROP_ELEMENT_EXPRESSION, dmc.getExpression());
+                                        update.setProperty(PROP_ELEMENT_EXPRESSION, displayName);
                                     }
+                                    if (dmc instanceof IIndexedPartitionDMContext)
+                                    	update.setProperty(PROP_VARIABLE_BASIC_TYPE, INDEXED_PARTITION_TYPE);
                                 }
                                 update.setStatus(getStatus());
                             }
@@ -808,11 +835,23 @@ public class VariableVMNode extends AbstractExpressionVMNode
     @ConfinedToDsfExecutor("getSession().getExecutor()")
     protected void fillExpressionDataProperties(IPropertiesUpdate update, IExpressionDMData data) 
     {
-        update.setProperty(PROP_NAME, data.getName());
+        IExpressionDMContext dmc = findDmcInPath(update.getViewerInput(), update.getElementPath(), IExpressions.IExpressionDMContext.class);
+        String displayName = data.getName();
+        if (dmc != null) {
+        	displayName = getExpressionDisplayName(dmc, displayName);
+        }
+        update.setProperty(PROP_NAME, displayName);
         update.setProperty(PROP_VARIABLE_TYPE_NAME, data.getTypeName());
-        IExpressionDMData.BasicType type = data.getBasicType();
-        if (type != null) {
-            update.setProperty(PROP_VARIABLE_BASIC_TYPE, type.name());
+        String typeValue = null;
+        if (dmc instanceof IIndexedPartitionDMContext)
+        	typeValue = INDEXED_PARTITION_TYPE;
+        else {
+            IExpressionDMData.BasicType type = data.getBasicType();
+            if (type != null)
+            	typeValue = type.name();
+        }
+        if (typeValue != null) {
+            update.setProperty(PROP_VARIABLE_BASIC_TYPE, typeValue);
         }
         
         //
@@ -822,7 +861,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         //
         IExpression expression = (IExpression)DebugPlugin.getAdapter(update.getElement(), IExpression.class);
         if (expression == null) {
-            update.setProperty(AbstractExpressionVMNode.PROP_ELEMENT_EXPRESSION, data.getName());
+            update.setProperty(AbstractExpressionVMNode.PROP_ELEMENT_EXPRESSION, displayName);
         }
     }
 
@@ -839,7 +878,8 @@ public class VariableVMNode extends AbstractExpressionVMNode
     		update.setProperty(PROP_VARIABLE_ADDRESS, "0x" + address.getAddress().toString(16)); //$NON-NLS-1$
     }
     
-    public CellEditor getCellEditor(IPresentationContext context, String columnId, Object element, Composite parent) {
+    @Override
+	public CellEditor getCellEditor(IPresentationContext context, String columnId, Object element, Composite parent) {
         if (IDebugVMConstants.COLUMN_ID__VALUE.equals(columnId)) {
             return new TextCellEditor(parent);
         }
@@ -850,11 +890,13 @@ public class VariableVMNode extends AbstractExpressionVMNode
         return null;
     }
 
-    public ICellModifier getCellModifier(IPresentationContext context, Object element) {
+    @Override
+	public ICellModifier getCellModifier(IPresentationContext context, Object element) {
         return new VariableCellModifier(getDMVMProvider(), fSyncVariableDataAccess);
     }
     
-    public boolean canParseExpression(IExpression expression) {
+    @Override
+	public boolean canParseExpression(IExpression expression) {
     	// At this point we are going to say we will allow anything as an expression.
     	// Since the evaluation  of VM Node implementations searches  in the order of
     	// registration  and we always make sure we register the VariableVMNode last,
@@ -871,7 +913,8 @@ public class VariableVMNode extends AbstractExpressionVMNode
     public void update(final IExpressionUpdate update) {
         try {
             getSession().getExecutor().execute(new Runnable() {
-                public void run() {
+                @Override
+				public void run() {
                     final IExpressions expressionService = getServicesTracker().getService(IExpressions.class);
                     if (expressionService != null) {
                         IExpressionDMContext expressionDMC = createExpression(expressionService, 
@@ -1193,6 +1236,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
     	return exprDMC;
 	}
 
+	@Override
 	public int getDeltaFlags(Object e) {
         if ( e instanceof ISuspendedDMEvent || 
              e instanceof IMemoryChangedEvent ||
@@ -1207,6 +1251,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         return IModelDelta.NO_CHANGE;
     }
 
+    @Override
     public void buildDelta(final Object e, final VMDelta parentDelta, final int nodeOffset, final RequestMonitor requestMonitor) {
 
         // The following events can affect any expression's values, 
@@ -1224,6 +1269,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         requestMonitor.done();
     }
     
+    @Override
     public int getDeltaFlagsForExpression(IExpression expression, Object event) {
         if ( event instanceof IExpressionChangedDMEvent ||
              event instanceof IMemoryChangedEvent ||
@@ -1242,6 +1288,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         return IModelDelta.NO_CHANGE;
     }
     
+    @Override
     public void buildDeltaForExpression(IExpression expression, int elementIdx, Object event, VMDelta parentDelta, 
         TreePath path, RequestMonitor rm) 
     {
@@ -1258,6 +1305,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         rm.done();
     }
     
+    @Override
     public void buildDeltaForExpressionElement(Object element, int elementIdx, Object event, VMDelta parentDelta,
         RequestMonitor rm) 
     {
@@ -1283,6 +1331,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
 
     private final String MEMENTO_NAME = "VARIABLE_MEMENTO_NAME"; //$NON-NLS-1$
     
+    @Override
     public void compareElements(IElementCompareRequest[] requests) {
         
         for ( IElementCompareRequest request : requests ) {
@@ -1307,6 +1356,7 @@ public class VariableVMNode extends AbstractExpressionVMNode
         }
     }
     
+    @Override
     public void encodeElements(IElementMementoRequest[] requests) {
     	
     	for ( IElementMementoRequest request : requests ) {
@@ -1326,5 +1376,19 @@ public class VariableVMNode extends AbstractExpressionVMNode
             }
             request.done();
         }
+    }
+
+    /**
+     * Returns the label for the element with the given context.
+     */
+    protected String getExpressionDisplayName(IExpressionDMContext dmc, String name) {
+    	if (dmc instanceof IIndexedPartitionDMContext) {
+    		IIndexedPartitionDMContext ipDmc = (IIndexedPartitionDMContext)dmc;
+    		name = String.format(
+    				"[%d...%d]",  //$NON-NLS-1$
+    				ipDmc.getIndex(), 
+    				ipDmc.getIndex() + ipDmc.getLength() - 1);
+    	}
+    	return name;
     }
 }

@@ -21,6 +21,7 @@ import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.ICPPASTCompletionContext;
+import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConstructorChainInitializer;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTConstructorInitializer;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
@@ -59,10 +60,12 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 		setInitializer(initializer);
 	}
 
+	@Override
 	public CPPASTConstructorChainInitializer copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTConstructorChainInitializer copy(CopyStyle style) {
 		CPPASTConstructorChainInitializer copy = new CPPASTConstructorChainInitializer();
 		copy.setMemberInitializerId(name == null ? null : name.copy(style));
@@ -75,11 +78,13 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 		return copy;
 	}
 
+	@Override
 	public IASTName getMemberInitializerId() {
         return name;
     }
 
-    public void setMemberInitializerId(IASTName name) {
+    @Override
+	public void setMemberInitializerId(IASTName name) {
         assertNotFrozen();
         this.name = name;
         if (name != null) {
@@ -88,11 +93,13 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 		}
     }
 
-    public IASTInitializer getInitializer() {
+    @Override
+	public IASTInitializer getInitializer() {
         return initializer;
     }
 
-    public void setInitializer(IASTInitializer init) {
+    @Override
+	public void setInitializer(IASTInitializer init) {
         assertNotFrozen();
         initializer = init;
         if (init != null) {
@@ -130,12 +137,14 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
         return true;
     }
 
-    public int getRoleForName(IASTName n) {
+    @Override
+	public int getRoleForName(IASTName n) {
         if (name == n)
             return r_reference;
         return r_unclear;
     }
 
+	@Override
 	public IBinding[] findBindings(IASTName n, boolean isPrefix, String[] namespaces) {
 		IBinding[] bindings = CPPSemantics.findBindingsForContentAssist(n, isPrefix, namespaces);
 
@@ -155,7 +164,7 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 				bindings[i] = null;
 			}
 		}
-		return (IBinding[]) ArrayUtil.removeNulls(IBinding.class, bindings);
+		return ArrayUtil.removeNulls(IBinding.class, bindings);
 	}
 
 	private CharArraySet getBaseClasses(IASTName name) {
@@ -166,8 +175,10 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 				IBinding method= fdef.getDeclarator().getName().resolveBinding();
 				if (method instanceof ICPPMethod) {
 					ICPPClassType cls= ((ICPPMethod) method).getClassOwner();
-					for (ICPPBase base : cls.getBases()) {
-						result.put(base.getBaseClassSpecifierName().getSimpleID());
+					for (ICPPBase base : ClassTypeHelper.getBases(cls, fdef)) {
+						IType baseType= base.getBaseClassType();
+						if (baseType instanceof IBinding)
+							result.put(((IBinding) baseType).getNameCharArray());
 					}
 					return result;
 				}
@@ -176,15 +187,18 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 		return result;
 	}
 
+	@Override
 	public boolean isPackExpansion() {
 		return fIsPackExpansion;
 	}
 
+	@Override
 	public void setIsPackExpansion(boolean val) {
 		assertNotFrozen();
 		fIsPackExpansion= val;
 	}
 
+	@Override
 	@Deprecated
     public IASTExpression getInitializerValue() {
         if (initializer == null || initializer instanceof IASTExpression) {
@@ -202,6 +216,7 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
         return null;
     }
 
+	@Override
 	@Deprecated
     public void setInitializerValue(IASTExpression expression) {
         assertNotFrozen();
@@ -223,6 +238,7 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
 	/**
 	 * @see IASTImplicitNameOwner#getImplicitNames()
 	 */
+	@Override
 	public IASTImplicitName[] getImplicitNames() {
 		if (implicitNames == null) {
 			ICPPConstructor ctor = CPPSemantics.findImplicitlyCalledConstructor(this);
@@ -243,6 +259,7 @@ public class CPPASTConstructorChainInitializer extends ASTNode implements
     	return implicitNames;  
 	}
 	
+	@Override
 	public IBinding[] findBindings(IASTName n, boolean isPrefix) {
 		return findBindings(n, isPrefix, null);
 	}

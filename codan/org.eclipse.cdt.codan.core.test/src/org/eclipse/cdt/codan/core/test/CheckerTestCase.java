@@ -1,17 +1,20 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2011 Alena Laskavaia
+ * Copyright (c) 2009, 2012 Alena Laskavaia
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Alena Laskavaia  - initial API and implementation
+ *     Alena Laskavaia  - initial API and implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.codan.core.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.cdt.codan.core.CodanRuntime;
 import org.eclipse.cdt.codan.core.model.CheckerLaunchMode;
@@ -54,7 +57,7 @@ public class CheckerTestCase extends CodanTestCase {
 		for (Object i : errLines) {
 			checkErrorLine((Integer) i);
 		}
-		assertEquals("Expected number of errors "+errLines.size(),errLines.size(), markers.length);
+		assertEquals("Expected number of errors " + errLines.size(),errLines.size(), markers.length);
 	}
 
 	public IMarker checkErrorLine(int i, String problemId) {
@@ -89,7 +92,7 @@ public class CheckerTestCase extends CodanTestCase {
 					break;
 			}
 		}
-		assertEquals("Error on line "+expectedLine+" is not found",Integer.valueOf(expectedLine), line);
+		assertEquals("Error on line " + expectedLine + " is not found", Integer.valueOf(expectedLine), line);
 		if (file != null)
 			assertEquals(file.getName(), mfile);
 		assertTrue(found);
@@ -119,22 +122,33 @@ public class CheckerTestCase extends CodanTestCase {
 	}
 
 	public void checkNoErrors() {
-		if (markers == null || markers.length == 0) {
-			// all good
-		} else {
+		if (markers != null && markers.length > 0) {
 			IMarker m = markers[0];
-			fail("Found " + markers.length + " errors but should not. First " + CodanProblemMarker.getProblemId(m) + " at line "
-					+ getLine(m));
+			fail("Found " + markers.length + " errors but should not. First " +
+					CodanProblemMarker.getProblemId(m) + " at line " + getLine(m));
 		}
 	}
 
-	/**
-	 *
-	 */
+	public void checkNoErrorsOfKind(String problemId) {
+		if (markers != null && markers.length > 0) {
+			List<IMarker> filtered = new ArrayList<IMarker>(markers.length);
+			for (IMarker m : markers) {
+				if (CodanProblemMarker.getProblemId(m).equals(problemId)) {
+					filtered.add(m);
+				}
+			}
+			if (!filtered.isEmpty()) {
+				IMarker m = filtered.get(0);
+				fail("Found " + filtered.size() + " errors but should not. First " +
+						CodanProblemMarker.getProblemId(m) + " at line " + getLine(m));
+			}
+		}
+	}
+
 	public void runOnProject() {
 		try {
 			indexFiles();
-		} catch (CoreException e) {
+		} catch (Exception e) {
 			fail(e.getMessage());
 		}
 		runCodan();
@@ -150,9 +164,6 @@ public class CheckerTestCase extends CodanTestCase {
 		runCodan();
 	}
 
-	/**
-	 *
-	 */
 	protected void runCodan() {
 		CodanRuntime.getInstance().getBuilder().processResource(cproject.getProject(), new NullProgressMonitor());
 		try {
@@ -168,8 +179,9 @@ public class CheckerTestCase extends CodanTestCase {
 	 * @return
 	 */
 	protected IProblemPreference getPreference(String problemId, String paramId) {
-		IProblem problem = CodanRuntime.getInstance().getCheckersRegistry().getResourceProfile(cproject.getResource())
-				.findProblem(problemId);
+		IProblemProfile resourceProfile =
+				CodanRuntime.getInstance().getCheckersRegistry().getResourceProfile(cproject.getResource());
+		IProblem problem = resourceProfile.findProblem(problemId);
 		IProblemPreference pref = ((MapProblemPreference) problem.getPreference()).getChildDescriptor(paramId);
 		return pref;
 	}
@@ -186,9 +198,21 @@ public class CheckerTestCase extends CodanTestCase {
 	 */
 	public void assertMessageMatch(String pattern, IMarker m) {
 		try {
-			String attribute = (String) m.getAttribute(IMarker.MESSAGE);
-			if (attribute.matches(pattern)) {
-				fail("Expected " + attribute + " to match with /" + pattern //$NON-NLS-1$ //$NON-NLS-2$
+			String message = (String) m.getAttribute(IMarker.MESSAGE);
+			if (message.matches(pattern)) {
+				fail("Expected " + message + " to match with /" + pattern //$NON-NLS-1$ //$NON-NLS-2$
+						+ "/"); //$NON-NLS-1$
+			}
+		} catch (CoreException e) {
+			fail(e.getMessage());
+		}
+	}
+
+	public void assertMessageContains(CharSequence charSequence, IMarker m) {
+		try {
+			String message = (String) m.getAttribute(IMarker.MESSAGE);
+			if (!message.contains(charSequence)) {
+				fail("Expected " + message + " to contain /" + charSequence //$NON-NLS-1$ //$NON-NLS-2$
 						+ "/"); //$NON-NLS-1$
 			}
 		} catch (CoreException e) {
@@ -206,8 +230,8 @@ public class CheckerTestCase extends CodanTestCase {
 				String pid = ids[j];
 				if (p.getId().equals(pid)) {
 					enabled = true;
-					// Force the launch mode to FULL_BUILD to make sure we can test the problem even if by default it
-					// is not set to run on FULL_BUILD
+					// Force the launch mode to FULL_BUILD to make sure we can test the problem even
+					// if by default it is not set to run on FULL_BUILD.
 					IProblemPreference preference = p.getPreference();
 					if (preference instanceof RootProblemPreference) {
 						RootProblemPreference rootProblemPreference = (RootProblemPreference) preference;
@@ -219,6 +243,5 @@ public class CheckerTestCase extends CodanTestCase {
 			((CodanProblem) p).setEnabled(enabled);
 		}
 		CodanRuntime.getInstance().getCheckersRegistry().updateProfile(cproject.getProject(), profile);
-		return;
 	}
 }

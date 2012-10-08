@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2009 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -19,6 +19,7 @@ import org.eclipse.cdt.core.dom.ast.IASTNameOwner;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.internal.core.dom.Linkage;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.IASTInternalNameOwner;
@@ -46,9 +47,9 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
 		}
 	}
 	
-	private IBinding fBinding = null;
-	private byte fResolutionDepth = 0;
-	private boolean fIsFinal= false;
+	private IBinding fBinding;
+	private byte fResolutionDepth;
+	private boolean fIsFinal;
 
 	public final void incResolutionDepth() {
 		if (fBinding == null && ++fResolutionDepth > MAX_RESOLUTION_DEPTH) {
@@ -66,6 +67,7 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
 	 * Resolves the name at least up to the intermediate binding and returns it.
 	 * @see ICPPTwoPhaseBinding
 	 */
+	@Override
 	public IBinding resolvePreBinding() {
     	if (fBinding == null) {
     		if (++fResolutionDepth > MAX_RESOLUTION_DEPTH) {
@@ -77,7 +79,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
     	return fBinding;
 	}
 	
-    public IBinding resolveBinding() {
+    @Override
+	public IBinding resolveBinding() {
     	if (fBinding == null) {
     		if (++fResolutionDepth > MAX_RESOLUTION_DEPTH) {
     			setBinding(new RecursionResolvingBinding(this));
@@ -105,7 +108,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
      * Otherwise the intermediate or final binding for this name is returned.
      * @see ICPPTwoPhaseBinding
      */
-    public IBinding getPreBinding() {
+    @Override
+	public IBinding getPreBinding() {
         return fBinding;
     }
 
@@ -114,7 +118,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
      * Otherwise the final binding for this name is returned.
      * @see ICPPTwoPhaseBinding
      */
-    public IBinding getBinding() {
+    @Override
+	public IBinding getBinding() {
     	final IBinding cand= fBinding;
         if (cand == null)
         	return null;
@@ -137,13 +142,30 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
 		fIsFinal= true;
 	}
 	
+	@Override
 	public void setBinding(IBinding binding) {
 		fBinding= binding;
 		fResolutionDepth= 0;
 	}
 	
+	@Override
 	public IASTName getLastName() {
 		return this;
+	}
+
+	@Override
+	public boolean isQualified() {
+		IASTNode parent= getParent();
+		if (parent instanceof ICPPASTQualifiedName) {
+			ICPPASTQualifiedName qn= (ICPPASTQualifiedName) parent;
+			if (qn.isFullyQualified())
+				return true;
+			IASTName[] qns = qn.getNames();
+			if (qns.length > 0 && qns[0] == this)
+				return false;
+			return true;
+		}
+		return false;
 	}
 	
 	@Override
@@ -151,6 +173,7 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
 		return new String(toCharArray());
 	}
 	
+	@Override
 	public IASTCompletionContext getCompletionContext() {
         IASTNode node = getParent();
     	while (node != null) {
@@ -163,6 +186,7 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
     	return null;
 	}
 
+	@Override
 	public int getRoleOfName(boolean allowResolution) {
         IASTNode parent = getParent();
         if (parent instanceof IASTInternalNameOwner) {
@@ -174,7 +198,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
         return IASTNameOwner.r_unclear;
 	}
 
-    public boolean isDeclaration() {
+    @Override
+	public boolean isDeclaration() {
         IASTNode parent = getParent();
         if (parent instanceof IASTNameOwner) {
             int role = ((IASTNameOwner) parent).getRoleForName(this);
@@ -189,7 +214,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
         return false;
     }
 
-    public boolean isReference() {
+    @Override
+	public boolean isReference() {
         IASTNode parent = getParent();
         if (parent instanceof IASTNameOwner) {
             int role = ((IASTNameOwner) parent).getRoleForName(this);
@@ -198,7 +224,8 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
         return false;
     }
     
-    public boolean isDefinition() {
+    @Override
+	public boolean isDefinition() {
         IASTNode parent = getParent();
         if (parent instanceof IASTNameOwner) {
             int role = ((IASTNameOwner) parent).getRoleForName(this);
@@ -207,9 +234,7 @@ public abstract class CPPASTNameBase extends ASTNode implements IASTName {
         return false;
     }
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.cdt.core.dom.ast.IASTName#getLinkage()
-	 */
+	@Override
 	public ILinkage getLinkage() {
 		return Linkage.CPP_LINKAGE;
 	}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2011 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -60,6 +60,7 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -159,6 +160,7 @@ abstract public class AbstractCLaunchDelegate extends LaunchConfigurationDelegat
 	/** Flag set to true if build before launch failed, or was cancelled. */
 	private boolean buildFailed;
 	
+	@Override
 	abstract public void launch(ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor)
 			throws CoreException;
 
@@ -429,6 +431,7 @@ abstract public class AbstractCLaunchDelegate extends LaunchConfigurationDelegat
 	/**
 	 * @deprecated use {@link CDebugUtils#verifyCProject(ILaunchConfiguration)}
 	 */
+	@Deprecated
 	protected ICProject verifyCProject(ILaunchConfiguration config) throws CoreException {
 		return CDebugUtils.verifyCProject(config);
 	}
@@ -436,6 +439,7 @@ abstract public class AbstractCLaunchDelegate extends LaunchConfigurationDelegat
 	/**
 	 * @deprecated use {@link CDebugUtils#verifyProgramPath(ILaunchConfiguration)
 	 */
+	@Deprecated
 	protected IPath verifyProgramPath(ILaunchConfiguration config) throws CoreException {
 		return CDebugUtils.verifyProgramPath(config);
 	}
@@ -642,6 +646,7 @@ abstract public class AbstractCLaunchDelegate extends LaunchConfigurationDelegat
 
 			if (configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROJECT_BUILD_CONFIG_AUTO, false)) {
 				String programPath = configuration.getAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, EMPTY_STR);
+				programPath = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programPath);
 				ICConfigurationDescription buildConfig = LaunchUtils.getBuildConfigByProgramPath(buildProject, programPath);
 				if (buildConfig != null)
 					buildConfigID = buildConfig.getId();

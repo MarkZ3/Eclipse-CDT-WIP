@@ -1,12 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2011 Anton Gorenkov
+ * Copyright (c) 2011, 2012 Anton Gorenkov and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Anton Gorenkov   - initial implementation
+ *     Anton Gorenkov   - initial implementation
+ *     Marc-Andre Laperle
  *******************************************************************************/
 package org.eclipse.cdt.codan.core.internal.checkers;
 
@@ -15,7 +16,6 @@ import org.eclipse.cdt.codan.internal.checkers.ClassMembersInitializationChecker
 
 /**
  * Test for {@see ClassMembersInitializationChecker} class
- *
  */
 public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	@Override
@@ -53,7 +53,7 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	//   int m;
 	//   C() { m = 0; }  // No warnings.
 	// };
-	public void testAssignmentsInContructorShouldBeChecked() {
+	public void testAssignmentsInConstructorShouldBeChecked() {
 		loadCodeAndRun(getAboveComment());
 		checkNoErrors();
 	}
@@ -171,7 +171,7 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	//   int i1, i2;
 	// };
 	// C::C() : i1(0) {}  // 1 warning for: i2.
-	public void testExternalContructorHandling() {
+	public void testExternalConstructorHandling() {
 		loadCodeAndRun(getAboveComment());
 		checkErrorLines(5);
 	}
@@ -183,10 +183,11 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	//   T1 t1;
 	//   T2 t2;
 	// };
-	// C::C() : i1(0), t1(T1()) {}  // 1 warning for: i2.
-	public void testExternalContructorOfTemplateClassHandling() {
+	// template <typename T1, typename T2>
+	// C<T1,T2>::C() : i1(0), t1(T1()) {}  // 1 warning for: i2.
+	public void testExternalConstructorOfTemplateClassHandling() {
 		loadCodeAndRun(getAboveComment());
-		checkErrorLines(8);
+		checkErrorLines(9);
 	}
 
 	// class C {
@@ -196,7 +197,7 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	// };
 	// template <typename T>
 	// C::C() : i1(0) {}  // 1 warning for: i2.
-	public void testExternalTemplateContructorHandling() {
+	public void testExternalTemplateConstructorHandling() {
 		loadCodeAndRun(getAboveComment());
 		checkErrorLines(7);
 	}
@@ -212,7 +213,7 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	// template <typename T1, typename T2>
 	// template <typename T>
 	// C<T1,T2>::C() : i1(0), t1(T1()) {}  // 1 warning for: i2.
-	public void testExternalTemplateContructorOfTemplateClassHandling() {
+	public void testExternalTemplateConstructorOfTemplateClassHandling() {
 		loadCodeAndRun(getAboveComment());
 		checkErrorLines(11);
 	}
@@ -309,6 +310,16 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 	// // NOTE: Static members are always initialized with 0, so there should not be warning on C::i2
 	// int C::i2;
 	public void testNoErrorsOnStaticMembers() {
+		loadCodeAndRun(getAboveComment());
+		checkNoErrors();
+	}
+
+	// class C {
+	// public:
+	//   C(const C& c) = delete;
+	//   int i1, i2;
+	// };
+	public void testNoErrorsOnDeletedConstructor() {
 		loadCodeAndRun(getAboveComment());
 		checkNoErrors();
 	}
@@ -477,4 +488,93 @@ public class ClassMembersInitializationCheckerTest extends CheckerTestCase {
 		checkErrorLines(8,9,10,11);
 	}
 
+	// @file:test.h
+	// class C {
+	//	 int field;
+	// C();
+	// void initObject();
+	//};
+
+	// @file:test.cpp
+	// #include "test.h"
+	// C::C() {
+	//    initObject();
+	// }
+	public void testBug368419_methodDeclarationInOtherFile() throws Exception {
+		CharSequence[] code = getContents(2);
+		loadcode(code[0].toString());
+		loadcode(code[1].toString());
+		runOnProject();
+		checkNoErrors();
+	}
+
+	//class D {
+	//  int field;
+	//  D(const D& toBeCopied) {
+	//    *this = toBeCopied;
+	//  };
+	//};
+	public void testBug368420_assignThis() throws Exception {
+		loadCodeAndRun(getAboveComment());
+		checkNoErrors();
+	}
+
+	//class D {
+	//  int field;
+	//  D(const D& toBeCopied) {
+	//    *(&(*this)) = toBeCopied;
+	//  };
+	//};
+	public void testBug368420_assignThisUnaryExpressions() throws Exception {
+		loadCodeAndRun(getAboveComment());
+		checkNoErrors();
+	}
+
+	//class D {
+	//  int field;
+	//  D(const D& toBeCopied) {
+	//    this = toBeCopied;
+	//  };
+	//};
+	public void testBug368420_assignThisNonLValue() throws Exception {
+		loadCodeAndRun(getAboveComment());
+		checkErrorLines(3);
+	}
+
+	//class D {
+	//  int field;
+	//  D();
+	//  D(const D& toBeCopied) {
+	//    D temp;
+	//    temp = *(&(*this)) = toBeCopied;
+	//  };
+	//};
+	public void testBug368420_assignThisMultiBinaryExpressions() throws Exception {
+		loadCodeAndRun(getAboveComment());
+		checkNoErrors();
+	}
+
+	//@file:test.h
+	//template <typename>
+	//struct B;
+
+	//@file:test.cpp
+	//#include "test.h"
+	//
+	//template <typename>
+	//struct A {
+	//};
+	//
+	//template <typename valueT>
+	//struct B<A<valueT> > {
+	//    const A<valueT>& obj;
+	//    B(const A<valueT>& o) : obj(o) {}
+	//};
+	public void testBug368611_templatePartialSpecialization() throws Exception {
+		CharSequence[] code = getContents(2);
+		loadcode(code[0].toString());
+		loadcode(code[1].toString());
+		runOnProject();
+		checkNoErrors();
+	}
 }

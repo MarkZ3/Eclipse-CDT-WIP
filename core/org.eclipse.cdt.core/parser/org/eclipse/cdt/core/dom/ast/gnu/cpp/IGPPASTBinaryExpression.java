@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM Rational Software) - Initial API and implementation
+ *     John Camelon (IBM Rational Software) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast.gnu.cpp;
 
@@ -20,7 +20,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTBinaryExpression;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IGPPASTBinaryExpression extends ICPPASTBinaryExpression {
-
 	/**
 	 * <code>op_max</code> represents >?
 	 */
@@ -41,6 +40,7 @@ public interface IGPPASTBinaryExpression extends ICPPASTBinaryExpression {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IGPPASTBinaryExpression copy();
 
 }

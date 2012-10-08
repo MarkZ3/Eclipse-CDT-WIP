@@ -41,7 +41,6 @@ import org.eclipse.jface.viewers.TreePath;
  * A specialization of VariableVMProvider that uses a GDB-specific variable VM
  * node. To understand why this is necessary, see GdbVariableVMNode.
  */
-@SuppressWarnings("restriction")
 public class GdbVariableVMProvider extends VariableVMProvider {
 
 	private IPropertyChangeListener fPreferencesListener;
@@ -62,6 +61,7 @@ public class GdbVariableVMProvider extends VariableVMProvider {
         }
 
         fPreferencesListener = new IPropertyChangeListener() {
+            @Override
 			public void propertyChange(final PropertyChangeEvent event) {
 				handlePropertyChanged(store, event);
 			}};
@@ -127,6 +127,7 @@ public class GdbVariableVMProvider extends VariableVMProvider {
 							final FetchMoreChildrenEvent fetchMoreChildrenEvent = new FetchMoreChildrenEvent(
 									exprCtx, path);
             				getExecutor().execute(new DsfRunnable() {
+            	                @Override
             					public void run() {
             						handleEvent(fetchMoreChildrenEvent, rm);
             					}
@@ -162,6 +163,7 @@ public class GdbVariableVMProvider extends VariableVMProvider {
 	        }
 	        
 			getExecutor().execute(new DsfRunnable() {
+                @Override
 			    public void run() {
 			        handleEvent(event);
 			    }

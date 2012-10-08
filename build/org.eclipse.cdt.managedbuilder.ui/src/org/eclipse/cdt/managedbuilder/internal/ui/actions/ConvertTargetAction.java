@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 Intel Corporation and others.
+ * Copyright (c) 2005, 2012 Intel Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,16 +7,22 @@
  *
  * Contributors:
  *     Intel Corporation - initial API and implementation
+ *     Anna Dushistova (MontaVista) - [366771]Converter fails to convert a CDT makefile project
  *******************************************************************************/
 package org.eclipse.cdt.managedbuilder.internal.ui.actions;
 
+import java.util.Vector;
+
+import org.eclipse.cdt.managedbuilder.core.IBuildObject;
+import org.eclipse.cdt.managedbuilder.core.IConfiguration;
 import org.eclipse.cdt.managedbuilder.core.IManagedBuildInfo;
 import org.eclipse.cdt.managedbuilder.core.IManagedProject;
 import org.eclipse.cdt.managedbuilder.core.IProjectType;
+import org.eclipse.cdt.managedbuilder.core.IToolChain;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuildManager;
+import org.eclipse.cdt.managedbuilder.internal.ui.Messages;
 import org.eclipse.cdt.managedbuilder.ui.properties.ManagedBuilderUIPlugin;
 import org.eclipse.cdt.ui.CUIPlugin;
-import org.eclipse.cdt.managedbuilder.internal.ui.Messages;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -33,21 +39,21 @@ public class ConvertTargetAction
 	implements IObjectActionDelegate {
 
 	private IProject selectedProject = null;
-	
+
 	public static final String PREFIX = "ProjectConvert";	//$NON-NLS-1$
 	public static final String PROJECT_CONVERTER_DIALOG = PREFIX + ".title";	//$NON-NLS-1$
-	
+
 	public static void initStartup() {
 		return;
 	}
-	
+
 	@Override
 	public void selectionChanged(IAction action, ISelection selection) {
 		if (selection instanceof IStructuredSelection) {
 			IStructuredSelection sel = (IStructuredSelection) selection;
 			Object obj = sel.getFirstElement();
 			if (obj instanceof IProject) {
-				 IProject project = (IProject)obj;				 
+				 IProject project = (IProject)obj;
 				 // Save the selected project.
 				 setSelectedProject(project);
 				 return;
@@ -68,16 +74,33 @@ public class ConvertTargetAction
 		}
 		return projectType;
 	}
-	
+
+	private Vector<IBuildObject> getProjectToolchains(IProject project) {
+		Vector<IBuildObject> projectToolchains = new Vector<IBuildObject>();
+
+		// Get the projectType from project.
+		IManagedBuildInfo info = ManagedBuildManager.getBuildInfo(project);
+		if (info != null) {
+			IConfiguration[] configs = info.getManagedProject().getConfigurations();
+			for (IConfiguration config : configs) {
+				IToolChain tc = config.getToolChain();
+				if (tc != null) {
+					projectToolchains.add(tc);
+				}
+			}
+		}
+		return projectToolchains;
+	}
 
 	@Override
 	public void run(IAction action) {
 		Shell shell = CUIPlugin.getActiveWorkbenchShell();
-		
+
 		// Check whether the converters available for the selected project
 		// If there are no converters display error dialog otherwise display converters list
-		
-		if( ManagedBuildManager.hasTargetConversionElements(getProjectType(getSelectedProject())) == true ) {
+
+		if( ManagedBuildManager.hasTargetConversionElements(getProjectType(getSelectedProject())) == true ||
+				ManagedBuildManager.hasAnyTargetConversionElements(getProjectToolchains(getSelectedProject()))) {
 			handleConvertTargetAction();
 		} else {
 			MessageDialog.openError(shell,Messages.ConvertTargetAction_No_Converter,
@@ -87,9 +110,9 @@ public class ConvertTargetAction
 
 	private void handleConvertTargetAction() {
 		Shell shell = ManagedBuilderUIPlugin.getDefault().getShell();
-		
+
 		String projectName = getSelectedProject().getName();
-		String title = NLS.bind(Messages.ProjectConvert_title, new String(projectName)); 
+		String title = NLS.bind(Messages.ProjectConvert_title, new String(projectName));
 		ConvertTargetDialog dialog = new ConvertTargetDialog(shell, getSelectedProject(), title);
 		if ( dialog.open() == ConvertTargetDialog.OK ) {
 			if ( ConvertTargetDialog.isConversionSuccessful() == false) {
@@ -99,9 +122,10 @@ public class ConvertTargetAction
 		}
 		return;
 	}
-		
+
+	@Override
 	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-		// TODO Auto-generated method stub	
+		// TODO Auto-generated method stub
 	}
 
 	/**

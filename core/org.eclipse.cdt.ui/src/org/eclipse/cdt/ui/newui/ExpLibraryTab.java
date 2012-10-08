@@ -12,15 +12,16 @@ package org.eclipse.cdt.ui.newui;
 
 import org.eclipse.cdt.core.resources.IPathEntryStoreListener;
 import org.eclipse.cdt.core.resources.PathEntryStoreChangedEvent;
-import org.eclipse.cdt.core.settings.model.CLibraryFileEntry;
 import org.eclipse.cdt.core.settings.model.ICLanguageSettingEntry;
 import org.eclipse.cdt.core.settings.model.ICSettingEntry;
+import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 
 /**
  * @noextend This class is not intended to be subclassed by clients.
  */
 public class ExpLibraryTab extends AbstractExportTab implements IPathEntryStoreListener {
 
+	@Override
 	public void pathEntryStoreChanged(PathEntryStoreChangedEvent event) {
 		updateData(getResDesc());
 	}
@@ -28,14 +29,14 @@ public class ExpLibraryTab extends AbstractExportTab implements IPathEntryStoreL
 	@Override
 	public ICLanguageSettingEntry doAdd(String s1, String s2, boolean isWsp) {
 		int flags = isWsp ? ICSettingEntry.VALUE_WORKSPACE_PATH : 0;
-		return new CLibraryFileEntry(s2, flags);
+		return CDataUtil.createCLibraryFileEntry(s2, flags);
 	}
 
 	@Override
 	public ICLanguageSettingEntry doEdit(String s1, String s2, boolean isWsp) {
 		return doAdd(s1, s2, isWsp);
 	}
-	
+
 	@Override
 	public int getKind() {
 		return ICSettingEntry.LIBRARY_FILE;

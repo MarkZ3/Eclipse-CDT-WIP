@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import org.eclipse.cdt.codan.core.CodanRuntime;
-import org.eclipse.cdt.codan.core.Messages;
 import org.eclipse.cdt.codan.core.model.AbstractProblemReporter;
 import org.eclipse.cdt.codan.core.model.ICodanProblemMarker;
 import org.eclipse.core.resources.IProject;
@@ -28,15 +27,16 @@ import org.eclipse.osgi.util.NLS;
 
 /**
  * Application to support headless build
- * 
+ *
  * @noextend This class is not intended to be extended by clients.
  * @noinstantiate This class is not intended to be instantiated by clients.
  */
 public class CodanApplication implements IApplication {
 	private Collection<String> projects = new ArrayList<String>();
-	private boolean verbose = false;
-	private boolean all = false;
+	private boolean verbose;
+	private boolean all;
 
+	@Override
 	public Object start(IApplicationContext context) throws Exception {
 		String[] args = (String[]) context.getArguments().get("application.args"); //$NON-NLS-1$
 		if (args == null || args.length == 0) {
@@ -98,7 +98,7 @@ public class CodanApplication implements IApplication {
 	}
 
 	/**
-	 * 
+	 *
 	 */
 	private void help() {
 		System.out.println(Messages.CodanApplication_Usage);
@@ -107,6 +107,7 @@ public class CodanApplication implements IApplication {
 		System.out.println(Messages.CodanApplication_verbose_option);
 	}
 
+	@Override
 	public void stop() {
 		// nothing
 	}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2010 IBM Corporation and others.
+ * Copyright (c) 2000, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -55,7 +55,9 @@ import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTBreakStatement;
 import org.eclipse.cdt.core.dom.ast.IASTCaseStatement;
+import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
+import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDefaultStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDoStatement;
@@ -73,6 +75,7 @@ import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfdefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfndefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTProblem;
+import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IASTSwitchStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
@@ -121,7 +124,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		}
 		private final Stack<StatementRegion> fStatements;
 		int fLevel= 0;
-		String fFunction= ""; //$NON-NLS-1$
+		Stack<String> fScope= new Stack<String>();
 
 		private StatementVisitor(Stack<StatementRegion> statements) {
 			fStatements = statements;
@@ -239,8 +242,13 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 			if (declaration instanceof IASTFunctionDefinition) {
 				final IASTFunctionDeclarator declarator = ((IASTFunctionDefinition)declaration).getDeclarator();
 				if (declarator != null) {
-					fFunction= new String(ASTQueries.findInnermostDeclarator(declarator).getName().toCharArray());
+					fScope.push(new String(ASTQueries.findInnermostDeclarator(declarator).getName().toCharArray()));
 					fLevel= 0;
+				}
+			} else if (declaration instanceof IASTSimpleDeclaration) {
+				IASTDeclSpecifier declSpecifier = ((IASTSimpleDeclaration) declaration).getDeclSpecifier();
+				if (declSpecifier instanceof IASTCompositeTypeSpecifier) {
+					fScope.push(new String(((IASTCompositeTypeSpecifier) declSpecifier).getName().toCharArray()));
 				}
 			}
 			return PROCESS_CONTINUE;
@@ -249,13 +257,20 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		@Override
 		public int leave(IASTDeclaration declaration) {
 			if (declaration instanceof IASTFunctionDefinition) {
-				fFunction= ""; //$NON-NLS-1$
+				if (!fScope.isEmpty())
+					fScope.pop();
+			} else if (declaration instanceof IASTSimpleDeclaration) {
+				IASTDeclSpecifier declSpecifier = ((IASTSimpleDeclaration) declaration).getDeclSpecifier();
+				if (declSpecifier instanceof IASTCompositeTypeSpecifier) {
+					if (!fScope.isEmpty())
+						fScope.pop();
+				}
 			}
 			return PROCESS_CONTINUE;
 		}
 
 		private StatementRegion createRegion() {
-			return new StatementRegion(fFunction, fLevel);
+			return new StatementRegion(fScope.toString(), fLevel);
 		}
 	}
 
@@ -263,6 +278,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 	 * Listen to cursor position changes.
 	 */
 	private final class SelectionListener implements ISelectionChangedListener {
+		@Override
 		public void selectionChanged(SelectionChangedEvent event) {
 			ISelection s= event.getSelection();
 			if (s instanceof ITextSelection) {
@@ -281,6 +297,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.cdt.internal.ui.text.ICReconcilingListener#aboutToBeReconciled()
 		 */
+		@Override
 		public void aboutToBeReconciled() {
 			
 		}
@@ -288,6 +305,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.cdt.internal.ui.text.ICReconcilingListener#reconciled(IASTTranslationUnit, boolean, IProgressMonitor)
 		 */
+		@Override
 		public void reconciled(IASTTranslationUnit ast, boolean force, IProgressMonitor progressMonitor) {
 			if (fInput == null || progressMonitor.isCanceled()) {
 				return;
@@ -578,6 +596,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionPosition#computeFoldingRegions(org.eclipse.jface.text.IDocument)
 		 */
+		@Override
 		public IRegion[] computeProjectionRegions(IDocument document) throws BadLocationException {
 			DocumentCharacterIterator sequence= new DocumentCharacterIterator(document, offset, offset + length);
 			int prefixEnd= 0;
@@ -636,6 +655,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionPosition#computeCaptionOffset(org.eclipse.jface.text.IDocument)
 		 */
+		@Override
 		public int computeCaptionOffset(IDocument document) {
 			DocumentCharacterIterator sequence= new DocumentCharacterIterator(document, offset, offset + length);
 			return findFirstContent(sequence, 0);
@@ -665,6 +685,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionPosition#computeFoldingRegions(org.eclipse.jface.text.IDocument)
 		 */
+		@Override
 		public IRegion[] computeProjectionRegions(IDocument document) throws BadLocationException {
 			int captionOffset= offset;
 			try {
@@ -726,6 +747,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionPosition#computeCaptionOffset(org.eclipse.jface.text.IDocument)
 		 */
+		@Override
 		public int computeCaptionOffset(IDocument document) throws BadLocationException {
 			int captionOffset= offset;
 			try {
@@ -778,6 +800,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionListener#projectionEnabled()
 		 */
+		@Override
 		public void projectionEnabled() {
 			handleProjectionEnabled();
 		}
@@ -785,6 +808,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		/*
 		 * @see org.eclipse.jface.text.source.projection.IProjectionListener#projectionDisabled()
 		 */
+		@Override
 		public void projectionDisabled() {
 			handleProjectionDisabled();
 		}
@@ -876,6 +900,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 	/*
 	 * @see org.eclipse.cdt.ui.text.folding.ICFoldingStructureProvider#install(org.eclipse.ui.texteditor.ITextEditor, org.eclipse.jface.text.source.projection.ProjectionViewer)
 	 */
+	@Override
 	public void install(ITextEditor editor, ProjectionViewer viewer) {
 		Assert.isLegal(editor != null);
 		Assert.isLegal(viewer != null);
@@ -891,6 +916,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 	/*
 	 * @see org.eclipse.cdt.ui.text.folding.ICFoldingStructureProvider#uninstall()
 	 */
+	@Override
 	public void uninstall() {
 		internalUninstall();
 	}
@@ -966,6 +992,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 	/*
 	 * @see org.eclipse.cdt.ui.text.folding.ICFoldingStructureProvider#initialize()
 	 */
+	@Override
 	public final void initialize() {
 		if (DEBUG) System.out.println("DefaultCFoldingStructureProvider.initialize()"); //$NON-NLS-1$
 		fInitialReconcilePending= true;
@@ -1240,6 +1267,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 		}
 
 		Comparator<Tuple> comparator= new Comparator<Tuple>() {
+			@Override
 			public int compare(Tuple t1, Tuple t2) {
 				return t1.position.getOffset() - t2.position.getOffset();
 			}
@@ -1271,6 +1299,7 @@ public class DefaultCFoldingStructureProvider implements ICFoldingStructureProvi
 				final WAIT_FLAG waitFlag= ASTProvider.WAIT_ACTIVE_ONLY;
 				final ASTProvider astProvider= CUIPlugin.getDefault().getASTProvider();
 				IStatus status= astProvider.runOnAST(getInputElement(), waitFlag, null, new ASTCache.ASTRunnable() {
+					@Override
 					public IStatus runOnAST(ILanguage lang, IASTTranslationUnit ast) {
 						if (ast != null) {
 							ctx.fAST= ast;

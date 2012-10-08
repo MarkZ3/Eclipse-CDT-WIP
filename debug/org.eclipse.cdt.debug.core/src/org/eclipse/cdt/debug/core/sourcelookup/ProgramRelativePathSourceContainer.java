@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2010 Freescale and others.
+ * Copyright (c) 2008, 2012 Freescale and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,7 @@ import org.eclipse.debug.core.sourcelookup.containers.AbstractSourceContainer;
 import org.eclipse.debug.core.sourcelookup.containers.LocalFileStorage;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
 
 /**
@@ -81,6 +82,7 @@ public class ProgramRelativePathSourceContainer extends AbstractSourceContainer{
 	 * 
 	 * @see org.eclipse.debug.core.sourcelookup.ISourceContainer#findSourceElements(java.lang.String)
 	 */
+	@Override
 	public Object[] findSourceElements(String sourceName) throws CoreException {
 		if (sourceName == null) {
 			return new Object[0];
@@ -115,6 +117,7 @@ public class ProgramRelativePathSourceContainer extends AbstractSourceContainer{
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.sourcelookup.ISourceContainer#getName()
 	 */
+	@Override
 	public String getName() {
 		return SourceLookupMessages.ProgramRelativePathSourceContainer_0;
 	}
@@ -122,6 +125,7 @@ public class ProgramRelativePathSourceContainer extends AbstractSourceContainer{
 	/* (non-Javadoc)
 	 * @see org.eclipse.debug.core.sourcelookup.ISourceContainer#getType()
 	 */
+	@Override
 	public ISourceContainerType getType() {
 		return getSourceContainerType(TYPE_ID);
 	}
@@ -156,6 +160,7 @@ public class ProgramRelativePathSourceContainer extends AbstractSourceContainer{
 			if (programName == null) {
 				return fProgramPath; // return empty path
 			}
+        	programName = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(programName);
 
 			// get executable file
 			IFile exeFile = null;

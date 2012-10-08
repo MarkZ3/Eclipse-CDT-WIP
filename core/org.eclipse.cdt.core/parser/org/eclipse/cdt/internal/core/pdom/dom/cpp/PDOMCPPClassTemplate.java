@@ -33,7 +33,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateTypeParameter;
 import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPDeferredClassInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPInstanceCache;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPTemplates;
@@ -87,6 +86,7 @@ public class PDOMCPPClassTemplate extends PDOMCPPClassType
 		return IIndexCPPBindingConstants.CPP_CLASS_TEMPLATE;
 	}
 	
+	@Override
 	public ICPPTemplateParameter[] getTemplateParameters() {
 		if (params == null) {
 			try {
@@ -209,7 +209,8 @@ public class PDOMCPPClassTemplate extends PDOMCPPClassType
 		getDB().putRecPtr(record + FIRST_PARTIAL, partial.getRecord());
 	}
 		
-	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() throws DOMException {
+	@Override
+	public ICPPClassTemplatePartialSpecialization[] getPartialSpecializations() {
 		try {
 			ArrayList<PDOMCPPClassTemplatePartialSpecialization> partials =
 					new ArrayList<PDOMCPPClassTemplatePartialSpecialization>();
@@ -262,18 +263,22 @@ public class PDOMCPPClassTemplate extends PDOMCPPClassType
 		return SemanticUtil.isSameOwner(getOwner(), ctype.getOwner());
 	}
 
+	@Override
 	public ICPPTemplateInstance getInstance(ICPPTemplateArgument[] arguments) {
 		return PDOMInstanceCache.getCache(this).getInstance(arguments);	
 	}
 
+	@Override
 	public void addInstance(ICPPTemplateArgument[] arguments, ICPPTemplateInstance instance) {
 		PDOMInstanceCache.getCache(this).addInstance(arguments, instance);	
 	}
 
+	@Override
 	public ICPPTemplateInstance[] getAllInstances() {
 		return PDOMInstanceCache.getCache(this).getAllInstances();	
 	}
 
+	@Override
 	public ICPPTemplateParameter adaptTemplateParameter(ICPPTemplateParameter param) {
 		// Template parameters are identified by their position in the parameter list.
 		int pos = param.getParameterPosition();
@@ -296,20 +301,16 @@ public class PDOMCPPClassTemplate extends PDOMCPPClassType
 		return null;
 	}
 	
-	public ICPPDeferredClassInstance asDeferredInstance() throws DOMException  {
+	@Override
+	public final ICPPDeferredClassInstance asDeferredInstance() {
 		PDOMInstanceCache cache= PDOMInstanceCache.getCache(this);
 		synchronized (cache) {
 			ICPPDeferredClassInstance dci= cache.getDeferredInstance();
 			if (dci == null) {
-				dci= createDeferredInstance();
+				dci= CPPTemplates.createDeferredInstance(this);
 				cache.putDeferredInstance(dci);
 			}
 			return dci;
 		}
-	}
-
-	protected ICPPDeferredClassInstance createDeferredInstance() throws DOMException {
-		ICPPTemplateArgument[] args = CPPTemplates.templateParametersAsArguments(getTemplateParameters());
-		return new CPPDeferredClassInstance(this, args, getCompositeScope());
 	}
 }

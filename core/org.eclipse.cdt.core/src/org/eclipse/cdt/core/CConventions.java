@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2001, 2011 IBM Corporation and others.
+ *  Copyright (c) 2001, 2012 IBM Corporation and others.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -33,10 +33,10 @@ import org.eclipse.osgi.util.NLS;
  * @noinstantiate This class is not intended to be instantiated by clients.
  */
 public class CConventions {
-	private final static String scopeResolutionOperator= "::"; //$NON-NLS-1$
-	private final static char fgDot= '.';
+	private static final String scopeResolutionOperator= "::"; //$NON-NLS-1$
+	private static final char fgDot= '.';
 
-	private final static String ILLEGAL_FILE_CHARS = "/\\:<>?*|\""; //$NON-NLS-1$
+	private static final String ILLEGAL_FILE_CHARS = "/\\:<>?*|\""; //$NON-NLS-1$
 	
 	public static boolean isLegalIdentifier(String name) {
 		if (name == null) {
@@ -291,8 +291,8 @@ public class CConventions {
 		if (!isValidIdentifier(id)) {
 			return new Status(IStatus.ERROR, CCorePlugin.PLUGIN_ID, -1, NLS.bind(Messages.convention_invalid, id), null); 
 		}
-		
-		if (isReservedKeyword(id, language)) {
+
+		if (isReservedKeyword(id, language) || isBuiltinType(id, language)) {
 			return new Status(IStatus.ERROR, CCorePlugin.PLUGIN_ID, -1, NLS.bind(Messages.convention_reservedKeyword, id), null);
 		}
 
@@ -369,9 +369,18 @@ public class CConventions {
 		}
 		return false;
 	}
-	
+
+	private static boolean isBuiltinType(String name, AbstractCLikeLanguage language) {
+		String[] types = language.getBuiltinTypes();
+		for (String type : types) {
+			if (type.equals(name))
+				return true;
+		}
+		return false;
+	}
+
 	private static boolean isLegalFilename(String name) {
-		if (name == null || name.length() == 0) {
+		if (name == null || name.isEmpty()) {
 			return false;
 		}
 

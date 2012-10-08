@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,6 +26,7 @@ import org.eclipse.ui.progress.IWorkbenchSiteProgressService;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.index.IIndex;
+import org.eclipse.cdt.core.index.IIndexManager;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ICElement;
 import org.eclipse.cdt.core.model.ICProject;
@@ -36,21 +37,12 @@ import org.eclipse.cdt.internal.ui.viewsupport.WorkingSetFilterUI;
 
 class THHierarchyModel {
     public class BackgroundJob extends Job {
-    	IProgressMonitor fProgressMonitor;
-    	
 		public BackgroundJob() {
 			super(Messages.THHierarchyModel_Job_title);
 		}
 
-		public void setCustomProgressMonitor(IProgressMonitor progressMonitor) {
-			this.fProgressMonitor = progressMonitor;
-		}
-
 		@Override
 		protected IStatus run(IProgressMonitor monitor) {
-			if (fProgressMonitor != null) {
-				return onComputeGraph(this, fProgressMonitor);
-			}
 			return onComputeGraph(this, monitor);
 		}
 	}
@@ -62,7 +54,7 @@ class THHierarchyModel {
 	static final int END_OF_COMPUTATION = 0;
 	
 	private static final ISchedulingRule RULE = new THSchedulingRule();
-	private static final Object[] NO_CHILDREN= new Object[0];
+	private static final Object[] NO_CHILDREN= {};
 
 	private ICElement fInput;
 	private int fHierarchyKind;
@@ -75,8 +67,7 @@ class THHierarchyModel {
 	private ICElement fSelectedMember;
 	private String fMemberSignatureToSelect;
 	
-	private BackgroundJob fJob;
-	private IProgressMonitor fCustomProgressMonitor = null;
+	private Job fJob;
 	private Display fDisplay;
 	private ITHModelPresenter fView;
 	private WorkingSetFilterUI fFilter;
@@ -133,21 +124,14 @@ class THHierarchyModel {
 		fTypeToSelect= input;
 	}
 	
-	public void setCustomProgressMonitor(IProgressMonitor customProgressMonitor) {
-		this.fCustomProgressMonitor = customProgressMonitor;
-	}
-
 	synchronized public void computeGraph() {
 		if (fJob != null) {
 			fJob.cancel();
 		}
 		fJob= new BackgroundJob();
-		if (fCustomProgressMonitor != null) {
-			fJob.setCustomProgressMonitor(fCustomProgressMonitor);
-		}
 		fJob.setRule(RULE);
 		IWorkbenchSiteProgressService ps= fView.getProgressService();
-		if (ps != null && fCustomProgressMonitor == null) {
+		if (ps != null) {
 			ps.schedule(fJob, 0L, true);
 		} else {
 			fJob.schedule();
@@ -165,7 +149,7 @@ class THHierarchyModel {
 		THGraph graph= new THGraph();
 		try {
 			ICProject[] scope= CoreModel.getDefault().getCModel().getCProjects();
-			IIndex index= CCorePlugin.getIndexManager().getIndex(scope);
+			IIndex index= CCorePlugin.getIndexManager().getIndex(scope, IIndexManager.ADD_EXTENSION_FRAGMENTS_TYPE_HIERARCHY);
 			index.acquireReadLock();
 			try {
 				if (monitor.isCanceled()) 
@@ -327,33 +311,26 @@ class THHierarchyModel {
 	synchronized private void onJobDone(final THGraph graph, Job job) {
 		if (fJob == job) {
 			fJob= null;
-			if (fDisplay != null) {
-				fDisplay.asyncExec(new Runnable(){
-					public void run() {
-						onEnd(graph);
+			fDisplay.asyncExec(new Runnable(){
+				@Override
+				public void run() {
+					fGraph= graph;
+					THGraphNode inputNode= fGraph.getInputNode();
+					if (!fGraph.isFileIndexed()) {
+						fView.setMessage(IndexUI.getFileNotIndexedMessage(fInput));
+					} else if (inputNode == null) {
+						fView.setMessage(Messages.THHierarchyModel_errorComputingHierarchy);
+					} else {
+						if (fTypeToSelect == fInput) {
+							fTypeToSelect= inputNode.getElement();
+						}
+						fInput= inputNode.getElement();
 					}
-				});	
-			} else {
-				onEnd(graph);
-			}
+					computeNodes();
+					notifyEvent(END_OF_COMPUTATION);
+				}
+			});
 		}
-	}
-	
-	private void onEnd(final THGraph graph) {
-		fGraph= graph;
-		THGraphNode inputNode= fGraph.getInputNode();
-		if (!fGraph.isFileIndexed()) {
-			fView.setMessage(IndexUI.getFileNotIndexedMessage(fInput));
-		} else if (inputNode == null) {
-			fView.setMessage(Messages.THHierarchyModel_errorComputingHierarchy);
-		} else {
-			if (fTypeToSelect == fInput) {
-				fTypeToSelect= inputNode.getElement();
-			}
-			fInput= inputNode.getElement();
-		}
-		computeNodes();
-		notifyEvent(END_OF_COMPUTATION);
 	}
 
 	private void notifyEvent(int event) {

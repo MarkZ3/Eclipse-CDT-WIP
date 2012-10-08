@@ -6,7 +6,7 @@
  *  http://www.eclipse.org/legal/epl-v10.html
  * 
  *  Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
+ *      Doug Schaefer (IBM) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -17,7 +17,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTFileLocation extends IASTNodeLocation {
-
 	/**
 	 * The name of the file.
 	 * 
@@ -28,11 +27,13 @@ public interface IASTFileLocation extends IASTNodeLocation {
 	/**
 	 * Returns the offset within the file where this location starts.
 	 */
+	@Override
 	public int getNodeOffset();
 
 	/**
 	 * Returns the length of this location in terms of characters.
 	 */
+	@Override
 	public int getNodeLength();
 
     /**
@@ -50,4 +51,13 @@ public interface IASTFileLocation extends IASTNodeLocation {
      * @return int representing line number or <code>0</code> if not applicable
      */
     public int getEndingLineNumber();
+
+	/**
+	 * Returns the inclusion statement that included this file, or <code>null</code> for
+	 * a top-level file.
+	 * Also <code>null</code> when the file location does not belong to an AST node, e.g.
+	 * if it is obtained from a name in the index.
+	 * @since 5.4
+	 */
+	public IASTPreprocessorIncludeStatement getContextInclusionStatement();
 }

@@ -18,7 +18,6 @@ import java.util.List;
 
 import junit.framework.Test;
 
-import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IPDOMManager;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ICElement;
@@ -50,6 +49,7 @@ public class CModelIdentifierTests extends BaseTestCase {
 	private ICProject fCProject;
 	private IFile fHeaderFile;
 
+	@Override
 	protected void setUp() throws Exception {
 		// reusing project setup from CModelElementsTests
 		NullProgressMonitor monitor= new NullProgressMonitor();
@@ -66,9 +66,10 @@ public class CModelIdentifierTests extends BaseTestCase {
 				e.printStackTrace();
 			}
 		}
-		CCorePlugin.getIndexManager().joinIndexer(10000, new NullProgressMonitor());
+		waitForIndexer(fCProject);
 	}
 
+	@Override
 	protected void tearDown() {
 		CProjectHelper.delete(fCProject);
 	}	
@@ -91,6 +92,7 @@ public class CModelIdentifierTests extends BaseTestCase {
 		final List elements= new ArrayList();
 		final List identifiers= new ArrayList();
 		ICElementVisitor visitor= new ICElementVisitor() {
+			@Override
 			public boolean visit(ICElement element) throws CoreException {
 				elements.add(element);
 				identifiers.add(element.getHandleIdentifier());

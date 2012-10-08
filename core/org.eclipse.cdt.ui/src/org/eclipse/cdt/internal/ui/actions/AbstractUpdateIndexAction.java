@@ -6,10 +6,9 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Anton Leherbauer (Wind River Systems)
- *******************************************************************************/ 
-
+ *     Markus Schorn - initial API and implementation
+ *     Anton Leherbauer (Wind River Systems)
+ *******************************************************************************/
 package org.eclipse.cdt.internal.ui.actions;
 
 import java.util.ArrayList;
@@ -32,31 +31,30 @@ import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.ui.CUIPlugin;
 
 public abstract class AbstractUpdateIndexAction implements IObjectActionDelegate {
-
 	private ISelection fSelection;
-	
+
+	@Override
 	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
 	}
 
+	@Override
 	public void run(IAction action) {
 		if (!(fSelection instanceof IStructuredSelection))
 			return;
-		
+
 		IStructuredSelection cElements= SelectionConverter.convertSelectionToCElements(fSelection);
-		Iterator<?> i= cElements.iterator();
 		ArrayList<ICElement> tuSelection= new ArrayList<ICElement>();
-		while (i.hasNext()) {
+		for (Iterator<?> i= cElements.iterator(); i.hasNext();) {
 			Object o= i.next();
 			if (o instanceof ICProject || o instanceof ICContainer || o instanceof ITranslationUnit) {
 				tuSelection.add((ICElement) o);
 			}
 		}
 		ICElement[] tuArray= tuSelection.toArray(new ICElement[tuSelection.size()]);
-		
+
 		try {
 			CCorePlugin.getIndexManager().update(tuArray, getUpdateOptions());
-		}
-		catch (CoreException e) {
+		} catch (CoreException e) {
 			CUIPlugin.log(e);
 		}
 	}
@@ -71,6 +69,7 @@ public abstract class AbstractUpdateIndexAction implements IObjectActionDelegate
 	/**
 	 * @see IActionDelegate#selectionChanged(IAction, ISelection)
 	 */
+	@Override
 	public void selectionChanged(IAction action, ISelection selection) {
 		fSelection = selection;
 	}

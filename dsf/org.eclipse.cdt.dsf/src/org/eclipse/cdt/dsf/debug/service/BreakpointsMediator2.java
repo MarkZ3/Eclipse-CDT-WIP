@@ -14,6 +14,7 @@
 package org.eclipse.cdt.dsf.debug.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -130,14 +131,17 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
     		fAttributes = attrs;
     	}
     	
+        @Override
     	public Map<String, Object> getAttributes() {
 			return fAttributes;
 		}
     	
+        @Override
     	public IBreakpointDMContext getTargetBreakpoint() {
 			return fTargetBPContext;
 		}
     	
+        @Override
     	public IStatus getStatus() {
 			return fStatus;
 		}
@@ -178,8 +182,8 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
      * - Modified on breakpointChanged()
      * - Diminished on breakpointRemoved()
      */
-	private Map<IBreakpointsTargetDMContext, Map<IBreakpoint, List<TargetBP>>> fPlatformBPs = 
-		new HashMap<IBreakpointsTargetDMContext, Map<IBreakpoint, List<TargetBP>>>();
+	private Map<IBreakpointsTargetDMContext, Map<IBreakpoint, List<ITargetBreakpointInfo>>> fPlatformBPs = 
+		new HashMap<IBreakpointsTargetDMContext, Map<IBreakpoint, List<ITargetBreakpointInfo>>>();
 
 	/**
 	 * BreakpointsTargetDMContext's that are being removed from {@link #fPlatformBPs}.
@@ -349,7 +353,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
         // - Install the platform breakpoints on the selected target
             
         // Make sure a mapping for this execution context does not already exist
-		Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(dmc);
+		Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(dmc);
 		if (platformBPs != null) {
             rm.setStatus(new Status(IStatus.ERROR, getPluginID(), INTERNAL_ERROR, "Context already initialized", null)); //$NON-NLS-1$
             rm.done();            
@@ -358,7 +362,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 
         // Create entries in the breakpoint tables for the new context. These entries should only
         // be removed when this service stops tracking breakpoints for the given context.
-        fPlatformBPs.put(dmc, new HashMap<IBreakpoint, List<TargetBP>>());
+        fPlatformBPs.put(dmc, new HashMap<IBreakpoint, List<ITargetBreakpointInfo>>());
 
         // Install the platform breakpoints (stored in fPlatformBPs) on the target.
 		// We need to use a background thread for this operation because we are 
@@ -388,7 +392,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
         // - Remove the target breakpoints for the given DMC
     	// - Remove the given DMC from the internal maps.
         //
-        Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(dmc);
+        Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(dmc);
         if (platformBPs == null) {
             rm.setStatus(new Status(IStatus.INFO /* NOT error */, getPluginID(), INTERNAL_ERROR, "Breakpoints not installed for given context", null)); //$NON-NLS-1$
             rm.done();
@@ -446,11 +450,11 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
     public ITargetBreakpointInfo[] getTargetBreakpoints(IBreakpointsTargetDMContext dmc, IBreakpoint platformBp) {
     	assert getExecutor().isInExecutorThread();
     	
-        Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(dmc);
+        Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(dmc);
 
         if (platformBPs != null)
         {
-        	List<TargetBP> bpInfo = platformBPs.get(platformBp);
+        	List<ITargetBreakpointInfo> bpInfo = platformBPs.get(platformBp);
             if (bpInfo != null) {
             	return bpInfo.toArray(new ITargetBreakpointInfo[bpInfo.size()]);
             }
@@ -472,16 +476,18 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
     		if (dmc != null && !dmc.equals(bpContext))
     			continue;
     		
-	        Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(bpContext);
+	        Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(bpContext);
 	
 	        if (platformBPs != null && platformBPs.size() > 0)
 	        {
-	            for(Map.Entry<IBreakpoint, List<TargetBP>> e: platformBPs.entrySet())
+	            for(Map.Entry<IBreakpoint, List<ITargetBreakpointInfo>> e: platformBPs.entrySet())
 	            {
 	                // Stop at the first occurrence
-	            	for (TargetBP tbp : e.getValue())
-	            		if(tbp.getTargetBreakpoint().equals(bp))
+	            	for (ITargetBreakpointInfo tbp : e.getValue()) {
+                        IBreakpointDMContext targetBreakpoint = tbp.getTargetBreakpoint();
+                        if(targetBreakpoint != null && targetBreakpoint.equals(bp))
 	            			return e.getKey();
+                    }
 	            }    
 	        }
     	}
@@ -507,7 +513,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 			final List<Map<String, Object>> attrsList, final DataRequestMonitor<List<TargetBP>> rm)
 	{
     	// Retrieve the set of breakpoints for this context
-        final Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(dmc);
+        final Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(dmc);
         assert platformBPs != null;
 
         // Ensure the breakpoint is not already installed
@@ -518,7 +524,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
         	targetBPsAttempted.add(new TargetBP(attrsList.get(i)));
         }
         
-        final ArrayList<TargetBP> targetBPsInstalled = new ArrayList<TargetBP>(attrsList.size());
+        final ArrayList<ITargetBreakpointInfo> targetBPsInstalled = new ArrayList<ITargetBreakpointInfo>(attrsList.size());
 
         // Update the breakpoint status when all back-end breakpoints have been installed
     	final CountingRequestMonitor installRM = new CountingRequestMonitor(getExecutor(), rm) {
@@ -572,17 +578,17 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 	 *            regardless of success or failure in the removal.
 	 */
     private void uninstallBreakpoint(final IBreakpointsTargetDMContext dmc, final IBreakpoint breakpoint, 
-        final DataRequestMonitor<List<TargetBP>> drm)
+        final DataRequestMonitor<List<ITargetBreakpointInfo>> drm)
     {
 		// Remove the back-end breakpoints
-		final Map<IBreakpoint, List<TargetBP>> platformBPs = fPlatformBPs.get(dmc);
+		final Map<IBreakpoint, List<ITargetBreakpointInfo>> platformBPs = fPlatformBPs.get(dmc);
         if (platformBPs == null) {
             drm.setStatus(new Status(IStatus.ERROR, getPluginID(), INVALID_HANDLE, "Invalid breakpoint", null)); //$NON-NLS-1$
             drm.done();
             return;
         }
 
-        final List<TargetBP> bpList = platformBPs.get(breakpoint);
+        final List<ITargetBreakpointInfo> bpList = platformBPs.get(breakpoint);
         assert bpList != null;
 
         // Only try to remove those targetBPs that are successfully installed.
@@ -601,7 +607,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 
         int count = 0;
         for (int i = 0; i < bpList.size(); i++) {
-        	final TargetBP bp = bpList.get(i);
+        	final ITargetBreakpointInfo bp = bpList.get(i);
         	if (bp.getTargetBreakpoint() != null) {
         		fBreakpointsService.removeBreakpoint(
         				bp.getTargetBreakpoint(), 
@@ -609,16 +615,16 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
         					@Override
         					protected void handleCompleted() {
         						// Remember result of the removal, success or failure.
-        				        bp.setStatus(getStatus());
+        				        ((TargetBP)bp).setStatus(getStatus());
         				        if (isSuccess()) {
-            						bp.setTargetBreakpoint(null);
+        				            ((TargetBP)bp).setTargetBreakpoint(null);
         				        } 
         				        countingRm.done();
         					}
         				});
         		count++;
         	} else {
-        		bp.setStatus(Status.OK_STATUS);
+        	    ((TargetBP)bp).setStatus(Status.OK_STATUS);
         	}
         }
         countingRm.setDoneCount(count);
@@ -632,6 +638,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
      * @noreference This method is not intended to be referenced by clients.
      */
     @ThreadSafeAndProhibitedFromDsfExecutor("getExecutor()")
+    @Override
 	public void breakpointsAdded(final IBreakpoint[] bps) {
 		doBreakpointsAdded(bps, null, null);
 	}
@@ -652,6 +659,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 
 		try {
             getExecutor().execute(new DsfRunnable() {
+                @Override
 				public void run() {
 					Collection<IBreakpointsTargetDMContext> dmcs = new ArrayList<IBreakpointsTargetDMContext>();
 					if (bpsTargetDmc == null)
@@ -707,6 +715,11 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
                 @Override
                 protected void handleCompleted() {
                 	processPendingRequests();
+                	for (Map.Entry<IBreakpoint, Map<IBreakpointsTargetDMContext, ITargetBreakpointInfo[]>> eventEntry : eventBPs.entrySet()) {
+                	    for (Map.Entry<IBreakpointsTargetDMContext, ITargetBreakpointInfo[]> bpEntry : eventEntry.getValue().entrySet()) {
+                	        fPlatformBPs.get(bpEntry.getKey()).put(eventEntry.getKey(), Arrays.asList( bpEntry.getValue() ));
+                	    }
+                	}
                 	fireUpdateBreakpointsStatus(eventBPs, BreakpointEventType.ADDED);
                 	if (rm != null)
                 		// don't call this if "rm" is null as this will 
@@ -797,6 +810,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
      * @noreference This method is not intended to be referenced by clients.
      */
 	@ThreadSafeAndProhibitedFromDsfExecutor("getExecutor()")
+    @Override
 	public void breakpointsChanged(IBreakpoint[] bps, IMarkerDelta[] deltas) {
 		if (fAttributeTranslator2 == null)
 			return;
@@ -808,6 +822,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 		
 		try {
 	        getExecutor().execute( new DsfRunnable() { 
+	            @Override
 	            public void run() {
 	            	Map<String, Object> tmp = new HashMap<String, Object>(1);
 					tmp.put(IBreakpoint.ENABLED, true);
@@ -923,9 +938,9 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
     	fRunningEvents.add(bp);
     	
 		for (IBreakpointsTargetDMContext context : updateContexts) {
-			List<TargetBP> targetBPs = fPlatformBPs.get(context).get(bp);
+			List<ITargetBreakpointInfo> targetBPs = fPlatformBPs.get(context).get(bp);
 			if (targetBPs != null) {
-				for (TargetBP tbp : targetBPs) {
+				for (ITargetBreakpointInfo tbp : targetBPs) {
 					// this must be an installed breakpoint.
 					assert (tbp.getTargetBreakpoint() != null);
 					
@@ -942,8 +957,10 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 	 * @noreference This method is not intended to be referenced by clients.
 	 */
     @ThreadSafeAndProhibitedFromDsfExecutor("getExecutor()")
+    @Override
 	public void breakpointsRemoved(final IBreakpoint[] bps, IMarkerDelta delta[]) {
 		getExecutor().execute(new DsfRunnable() {
+		    @Override
 			public void run() {
 				for (IBreakpoint bp : bps)
 					fBreakpointAttributes.remove(bp);
@@ -973,6 +990,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 		
 		try {
 	        getExecutor().execute(new DsfRunnable() {
+	            @Override
 	        	public void run() {
 					Collection<IBreakpointsTargetDMContext> contexts = new ArrayList<IBreakpointsTargetDMContext>();
 					if (bpsTargetDmc == null)
@@ -1006,6 +1024,11 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
 			protected void handleCompleted() {
 				processPendingRequests();
             	fireUpdateBreakpointsStatus(eventBPs, BreakpointEventType.REMOVED);
+                for (Map.Entry<IBreakpoint, Map<IBreakpointsTargetDMContext, ITargetBreakpointInfo[]>> eventEntry : eventBPs.entrySet()) {
+                    for (IBreakpointsTargetDMContext bpTarget : eventEntry.getValue().keySet()) {
+                        fPlatformBPs.get(bpTarget).remove(eventEntry.getKey());
+                    }
+                }
             	if (rm != null)
             		// don't call this if "rm" is null as this will 
             		// log errors if any and pack Eclipse error 
@@ -1053,7 +1076,7 @@ public class BreakpointsMediator2 extends AbstractDsfService implements IBreakpo
     				
     				uninstallBreakpoint(
     						dmc, breakpoint,
-    						new DataRequestMonitor<List<TargetBP>>(getExecutor(), bpTargetsCountingRM) {
+    						new DataRequestMonitor<List<ITargetBreakpointInfo>>(getExecutor(), bpTargetsCountingRM) {
 				    			@Override
 								protected void handleSuccess() {
 				    				targetBPs.put(dmc, getData().toArray(new ITargetBreakpointInfo[getData().size()]));

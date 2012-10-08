@@ -6,7 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
+ *     Markus Schorn - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.pdom;
 
@@ -22,7 +23,6 @@ import org.eclipse.cdt.core.parser.IScannerInfo;
  * @since 5.0
  */
 public abstract class IndexerInputAdapter extends ASTFilePathResolver {
-
 	/**
 	 * Returns an object representing an input file for the given index location,
 	 * or <code>null</code>, if it does not exist.
@@ -33,6 +33,16 @@ public abstract class IndexerInputAdapter extends ASTFilePathResolver {
 	 * Return the last modification date for the file denoted by the index location.
 	 */
 	public abstract long getLastModified(IIndexFileLocation location);
+
+	/**
+	 * Returns the size of the file in bytes, or 0 if the file does not exist.
+	 */
+	public abstract long getFileSize(IIndexFileLocation location);
+
+	/**
+	 * Returns the encoding for the file.
+	 */
+	public abstract String getEncoding(IIndexFileLocation location);
 
 	/**
 	 * Create an index location for the given input file.
@@ -57,10 +67,10 @@ public abstract class IndexerInputAdapter extends ASTFilePathResolver {
 
 	/**
 	 * Checks whether the given file should be indexed unconditionally. 
-	 * @param ifl The Location of the file.
+	 * @param location The Location of the file.
 	 * @return {@code true} if the file should be indexed unconditionally.
 	 */
-	public abstract boolean isIndexedUnconditionally(IIndexFileLocation ifl);
+	public abstract boolean isIndexedUnconditionally(IIndexFileLocation location);
 
 	/**
 	 * Tests whether the file in the index is allowed to be part of an SDK. If not
@@ -71,7 +81,7 @@ public abstract class IndexerInputAdapter extends ASTFilePathResolver {
 	/**
 	 * Obtains the languages the input file should be parsed with.
 	 */
-	public abstract AbstractLanguage[] getLanguages(Object tu, boolean bothForHeaders);
+	public abstract AbstractLanguage[] getLanguages(Object tu, AbstractIndexerTask.UnusedHeaderStrategy strat);
 
 	/**
 	 * Obtains the scanner configuration for the input file.
@@ -82,8 +92,4 @@ public abstract class IndexerInputAdapter extends ASTFilePathResolver {
 	 * Returns a code reader for the given input file.
 	 */
 	public abstract FileContent getCodeReader(Object tu);
-	/**
-	 * Returns the encoding for the file.
-	 */
-	public abstract String getEncoding(IIndexFileLocation ifl);
 }

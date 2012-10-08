@@ -67,16 +67,17 @@ public class IndexNamesTests extends BaseTestCase {
 	}
 
 	public String getComment() throws IOException {
-		return TestSourceReader.getContentsForTest(
-		CTestPlugin.getDefault().getBundle(), "parser", getClass(), getName(), 1)[0].toString();
+		CharSequence[] contents = TestSourceReader.getContentsForTest(
+				CTestPlugin.getDefault().getBundle(), "parser", getClass(), getName(), 1);
+		return contents[0].toString();
 	}
 
 	protected IFile createFile(IContainer container, String fileName, String contents) throws Exception {
 		return TestSourceReader.createFile(container, new Path(fileName), contents);
 	}
 
-	protected void waitForIndexer() {
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(10000, npm()));
+	protected void waitForIndexer() throws InterruptedException {
+		waitForIndexer(fCProject);
 	}
 
 	protected Pattern[] getPattern(String qname) {
@@ -86,6 +87,13 @@ public class IndexNamesTests extends BaseTestCase {
 			result[i]= Pattern.compile(parts[i]);			
 		}
 		return result;
+	}
+
+	private IIndexFile getIndexFile(int linkageID, IFile file) throws CoreException {
+		IIndexFile[] files = fIndex.getFiles(linkageID, IndexLocationFactory.getWorkspaceIFL(file));
+		assertTrue("Can't find " + file.getLocation(), files.length > 0);
+		assertEquals("Found " + files.length + " files for " + file.getLocation() + " instead of one", 1, files.length);
+		return files[0];
 	}
 
 	protected void waitUntilFileIsIndexed(IFile file, int time) throws Exception {
@@ -263,7 +271,7 @@ public class IndexNamesTests extends BaseTestCase {
 
 		fIndex.acquireReadLock();
 		try {
-			IIndexFile ifile= fIndex.getFile(ILinkage.CPP_LINKAGE_ID, IndexLocationFactory.getWorkspaceIFL(file));
+			IIndexFile ifile= getIndexFile(ILinkage.CPP_LINKAGE_ID, file);
 			IIndexName[] names= ifile.findNames(0, content.length());
 			int j= 0;
 			for (IIndexName indexName : names) {
@@ -276,6 +284,42 @@ public class IndexNamesTests extends BaseTestCase {
 				}
 			}
 			assertEquals(couldbepolymorphic.length, j);
+		} finally {
+			fIndex.releaseReadLock();
+		}
+	}
+	
+	//	class A {
+	//	    virtual void foo(){} 
+	//	    template<typename C> void SetCallback(C callback){}
+	//	    void InitCallback() {
+	//	        SetCallback(&A::foo); // Can be A::foo or B::foo
+	//	    }
+	//	};
+	//	class B: public A {
+	//	    virtual void foo(){}
+	//	};
+	public void testAddressOfPolymorphicMethod_Bug363731() throws Exception {
+		waitForIndexer();
+		String content= getComment();
+		IFile file= createFile(getProject().getProject(), "test.cpp", content);
+		waitUntilFileIsIndexed(file, 4000);
+
+		fIndex.acquireReadLock();
+		try {
+			IIndexFile ifile= getIndexFile(ILinkage.CPP_LINKAGE_ID, file);
+			IIndexName[] names= ifile.findNames(0, content.length());
+			int j= 0;
+			for (IIndexName indexName : names) {
+				if (indexName.isReference() && indexName.toString().equals("foo")) {
+					assertEquals(true, indexName.couldBePolymorphicMethodCall());
+					assertEquals("A", CPPVisitor.getQualifiedName(fIndex.findBinding(indexName))[0]);
+					j++;
+				} else {
+					assertEquals(false, indexName.couldBePolymorphicMethodCall());
+				}
+			}
+			assertEquals(1, j);
 		} finally {
 			fIndex.releaseReadLock();
 		}
@@ -321,7 +365,7 @@ public class IndexNamesTests extends BaseTestCase {
 			CoreException {
 		fIndex.acquireReadLock();
 		try {
-			IIndexFile ifile= fIndex.getFile(linkageID, IndexLocationFactory.getWorkspaceIFL(file));
+			IIndexFile ifile= getIndexFile(linkageID, file);
 			IIndexName[] names= ifile.findNames(0, Integer.MAX_VALUE);
 			int j= 0;
 			for (IIndexName indexName : names) {

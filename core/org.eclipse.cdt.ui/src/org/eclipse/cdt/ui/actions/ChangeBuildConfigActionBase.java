@@ -18,6 +18,7 @@ import java.util.TreeSet;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IAction;
@@ -27,6 +28,8 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.IViewPart;
+import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -149,6 +152,27 @@ public class ChangeBuildConfigActionBase {
 	}
 
 	/**
+	 * Class used to efficiently special case the scenario where there's only a single project in the
+	 * workspace. See bug 375760
+	 */
+	private static class ImaginarySelection implements ISelection {
+		private IProject fProject;
+		
+		ImaginarySelection(IProject project) {
+			fProject = project;
+		}
+		
+		@Override
+		public boolean isEmpty() {
+			return fProject == null;
+		}
+		
+		IProject getProject() {
+			return fProject;
+		}
+	}
+
+	/**
 	 * selectionChanged() event handler. Fills the list of managed-built projects 
 	 * based on the selection. If some non-managed-built projects are selected,
 	 * disables the action. 
@@ -209,7 +233,7 @@ public class ChangeBuildConfigActionBase {
 							project = null;
 						else {
 							ICConfigurationDescription[] tmp = getCfgs(project);
-							if (tmp == null || tmp.length == 0)	project = null;
+							if (tmp.length == 0)	project = null;
 						}
 					}
 					if (project != null) {
@@ -247,6 +271,9 @@ public class ChangeBuildConfigActionBase {
 				}
 
 			}
+			else if (selection instanceof ImaginarySelection) {
+				fProjects.add(((ImaginarySelection)selection).getProject());
+			}
 		}
 		
 		
@@ -278,15 +305,70 @@ public class ChangeBuildConfigActionBase {
 			}
 		}
 		action.setEnabled(enable);
+		
+		// Bug 375760
+		// If focus is on a view that doesn't provide a resource/project context. Use the selection in a
+		// project/resource view. We support three views. If more than one is open, nevermind. If there's only
+		// one project in the workspace and it's a CDT one, use it unconditionally.
+		//
+		// Note that whatever project we get here is just a candidate; it's tested for suitability when we
+		// call ourselves recursively
+		//
+		if (badObject || fProjects.isEmpty()) {
+			// Check for lone CDT project in workspace 
+			IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+			if (projects != null && projects.length == 1) {
+				IProject project = projects[0];
+				if (CoreModel.getDefault().isNewStyleProject(project) && (getCfgs(project).length > 0)) { 
+					onSelectionChanged(action, new ImaginarySelection(project));
+					return;
+				}
+			}
+
+			// Check the three supported views
+			IWorkbenchPage page = CUIPlugin.getActivePage();
+			int viewCount = 0;
+			if (page != null) {
+				IViewReference theViewRef = null;
+				IViewReference viewRef = null;
+				
+				theViewRef = page.findViewReference("org.eclipse.cdt.ui.CView"); //$NON-NLS-1$
+				viewCount += (theViewRef != null) ? 1 : 0;
+					
+				viewRef = page.findViewReference("org.eclipse.ui.navigator.ProjectExplorer"); //$NON-NLS-1$
+				viewCount += (viewRef != null) ? 1 : 0;				
+				theViewRef = (theViewRef == null) ? viewRef : theViewRef; 
+
+				viewRef = page.findViewReference("org.eclipse.ui.views.ResourceNavigator"); //$NON-NLS-1$
+				viewCount += (viewRef != null) ? 1 : 0;
+				theViewRef = (theViewRef == null) ? viewRef : theViewRef;				
+				
+				if (theViewRef != null && viewCount == 1) {
+					IViewPart view = theViewRef.getView(false);
+					if (view != null) {
+						ISelection cdtSelection = view.getSite().getSelectionProvider().getSelection();
+						if (cdtSelection != null) {
+							if (!cdtSelection.isEmpty()) {
+								if (!cdtSelection.equals(selection)) { // avoids infinite recursion
+									onSelectionChanged(action, cdtSelection);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	private ICConfigurationDescription[] getCfgs(IProject prj) {
 		ICProjectDescription prjd = CoreModel.getDefault().getProjectDescription(prj, false);
-		if (prjd == null) return null;
-		ICConfigurationDescription[] tmp = prjd.getConfigurations();
-		if (tmp == null) return null;
-		return prjd.getConfigurations(); 
+		if (prjd != null) { 
+			ICConfigurationDescription[] cfgs = prjd.getConfigurations();
+			if (cfgs != null) {
+				return cfgs;
+			}
+		}
+		
+		return new ICConfigurationDescription[0];
 	}
-	
-	
 }

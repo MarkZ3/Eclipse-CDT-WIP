@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2011 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -41,6 +41,7 @@ import org.eclipse.cdt.ui.PreferenceConstants;
 import org.eclipse.cdt.ui.text.ICPartitions;
 
 import org.eclipse.cdt.internal.ui.editor.CSourceViewer;
+import org.eclipse.cdt.internal.ui.text.c.hover.SourceViewerInformationControl;
 
 /**
  * Abstract class for "quick" source views in light-weight controls.
@@ -50,15 +51,10 @@ import org.eclipse.cdt.internal.ui.editor.CSourceViewer;
 public abstract class AbstractSourceViewerInformationControl extends org.eclipse.jface.text.AbstractInformationControl implements IInformationControlExtension2, DisposeListener {
 
 	private ISourceViewer fSourceViewer;
-
 	private Color fBackgroundColor;
-
-	private boolean fIsSystemBackgroundColor;
-
+	private boolean fIsSystemBackgroundColor = true;
 	private Font fTextFont;
-
 	private StyledText fText;
-
 	private Label fTitleLabel;
 
 	/**
@@ -95,7 +91,13 @@ public abstract class AbstractSourceViewerInformationControl extends org.eclipse
 	}
 
 	private void initializeColors() {
-		RGB bgRGB= getHoverBackgroundColorRGB();
+		IPreferenceStore store= CUIPlugin.getDefault().getPreferenceStore();
+		RGB bgRGB;
+		if (store.getBoolean(PreferenceConstants.EDITOR_SOURCE_HOVER_BACKGROUND_COLOR_SYSTEM_DEFAULT)) {
+			bgRGB= SourceViewerInformationControl.getVisibleBackgroundColor(getShell().getDisplay());
+		} else {
+			bgRGB= PreferenceConverter.getColor(store, PreferenceConstants.EDITOR_SOURCE_HOVER_BACKGROUND_COLOR);
+		}
 		if (bgRGB != null) {
 			fBackgroundColor= new Color(getShell().getDisplay(), bgRGB);
 			fIsSystemBackgroundColor= false;
@@ -105,13 +107,6 @@ public abstract class AbstractSourceViewerInformationControl extends org.eclipse
 		}
 	}
 	
-	private RGB getHoverBackgroundColorRGB() {
-		IPreferenceStore store= CUIPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean(PreferenceConstants.EDITOR_SOURCE_HOVER_BACKGROUND_COLOR_SYSTEM_DEFAULT)
-			? null
-			: PreferenceConverter.getColor(store, PreferenceConstants.EDITOR_SOURCE_HOVER_BACKGROUND_COLOR);
-	}
-
 	@Override
 	public void createContent(Composite parent) {
 		Composite content= new Composite(parent, SWT.NONE);
@@ -128,10 +123,12 @@ public abstract class AbstractSourceViewerInformationControl extends org.eclipse
 
 		final StyledText text= fSourceViewer.getTextWidget();
 		text.addKeyListener(new KeyListener() {
+			@Override
 			public void keyPressed(KeyEvent e)  {
 				if (e.character == 0x1B) // ESC
 					dispose();
 			}
+			@Override
 			public void keyReleased(KeyEvent e) {
 				// do nothing
 			}
@@ -202,6 +199,7 @@ public abstract class AbstractSourceViewerInformationControl extends org.eclipse
 		fSourceViewer.setDocument(doc);
 	}
 
+	@Override
 	public void setInput(Object input) {
 		if (input instanceof String)
 			setInformation((String)input);
@@ -224,10 +222,12 @@ public abstract class AbstractSourceViewerInformationControl extends org.eclipse
 	 * Subclasses may extend.
 	 * </p>
 	 */
+	@Override
 	public void widgetDisposed(DisposeEvent event) {
 		fSourceViewer= null;
 	}
 
+	@Override
 	public boolean hasContents() {
 		return fSourceViewer != null && fSourceViewer.getDocument() != null;
 	}

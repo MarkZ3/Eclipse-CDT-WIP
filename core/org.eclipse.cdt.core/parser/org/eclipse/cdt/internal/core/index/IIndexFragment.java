@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2011 Wind River Systems, Inc. and others.
+ * Copyright (c) 2006, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -23,6 +23,7 @@ import org.eclipse.cdt.core.index.IIndexFileLocation;
 import org.eclipse.cdt.core.index.IIndexLinkage;
 import org.eclipse.cdt.core.index.IIndexMacro;
 import org.eclipse.cdt.core.index.IndexFilter;
+import org.eclipse.cdt.core.parser.ISignificantMacros;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 
@@ -57,6 +58,7 @@ public interface IIndexFragment {
 	 */
 	final int FIND_ALL_OCCURRENCES = IIndex.FIND_ALL_OCCURRENCES;
 
+	final int FIND_NON_LOCAL_ONLY= 0x10000;
 	/**
 	 * Property key for the fragment ID. The fragment ID should uniquely identify the fragments
 	 * usage within a logical index.
@@ -92,13 +94,54 @@ public interface IIndexFragment {
 	 * May return <code>null</code>, if no such file exists.
 	 * This method may only return files that are actually managed by this fragment.
 	 * This method returns files without content, also.
+	 * <p>
+	 * When a header file is stored in the index in multiple variants for different sets of macro
+	 * definitions, this method will return an arbitrary one of these variants.
+	 *  
 	 * @param linkageID the id of the linkage in which the file has been parsed.
 	 * @param location the IIndexFileLocation representing the location of the file
 	 * @return the file for the location, or <code>null</code> if the file is not present in
 	 *     the index
 	 * @throws CoreException
+	 * @deprecated Use {@link #getFile(int, IIndexFileLocation, ISignificantMacros)} or
+	 *     {@link #getFiles(int, IIndexFileLocation)}.
 	 */
+	@Deprecated
 	IIndexFragmentFile getFile(int linkageID, IIndexFileLocation location) throws CoreException;
+
+	/**
+	 * Returns the file for the given location, linkage, and a set of macro definitions.
+	 * May return <code>null</code>, if no such file exists.
+	 * This method may only return files that are actually managed by this fragment.
+	 * This method returns files without content, also.
+	 *  
+	 * @param linkageID the id of the linkage in which the file has been parsed.
+	 * @param location the IIndexFileLocation representing the location of the file
+	 * @param macroDictionary The names and definitions of the macros used to disambiguate between
+	 *     variants of the file contents corresponding to different inclusion points.
+	 * @return the file for the location, or <code>null</code> if the file is not present in
+	 *     the index
+	 * @throws CoreException
+	 */
+	IIndexFragmentFile getFile(int linkageID, IIndexFileLocation location,
+			ISignificantMacros significantMacros) throws CoreException;
+
+	/**
+	 * Returns the files for the given location and linkage.
+	 * Multiple files are returned when a header file is stored in the index in multiple variants
+	 * for different sets of macro definitions.
+	 * This method may only return files that are actually managed by this fragment.
+	 * This method returns files without content, also.
+	 * <p>
+	 * When a header file is stored in the index in multiple variants for different sets of macro
+	 * definitions, this method will return an arbitrary one of these variants.
+	 *  
+	 * @param linkageID the id of the linkage in which the file has been parsed.
+	 * @param location the IIndexFileLocation representing the location of the file
+	 * @return the files for the location and the linkage.
+	 * @throws CoreException
+	 */
+	IIndexFragmentFile[] getFiles(int linkageID, IIndexFileLocation location) throws CoreException;
 
 	/**
 	 * Returns the files in all linkages for the given location.
@@ -181,8 +224,8 @@ public interface IIndexFragment {
 	 * Searches for all names that resolve to the given binding. You can limit the result to
 	 * references, declarations or definitions, or a combination of those.
 	 * @param binding a binding for which names are searched for
-	 * @param flags a combination of {@link #FIND_DECLARATIONS}, {@link #FIND_DEFINITIONS} and
-	 *     {@link #FIND_REFERENCES}
+	 * @param flags a combination of {@link #FIND_DECLARATIONS}, {@link #FIND_DEFINITIONS}, 
+	 *     {@link #FIND_REFERENCES} and {@link #FIND_NON_LOCAL_ONLY}
 	 * @return an array of names
 	 * @throws CoreException
 	 */
@@ -283,6 +326,16 @@ public interface IIndexFragment {
 	IIndexFragmentFile[] getAllFiles() throws CoreException;
 
 	/**
+	 * @return an array of files that were indexed with I/O errors.
+	 */
+	IIndexFragmentFile[] getDefectiveFiles() throws CoreException;
+
+	/**
+	 * @return an array of files containg unresolved includes.
+	 */
+	IIndexFragmentFile[] getFilesWithUnresolvedIncludes() throws CoreException;
+
+	/**
 	 * Caches an object with the key, the cache must be cleared at latest when the fragment no
 	 * longer holds a locks.
 	 * @param replace if <code>false</code> an existing entry will not be replaced.
@@ -306,4 +359,10 @@ public interface IIndexFragment {
 	 * @throws CoreException
 	 */
 	IIndexScope[] getInlineNamespaces() throws CoreException;
+
+	/**
+	 * Returns {@code true} if the index fragment is fully initialized. An fragment may not be fully
+	 * initialized during Eclipse startup, or soon after adding a new project to the workspace.
+	 */
+	boolean isFullyInitialized();
 }

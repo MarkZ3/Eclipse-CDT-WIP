@@ -7,7 +7,7 @@
  *
  * Contributors:
  *     QNX Software Systems - initial API and implementation
- *     Sergey Prigogin, Google
+ *     Sergey Prigogin (Google)
  *     Anton Leherbauer (Wind River Systems)
  *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
@@ -43,19 +43,23 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 
+import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.PreferenceConstants;
 import org.eclipse.cdt.ui.text.CSourceViewerConfiguration;
+import org.eclipse.cdt.ui.text.ICColorConstants;
+import org.eclipse.cdt.ui.text.IColorManager;
 
+import org.eclipse.cdt.internal.ui.text.CTextTools;
 
 /**
  * Source viewer for C/C++ et al.
  */
 public class CSourceViewer extends ProjectionViewer implements IPropertyChangeListener {
-
     /** Show outline operation id. */
     public static final int SHOW_OUTLINE= 101;
     /** Show type hierarchy operation id. */
@@ -136,13 +140,8 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 	 * @param styles
 	 * @param store
 	 */
-    public CSourceViewer(
-    		Composite parent,
-    		IVerticalRuler ruler,
-    		IOverviewRuler overviewRuler,
-    		boolean isOverviewRulerShowing,
-    		int styles,
-    		IPreferenceStore store) {
+    public CSourceViewer(Composite parent, IVerticalRuler ruler, IOverviewRuler overviewRuler,
+    		boolean isOverviewRulerShowing, int styles, IPreferenceStore store) {
 		super(parent, ruler, overviewRuler, isOverviewRulerShowing, styles);
         setPreferenceStore(store);
 	}
@@ -205,7 +204,6 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 
 	protected void initializeViewerColors() {
 		if (fPreferenceStore != null) {
-
 			StyledText styledText= getTextWidget();
 
 			// ----------- foreground color --------------------
@@ -264,15 +262,14 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
      * @return the created color according to the specification in the preference store
      */
     private Color createColor(IPreferenceStore store, String key, Display display) {
-
         RGB rgb= null;
 
         if (store.contains(key)) {
-
-            if (store.isDefault(key))
+            if (store.isDefault(key)) {
                 rgb= PreferenceConverter.getDefaultColor(store, key);
-            else
+            } else {
                 rgb= PreferenceConverter.getColor(store, key);
+            }
 
             if (rgb != null)
                 return new Color(display, rgb);
@@ -318,6 +315,7 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 	/*
 	 * @see org.eclipse.jface.util.IPropertyChangeListener#propertyChange(org.eclipse.jface.util.PropertyChangeEvent)
 	 */
+	@Override
 	public void propertyChange(PropertyChangeEvent event) {
 		String property= event.getProperty();
 		if (AbstractTextEditor.PREFERENCE_COLOR_FOREGROUND.equals(property)
@@ -327,8 +325,7 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 				|| AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_FOREGROUND_COLOR.equals(property)
 				|| AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_FOREGROUND_DEFAULT_COLOR.equals(property)
 				|| AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_BACKGROUND_COLOR.equals(property)
-				|| AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_BACKGROUND_DEFAULT_COLOR.equals(property))
-		{
+				|| AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_BACKGROUND_DEFAULT_COLOR.equals(property)) {
 			initializeViewerColors();
 		}
 	}
@@ -357,7 +354,6 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 	 */
 	@Override
 	protected void createControl(Composite parent, int styles) {
-
 		// Use LEFT_TO_RIGHT unless otherwise specified.
 		if ((styles & SWT.RIGHT_TO_LEFT) == 0 && (styles & SWT.LEFT_TO_RIGHT) == 0)
 			styles |= SWT.LEFT_TO_RIGHT;
@@ -370,7 +366,6 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 	 */
     @Override
 	public void doOperation(int operation) {
-
 		if (getTextWidget() == null) {
 			return;
 		}
@@ -508,7 +503,6 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 		}
 	}
 
-
 	/**
 	 * Configure the indentation mode for this viewer.
 	 * 
@@ -579,8 +573,7 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
 					}
 				}
 			}
-			
-		} catch (BadLocationException x) {
+		} catch (BadLocationException e) {
 			// ignored
 		} finally {
 			if (rewriteSession != null) {
@@ -619,4 +612,32 @@ public class CSourceViewer extends ProjectionViewer implements IPropertyChangeLi
         cmd.event= null;
         cmd.text= null;
     }
+
+	/**
+	 * Sets the viewer's background color to the given control's background color.
+	 * The background color is <em>only</em> set if it's visibly distinct from the
+	 * default Java source text color.
+	 * 
+	 * @param control the control with the default background color
+	 */
+	public void adaptBackgroundColor(Control control) {
+		// Workaround for dark editor background color, see https://bugs.eclipse.org/330680
+		Color defaultColor= control.getBackground();
+		float[] defaultBgHSB= defaultColor.getRGB().getHSB();
+
+		CTextTools textTools= CUIPlugin.getDefault().getTextTools();
+		IColorManager manager= textTools.getColorManager();
+		Color cDefaultColor= manager.getColor(ICColorConstants.C_DEFAULT);
+		RGB cDefaultRGB= cDefaultColor != null ?
+				cDefaultColor.getRGB() : new RGB(255, 255, 255);
+		float[] cDefaultHSB= cDefaultRGB.getHSB();
+		
+		if (Math.abs(defaultBgHSB[2] - cDefaultHSB[2]) >= 0.5f) {
+			getTextWidget().setBackground(defaultColor);
+			if (fBackgroundColor != null) {
+				fBackgroundColor.dispose();
+				fBackgroundColor= null;
+			}
+		}
+	}
 }

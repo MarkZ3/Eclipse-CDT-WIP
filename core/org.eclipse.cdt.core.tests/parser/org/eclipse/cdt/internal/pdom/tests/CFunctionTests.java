@@ -1,12 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2008 IBM Corporation.
+ * Copyright (c) 2006, 2012 IBM Corporation.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM Corporation - initial API and implementation
+ *     IBM Corporation - initial API and implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.pdom.tests;
 
@@ -27,7 +28,6 @@ import org.eclipse.core.runtime.NullProgressMonitor;
  * C functions.
  */
 public class CFunctionTests extends PDOMTestBase {
-
 	protected ICProject project;
 	protected PDOM pdom;
 
@@ -75,13 +75,19 @@ public class CFunctionTests extends PDOMTestBase {
 		assertTrue(((IFunction) bindings[0]).takesVarArgs());
 	}
 
+	public void testNoReturnCFunction() throws Exception {
+		IBinding[] bindings = findQualifiedName(pdom, "noReturnCFunction");
+		assertEquals(1, bindings.length);
+		assertTrue(((IFunction) bindings[0]).isNoReturn());
+	}
+
 	public void testKnRStyleFunctionWithProblemParameters() throws Exception {
 		IBinding[] bindings = findQualifiedName(pdom, "KnRfunctionWithProblemParameters");
 		assertEquals(1, bindings.length);
 		IFunction f= (IFunction) bindings[0];
 		IParameter[] params= f.getParameters();
 		assertEquals(3, params.length);
-		assertNull(params[0].getType()); // its a problem binding in the DOM 
+		assertNull(params[0].getType()); // It's a problem binding in the DOM 
 		assertTrue(params[1].getType() instanceof ICBasicType);
 		assertTrue(params[2].getType() instanceof ICBasicType); 
 	}

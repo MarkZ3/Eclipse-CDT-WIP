@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    IBM - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     IBM - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser;
 
@@ -21,6 +21,7 @@ import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ICPPEvaluation;
 
 /**
  * Base implementation for all ambiguous nodes.
@@ -39,16 +40,18 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 		public int visit(IASTName name) {
 			if (name != null) {
 				namesPos++;
-				names = (IASTName[]) ArrayUtil.append(IASTName.class, names, name);
+				names = ArrayUtil.append(IASTName.class, names, name);
 			}
 			return PROCESS_CONTINUE;
 		}
 
 		public IASTName[] getNames() {
-			names = (IASTName[]) ArrayUtil.removeNullsAfter(IASTName.class, names, namesPos);
+			names = ArrayUtil.trimAt(IASTName.class, names, namesPos);
 			return names;
 		}
 	}
+    
+	private IASTNode fResolution;
 
     /**
      * Return the alternative nodes for this ambiguity.
@@ -73,7 +76,11 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 	protected void afterResolution(ASTVisitor resolver, IASTNode best) {
 	}
 
-    public IASTNode resolveAmbiguity(ASTVisitor resolver) {
+	public IASTNode resolveAmbiguity(ASTVisitor resolver) {
+		return fResolution= doResolveAmbiguity(resolver);
+	}
+	
+    protected IASTNode doResolveAmbiguity(ASTVisitor resolver) {
     	beforeResolution();
 		final IASTAmbiguityParent owner= (IASTAmbiguityParent) getParent();
 		IASTNode nodeToReplace= this;
@@ -83,25 +90,25 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 		
 		int minIssues = Integer.MAX_VALUE;
 		for (IASTNode alternative : alternatives) {
+			// Setup the ast to use the alternative
+			owner.replace(nodeToReplace, alternative);
+
 			beforeAlternative(alternative);
 			
-			// setup the ast to use the alternative
-			owner.replace(nodeToReplace, alternative);
+			// Handle nested ambiguities
+			alternative= resolveNestedAmbiguities(alternative, resolver);
 			nodeToReplace= alternative;
 
-			// handle nested ambiguities first, otherwise we cannot visit the alternative
-			alternative.accept(resolver);
-
-			// find nested names
+			// Find nested names
 			final NameCollector nameCollector= new NameCollector();
 			alternative.accept(nameCollector);
 			final IASTName[] names= nameCollector.getNames();
 			
-			// resolve names and count issues
+			// Resolve names and count issues
 			int issues= 0;
 			for (IASTName name : names) {
 				try {
-					// avoid resolution of parameters (can always be resolved), 
+					// Avoid resolution of parameters (can always be resolved), 
 					// it can triggers resolution of declaration it belongs to, 
 					// while the declarator is still ambiguous. Could be solved by introducing an
 					// intermediate binding for parameters, similar to template parameters.
@@ -133,7 +140,7 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 			}
 		}
 		
-		// switch back to the best alternative, if necessary.
+		// Switch back to the best alternative, if necessary.
 		if (nodeToReplace != bestAlternative) {
 			owner.replace(nodeToReplace, bestAlternative);
 		}
@@ -141,7 +148,14 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 		return bestAlternative;
 	}
     
-    public final IType getExpressionType() {
+	protected IASTNode resolveNestedAmbiguities(IASTNode alternative, ASTVisitor resolver) {
+		alternative.accept(resolver);
+		if (alternative instanceof ASTAmbiguousNode)
+			return ((ASTAmbiguousNode) alternative).fResolution;
+		return alternative;
+	}
+
+	public final IType getExpressionType() {
 		throw new UnsupportedOperationException();
     }
     public final ValueCategory getValueCategory() {
@@ -150,4 +164,7 @@ public abstract class ASTAmbiguousNode extends ASTNode  {
 	public final boolean isLValue() {
 		throw new UnsupportedOperationException();
     }
+	public final ICPPEvaluation getEvaluation() {
+		throw new UnsupportedOperationException();
+	}
 }

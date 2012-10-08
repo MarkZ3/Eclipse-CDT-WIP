@@ -7,15 +7,16 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- * 		Martin Schwab & Thomas Kallenberg - initial API and implementation 
+ * 	   Martin Schwab & Thomas Kallenberg - initial API and implementation 
  ******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring.togglefunction;
 
 import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateDeclaration;
 
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+
 public class ToggleStrategyFactory {
-	
 	private ToggleRefactoringContext context;
 
 	public ToggleStrategyFactory(ToggleRefactoringContext context) {
@@ -25,7 +26,7 @@ public class ToggleStrategyFactory {
 	public IToggleRefactoringStrategy getAppropriateStategy() {
 		if (context.getDefinition() == null)
 			throw new NotSupportedException(Messages.ToggleStrategyFactory_NoDefinitionFound);
-		if (!context.getDefinitionUnit().isHeaderUnit())
+		if (!context.getDefinitionAST().isHeaderUnit())
 			return new ToggleFromImplementationToHeaderOrClassStrategy(context);
 		if (isInClassSituation())
 			return new ToggleFromClassToInHeaderStrategy(context);
@@ -38,17 +39,15 @@ public class ToggleStrategyFactory {
 	
 	private boolean isinHeaderSituation() {
 		return (context.getDefinition() != null) 
-			&& (context.getDefinitionUnit().isHeaderUnit());
+			&& (context.getDefinitionAST().isHeaderUnit());
 	}
 
 	private boolean isInClassSituation() {
 		return (context.getDeclaration() == null) && 
-			(ToggleNodeHelper.getAncestorOfType(context.getDefinition(), 
-					IASTCompositeTypeSpecifier.class) != null);
+			(CPPVisitor.findAncestorWithType(context.getDefinition(), IASTCompositeTypeSpecifier.class) != null);
 	}
 
 	private boolean isTemplateSituation() {
-		return (ToggleNodeHelper.getAncestorOfType(context.getDefinition(), 
-				ICPPASTTemplateDeclaration.class) != null);
+		return (CPPVisitor.findAncestorWithType(context.getDefinition(), ICPPASTTemplateDeclaration.class) != null);
 	}
 }

@@ -1,13 +1,14 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -19,13 +20,13 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTIfStatement;
-import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
+import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * If statement in C++
  */
-public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IASTAmbiguityParent {
+public class CPPASTIfStatement extends ASTAttributeOwner implements ICPPASTIfStatement, IASTAmbiguityParent {
     private IASTExpression condition;
     private IASTStatement thenClause;
     private IASTStatement elseClause;
@@ -47,28 +48,28 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
 		setElseClause(elseClause);
 	}
     
-    public CPPASTIfStatement copy() {
+    @Override
+	public CPPASTIfStatement copy() {
 		return copy(CopyStyle.withoutLocations);
 	}
 
+	@Override
 	public CPPASTIfStatement copy(CopyStyle style) {
 		CPPASTIfStatement copy = new CPPASTIfStatement();
 		copy.setConditionDeclaration(condDecl == null ? null : condDecl.copy(style));
 		copy.setConditionExpression(condition == null ? null : condition.copy(style));
 		copy.setThenClause(thenClause == null ? null : thenClause.copy(style));
 		copy.setElseClause(elseClause == null ? null : elseClause.copy(style));
-		copy.setOffsetAndLength(this);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(copy, style);
 	}
     
+	@Override
 	public IASTExpression getConditionExpression() {
         return condition;
     }
 
-    public void setConditionExpression(IASTExpression condition) {
+    @Override
+	public void setConditionExpression(IASTExpression condition) {
         assertNotFrozen();
         this.condition = condition;
         if (condition != null) {
@@ -78,11 +79,13 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
 		}
     }
 
-    public IASTStatement getThenClause() {
+    @Override
+	public IASTStatement getThenClause() {
         return thenClause;
     }
 
-    public void setThenClause(IASTStatement thenClause) {
+    @Override
+	public void setThenClause(IASTStatement thenClause) {
         assertNotFrozen();
         this.thenClause = thenClause;
         if (thenClause != null) {
@@ -91,11 +94,13 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
 		}
     }
 
-    public IASTStatement getElseClause() {
+    @Override
+	public IASTStatement getElseClause() {
         return elseClause;
     }
 
-    public void setElseClause(IASTStatement elseClause) {
+    @Override
+	public void setElseClause(IASTStatement elseClause) {
         assertNotFrozen();
         this.elseClause = elseClause;
         if (elseClause != null) {
@@ -127,6 +132,9 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
     			default: break;
     			}
     		}
+
+    		if (!((CPPASTIfStatement) stmt).acceptByAttributes(action)) return false;
+
     		IASTNode child = stmt.getConditionExpression();
     		if (child != null && !child.accept(action))
     			return false;
@@ -150,6 +158,7 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
     			break loop;
     		}
     	}
+
     	if (action.shouldVisitStatements) {
     		if (stmt != null && action.leave(stmt) == ASTVisitor.PROCESS_ABORT)
     			return false;
@@ -162,6 +171,7 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
         return true;
     }
     
+	@Override
 	public void replace(IASTNode child, IASTNode other) {
 		if (thenClause == child) {
 			other.setParent(child.getParent());
@@ -180,11 +190,13 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
 		}
 	}
 
-    public IASTDeclaration getConditionDeclaration() {
+    @Override
+	public IASTDeclaration getConditionDeclaration() {
         return condDecl;
     }
 
-    public void setConditionDeclaration(IASTDeclaration d) {
+    @Override
+	public void setConditionDeclaration(IASTDeclaration d) {
         assertNotFrozen();
         condDecl = d;
         if (d != null) {
@@ -194,9 +206,10 @@ public class CPPASTIfStatement extends ASTNode implements ICPPASTIfStatement, IA
 		}
     }
     
+	@Override
 	public IScope getScope() {
-		if( scope == null )
-            scope = new CPPBlockScope( this );
+		if (scope == null)
+            scope = new CPPBlockScope(this);
         return scope;	
     }
 }

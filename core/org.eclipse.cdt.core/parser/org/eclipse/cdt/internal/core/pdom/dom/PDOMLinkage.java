@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2011 QNX Software Systems and others.
+ * Copyright (c) 2005, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -28,15 +28,19 @@ import org.eclipse.cdt.core.dom.ast.IField;
 import org.eclipse.cdt.core.dom.ast.IFunction;
 import org.eclipse.cdt.core.dom.ast.IParameter;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
+import org.eclipse.cdt.core.dom.ast.ISemanticProblem;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.ITypedef;
 import org.eclipse.cdt.core.dom.ast.IValue;
 import org.eclipse.cdt.core.dom.ast.IVariable;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPUsingDirective;
 import org.eclipse.cdt.core.index.IIndexLinkage;
 import org.eclipse.cdt.core.parser.util.CharArrayMap;
 import org.eclipse.cdt.internal.core.dom.parser.ASTInternal;
+import org.eclipse.cdt.internal.core.dom.parser.ISerializableEvaluation;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeMarshalBuffer;
+import org.eclipse.cdt.internal.core.dom.parser.ProblemBinding;
 import org.eclipse.cdt.internal.core.index.IIndexBindingConstants;
 import org.eclipse.cdt.internal.core.index.IIndexScope;
 import org.eclipse.cdt.internal.core.pdom.PDOM;
@@ -146,9 +150,11 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 			getIndex().accept((IBTreeVisitor) visitor);
 		} else {
 			getIndex().accept(new IBTreeVisitor() {
+				@Override
 				public int compare(long record) throws CoreException {
 					return 0;
 				}
+				@Override
 				public boolean visit(long record) throws CoreException {
 					PDOMNode node= getNode(record);
 					if (node != null) {
@@ -217,7 +223,11 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 		return (PDOMBinding) fPDOM.getCachedResult(binding);
 	}
 
-	public abstract PDOMBinding adaptBinding(IBinding binding) throws CoreException;
+	public final PDOMBinding adaptBinding(IBinding binding) throws CoreException {
+		return adaptBinding(binding, true);
+	}
+	
+	public abstract PDOMBinding adaptBinding(IBinding binding, boolean includeLocal) throws CoreException;
 
 	public abstract PDOMBinding addBinding(IASTName name) throws CoreException;
 
@@ -256,9 +266,9 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 			}
 
 			if (checkIfInSourceOnly) {
-				String path= ASTInternal.getDeclaredInSourceFileOnly(binding, requireDefinition, glob);
-				if (path != null) {
-					return wpdom.getFileForASTPath(getLinkageID(), path);
+				IASTNode node= ASTInternal.getDeclaredInSourceFileOnly(getPDOM(), binding, requireDefinition, glob);
+				if (node != null) {
+					return wpdom.getFileForASTNode(getLinkageID(), node);
 				}
 			}
 		}
@@ -379,15 +389,6 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 	}
 
 	/**
-	 * Usually bindings are added on behalf of a name, only. For unknown values or using declarations
-	 * we need to add further bindings.
-	 * @throws CoreException 
-	 */
-	public PDOMBinding addPotentiallyUnknownBinding(IBinding binding) throws CoreException {
-		return null;
-	}
-
-	/**
 	 * Returns the list of global bindings for the given name.
 	 * @throws CoreException 
 	 */
@@ -424,6 +425,8 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 
 	public abstract PDOMBinding addTypeBinding(IBinding type) throws CoreException;
 	public abstract IType unmarshalType(ITypeMarshalBuffer buffer) throws CoreException;
+	public abstract IBinding unmarshalBinding(ITypeMarshalBuffer buffer) throws CoreException;
+	public abstract ISerializableEvaluation unmarshalEvaluation(ITypeMarshalBuffer typeMarshalBuffer) throws CoreException;
 
 	public void storeType(long offset, IType type) throws CoreException {
 		final Database db= getDB();
@@ -486,6 +489,131 @@ public abstract class PDOMLinkage extends PDOMNamedNode implements IIndexLinkage
 			break;
 		}
 		return new TypeMarshalBuffer(this, data).unmarshalType();
+	}
+
+	public void storeBinding(long offset, IBinding binding) throws CoreException {
+		final Database db= getDB();
+		deleteBinding(db, offset);
+		storeBinding(db, offset, binding);
+	}
+
+	private void storeBinding(Database db, long offset, IBinding binding) throws CoreException {
+		if (binding != null) {
+			TypeMarshalBuffer bc= new TypeMarshalBuffer(this);
+			bc.marshalBinding(binding);
+			int len= bc.getPosition();
+			if (len > 0) {
+				if (len <= Database.TYPE_SIZE) {
+					db.putBytes(offset, bc.getBuffer(), len);
+				} else if (len <= Database.MAX_MALLOC_SIZE-2){
+					long ptr= db.malloc(len+2);
+					db.putShort(ptr, (short) len);
+					db.putBytes(ptr+2, bc.getBuffer(), len);
+					db.putByte(offset, TypeMarshalBuffer.INDIRECT_TYPE);
+					db.putRecPtr(offset+2, ptr);
+				}
+			}
+		}
+	}
+
+	private void deleteBinding(Database db, long offset) throws CoreException {
+		byte firstByte= db.getByte(offset);
+		if (firstByte == TypeMarshalBuffer.INDIRECT_TYPE) {
+			long ptr= db.getRecPtr(offset+2);
+			clearBinding(db, offset);
+			db.free(ptr);
+		} else {
+			clearBinding(db, offset);
+		}
+	}
+
+	private void clearBinding(Database db, long offset) throws CoreException {
+		db.clearBytes(offset, Database.TYPE_SIZE);
+	}
+
+	public IBinding loadBinding(long offset) throws CoreException {
+		final Database db= getDB();
+		final byte firstByte= db.getByte(offset);
+		byte[] data= null;
+		switch(firstByte) {
+		case TypeMarshalBuffer.INDIRECT_TYPE:
+			long ptr= db.getRecPtr(offset+2);
+			int len= db.getShort(ptr) & 0xffff;
+			data= new byte[len];
+			db.getBytes(ptr+2, data);
+			break;
+		case TypeMarshalBuffer.UNSTORABLE_TYPE:
+			return new ProblemBinding(null, ISemanticProblem.TYPE_NOT_PERSISTED);
+		case TypeMarshalBuffer.NULL_TYPE:
+			return null;
+		default:
+			data= new byte[Database.TYPE_SIZE];
+			db.getBytes(offset, data);
+			break;
+		}
+		return new TypeMarshalBuffer(this, data).unmarshalBinding();
+	}
+
+	public void storeTemplateArgument(long offset, ICPPTemplateArgument arg) throws CoreException {
+		final Database db= getDB();
+		deleteArgument(db, offset);
+		storeArgument(db, offset, arg);
+	}
+
+	private void storeArgument(Database db, long offset, ICPPTemplateArgument arg) throws CoreException {
+		if (arg != null) {
+			TypeMarshalBuffer bc= new TypeMarshalBuffer(this);
+			bc.marshalTemplateArgument(arg);
+			int len= bc.getPosition();
+			if (len > 0) {
+				if (len <= Database.ARGUMENT_SIZE) {
+					db.putBytes(offset, bc.getBuffer(), len);
+				} else if (len <= Database.MAX_MALLOC_SIZE-2){
+					long ptr= db.malloc(len+2);
+					db.putShort(ptr, (short) len);
+					db.putBytes(ptr+2, bc.getBuffer(), len);
+					db.putByte(offset, TypeMarshalBuffer.INDIRECT_TYPE);
+					db.putRecPtr(offset+2, ptr);
+				}
+			}
+		}
+	}
+
+	private void deleteArgument(Database db, long offset) throws CoreException {
+		byte firstByte= db.getByte(offset);
+		if (firstByte == TypeMarshalBuffer.INDIRECT_TYPE) {
+			long ptr= db.getRecPtr(offset+2);
+			clearArgument(db, offset);
+			db.free(ptr);
+		} else {
+			clearArgument(db, offset);
+		}
+	}
+
+	private void clearArgument(Database db, long offset) throws CoreException {
+		db.clearBytes(offset, Database.ARGUMENT_SIZE);
+	}
+
+	public ICPPTemplateArgument loadTemplateArgument(long offset) throws CoreException {
+		final Database db= getDB();
+		final byte firstByte= db.getByte(offset);
+		byte[] data= null;
+		switch(firstByte) {
+		case TypeMarshalBuffer.INDIRECT_TYPE:
+			long ptr= db.getRecPtr(offset+2);
+			int len= db.getShort(ptr) & 0xffff;
+			data= new byte[len];
+			db.getBytes(ptr+2, data);
+			break;
+		case TypeMarshalBuffer.UNSTORABLE_TYPE:
+		case TypeMarshalBuffer.NULL_TYPE:
+			return null;
+		default:
+			data= new byte[Database.TYPE_SIZE];
+			db.getBytes(offset, data);
+			break;
+		}
+		return new TypeMarshalBuffer(this, data).unmarshalTemplateArgument();
 	}
 
 	public void storeValue(long offset, IValue type) throws CoreException {

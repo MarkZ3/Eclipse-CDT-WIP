@@ -1,13 +1,13 @@
 /*******************************************************************************
- *  Copyright (c) 2005, 2010 IBM Corporation and others.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Eclipse Public License v1.0
- *  which accompanies this distribution, and is available at
- *  http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2005, 2010 IBM Corporation and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
  * 
- *  Contributors:
- *    IBM - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ * Contributors:
+ *     IBM - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.ui.tests.text.selection;
 
@@ -43,7 +43,6 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 
-import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
@@ -87,10 +86,6 @@ public class BaseSelectionTestsIndexer extends BaseUITestCase {
 		}
 	}
 	
-	public void waitForIndex(int maxSec) throws Exception {
-		assertTrue(CCorePlugin.getIndexManager().joinIndexer(maxSec * 1000, new NullProgressMonitor()));
-	}
-	
 	protected String getMessage(IStatus status) {
 		StringBuffer message = new StringBuffer("["); //$NON-NLS-1$
 		message.append(status.getMessage());
@@ -117,7 +112,7 @@ public class BaseSelectionTestsIndexer extends BaseUITestCase {
         
         fileManager.addFile(file);
         
-        waitForIndex(20); // only wait 20 seconds max.
+        waitForIndexer(fCProject); 
         
         return file;
     }
@@ -228,9 +223,10 @@ public class BaseSelectionTestsIndexer extends BaseUITestCase {
             final IASTName[] result= {null};
             if (sel instanceof ITextSelection) {
             	final ITextSelection textSel = (ITextSelection)sel;
-            	ITranslationUnit tu = (ITranslationUnit)editor.getInputCElement();
+            	ITranslationUnit tu = editor.getInputCElement();
         		IStatus ok= ASTProvider.getASTProvider().runOnAST(tu, ASTProvider.WAIT_IF_OPEN, monitor, new ASTRunnable() {
-        			public IStatus runOnAST(ILanguage language, IASTTranslationUnit ast) throws CoreException {
+        			@Override
+					public IStatus runOnAST(ILanguage language, IASTTranslationUnit ast) throws CoreException {
         				result[0]= ast.getNodeSelector(null).findName(textSel.getOffset(), textSel.getLength());
         				return Status.OK_STATUS;
         			}

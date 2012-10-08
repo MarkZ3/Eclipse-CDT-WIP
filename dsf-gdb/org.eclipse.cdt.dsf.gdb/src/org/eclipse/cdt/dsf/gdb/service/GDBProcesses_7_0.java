@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2011 Ericsson and others.
+ * Copyright (c) 2008, 2012 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     Ericsson - initial API and implementation
  *     Onur Akdemir (TUBITAK BILGEM-ITI) - Multi-process debugging (Bug 237306)
  *     John Dallaway - GDB 7.x MI thread details field ignored (Bug 325556)
+ *     Marc Khouzam (Ericsson) - Make each thread an IDisassemblyDMContext (bug 352748) 
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
@@ -25,7 +26,9 @@ import org.eclipse.cdt.core.IProcessInfo;
 import org.eclipse.cdt.core.IProcessList;
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.DsfExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.ImmediateExecutor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Immutable;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence;
@@ -116,7 +119,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	 */
 	@Immutable
 	private static class MIExecutionDMC extends AbstractDMContext 
-	implements IMIExecutionDMContext
+	implements IMIExecutionDMContext, IDisassemblyDMContext
 	{
 		/**
 		 * String ID that is used to identify the thread in the GDB/MI protocol.
@@ -147,6 +150,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		 * Returns the GDB/MI thread identifier of this context.
 		 * @return
 		 */
+    	@Override
 		public int getThreadId(){
 			try {
 				return Integer.parseInt(fThreadId);
@@ -203,6 +207,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		/**
 		 * Returns the GDB/MI thread group identifier of this context.
 		 */
+		@Override
 		public String getGroupId(){ return fId; }
 
 		@Override
@@ -297,6 +302,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     		fId = id;
     	}
     	
+    	@Override
     	public String getProcId() { return fId; }
 
     	@Override
@@ -350,8 +356,13 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     		fId = id;
     	}
     	
+    	@Override
 		public String getId() { return fId; }
+
+    	@Override
 		public String getName() { return fName; }
+    	
+    	@Override
 		public boolean isDebuggerAttached() {
 			return true;
 		}
@@ -377,14 +388,21 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     		fOwner = owner;
     	}
 
+    	@Override
 		public String getId() { return getProcId(); }
-		public String getName() { return fName; }
-		public boolean isDebuggerAttached() {
+
+    	@Override
+    	public String getName() { return fName; }
+		
+    	@Override
+    	public boolean isDebuggerAttached() {
 			return true;
 		}
 
+    	@Override
 		public String[] getCores() { return fCores; }
 
+    	@Override
 		public String getOwner() { return fOwner; }
 
 		@Override
@@ -496,7 +514,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
      */
     @Override
     public void initialize(final RequestMonitor requestMonitor) {
-    	super.initialize(new RequestMonitor(ImmediateExecutor.getInstance(), requestMonitor) {
+    	super.initialize(new ImmediateRequestMonitor(requestMonitor) {
     		@Override
     		protected void handleSuccess() {
     			doInitialize(requestMonitor);
@@ -620,25 +638,30 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		return null;
 	}
 	
+	@Override
     public IThreadDMContext createThreadContext(IProcessDMContext processDmc, String threadId) {
         return new MIThreadDMC(getSession().getId(), processDmc, threadId);
     }
 
+	@Override
     public IProcessDMContext createProcessContext(ICommandControlDMContext controlDmc, String pid) {
         return new MIProcessDMC(getSession().getId(), controlDmc, pid);
     }
     
+	@Override
     public IMIExecutionDMContext createExecutionContext(IContainerDMContext containerDmc, 
                                                         IThreadDMContext threadDmc, 
                                                         String threadId) {
     	return new MIExecutionDMC(getSession().getId(), containerDmc, threadDmc, threadId);
     }
 
+	@Override
     public IMIContainerDMContext createContainerContext(IProcessDMContext processDmc,
     													String groupId) {
     	return new GDBContainerDMC(getSession().getId(), processDmc, groupId);
     }
 
+	@Override
     public IMIContainerDMContext createContainerContextFromThreadId(ICommandControlDMContext controlDmc, String threadId) {
     	String groupId = getThreadToGroupMap().get(threadId);
     	if (groupId == null) {
@@ -662,6 +685,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     }
 
     /** @since 4.0 */
+	@Override
     public IMIContainerDMContext createContainerContextFromGroupId(ICommandControlDMContext controlDmc, String groupId) {
     	if (groupId == null || groupId.length() == 0) {
     		// This happens when we are doing non-attach, so for GDB < 7.2, we know that in that case
@@ -684,6 +708,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     	return createContainerContext(processDmc, groupId);
     }
     
+	@Override
     public IMIExecutionDMContext[] getExecutionContexts(IMIContainerDMContext containerDmc) {
     	String groupId = containerDmc.getGroupId();
     	List<IMIExecutionDMContext> execDmcList = new ArrayList<IMIExecutionDMContext>(); 
@@ -702,6 +727,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     	return execDmcList.toArray(new IMIExecutionDMContext[0]);
     }
 
+	@Override
 	public void getExecutionData(IThreadDMContext dmc, final DataRequestMonitor<IThreadDMData> rm) {
 		if (dmc instanceof IMIProcessDMContext) {
 			String id = ((IMIProcessDMContext)dmc).getProcId();
@@ -773,6 +799,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		}
 	}
 	
+	@Override
     public void getDebuggingContext(IThreadDMContext dmc, DataRequestMonitor<IDMContext> rm) {
     	if (dmc instanceof MIProcessDMC) {
     		MIProcessDMC procDmc = (MIProcessDMC)dmc;
@@ -795,11 +822,13 @@ public class GDBProcesses_7_0 extends AbstractDsfService
    		return fBackend.getIsAttachSession() && fNumConnected == 0;
     }
     
+	@Override
     public void isDebuggerAttachSupported(IDMContext dmc, DataRequestMonitor<Boolean> rm) {
     	rm.setData(doIsDebuggerAttachSupported());
     	rm.done();
     }
 
+	@Override
     public void attachDebuggerToProcess(IProcessDMContext procCtx, DataRequestMonitor<IDMContext> rm) {
 		attachDebuggerToProcess(procCtx, null, rm);
 	}
@@ -807,6 +836,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     /**
 	 * @since 4.0
 	 */
+	@Override
     public void attachDebuggerToProcess(final IProcessDMContext procCtx, final String binaryPath, final DataRequestMonitor<IDMContext> dataRm) {
 		if (procCtx instanceof IMIProcessDMContext) {
 	    	if (!doIsDebuggerAttachSupported()) {
@@ -840,7 +870,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	    						if (binaryPath != null) {
     				    			fCommandControl.queueCommand(
     				    					fCommandFactory.createMIFileExecAndSymbols(fContainerDmc, binaryPath), 
-			    							new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm));
+			    							new ImmediateDataRequestMonitor<MIInfo>(rm));
     				    			return;
 	    						}
 
@@ -918,11 +948,13 @@ public class GDBProcesses_7_0 extends AbstractDsfService
    		return fNumConnected > 0;
     }
     
+	@Override
     public void canDetachDebuggerFromProcess(IDMContext dmc, DataRequestMonitor<Boolean> rm) {
     	rm.setData(doCanDetachDebuggerFromProcess());
     	rm.done();
     }
 
+	@Override
     public void detachDebuggerFromProcess(final IDMContext dmc, final RequestMonitor rm) {
     	
     	ICommandControlDMContext controlDmc = DMContexts.getAncestorOfType(dmc, ICommandControlDMContext.class);
@@ -949,11 +981,13 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	    }
 	}
 
+	@Override
 	public void canTerminate(IThreadDMContext thread, DataRequestMonitor<Boolean> rm) {
 		rm.setData(true);
 		rm.done();
 	}
 
+	@Override
 	public void isDebugNewProcessSupported(IDMContext dmc, DataRequestMonitor<Boolean> rm) {
 		rm.setData(doIsDebugNewProcessSupported());
 		rm.done();  
@@ -964,6 +998,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		return false;
 	}
 	
+	@Override
 	public void debugNewProcess(IDMContext dmc, String file, 
 			                    Map<String, Object> attributes, DataRequestMonitor<IDMContext> rm) {
 
@@ -995,6 +1030,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		return new DebugNewProcessSequence(executor, isInitial, dmc, file, attributes, rm);
 	}
 	
+	@Override
 	public void getProcessesBeingDebugged(final IDMContext dmc, final DataRequestMonitor<IDMContext[]> rm) {
 		final ICommandControlDMContext controlDmc = DMContexts.getAncestorOfType(dmc, ICommandControlDMContext.class);
 		final IMIContainerDMContext containerDmc = DMContexts.getAncestorOfType(dmc, IMIContainerDMContext.class);
@@ -1085,6 +1121,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		return containerDmcs.toArray(new IMIContainerDMContext[containerDmcs.size()]);
 	}
 
+	@Override
 	public void getRunningProcesses(final IDMContext dmc, final DataRequestMonitor<IProcessDMContext[]> rm) {
 		final ICommandControlDMContext controlDmc = DMContexts.getAncestorOfType(dmc, ICommandControlDMContext.class);
 		if (controlDmc != null) {
@@ -1169,11 +1206,13 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		return procDmcs;
 	}
 
+	@Override
 	public void isRunNewProcessSupported(IDMContext dmc, DataRequestMonitor<Boolean> rm) {
 		rm.setData(false);
 		rm.done();			
 	}
 	
+	@Override
 	public void runNewProcess(IDMContext dmc, String file, 
 			                  Map<String, Object> attributes, DataRequestMonitor<IProcessDMContext> rm) {
 		rm.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID,
@@ -1181,6 +1220,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		rm.done();
 	}
 
+	@Override
 	public void terminate(IThreadDMContext thread, final RequestMonitor rm) {
 		// If we will terminate GDB as soon as the last inferior terminates, then let's
 		// just terminate GDB itself if this is the last inferior.  
@@ -1196,7 +1236,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
    		} else if (thread instanceof IMIProcessDMContext) {
 			getDebuggingContext(
 					thread, 
-					new DataRequestMonitor<IDMContext>(ImmediateExecutor.getInstance(), rm) {
+					new ImmediateDataRequestMonitor<IDMContext>(rm) {
 						@Override
 						protected void handleSuccess() {
 							if (getData() instanceof IMIContainerDMContext) {
@@ -1207,7 +1247,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 
 								fCommandControl.queueCommand(
 										fCommandFactory.createMIInterpreterExecConsoleKill((IMIContainerDMContext)getData()),
-										new DataRequestMonitor<MIInfo>(ImmediateExecutor.getInstance(), rm));
+										new ImmediateDataRequestMonitor<MIInfo>(rm));
 							} else {
 					            rm.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, INTERNAL_ERROR, "Invalid process context.", null)); //$NON-NLS-1$
 					            rm.done();								
@@ -1221,6 +1261,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	}
 	
 	/** @since 4.0 */
+	@Override
 	public void canRestart(IContainerDMContext containerDmc, DataRequestMonitor<Boolean> rm) {		
     	if (fBackend.getIsAttachSession() || fBackend.getSessionType() == SessionType.CORE) {
         	rm.setData(false);
@@ -1261,6 +1302,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	}
 	
 	/** @since 4.0 */
+	@Override
 	public void restart(IContainerDMContext containerDmc, final Map<String, Object> attributes, final DataRequestMonitor<IContainerDMContext> rm) {
 		fProcRestarting = true;
 		
@@ -1279,7 +1321,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 		final String groupId = ((IMIContainerDMContext)containerDmc).getGroupId();
 		
 		// This request monitor actually performs the restart
-		RequestMonitor restartRm = new RequestMonitor(ImmediateExecutor.getInstance(), rm) {
+		RequestMonitor restartRm = new ImmediateRequestMonitor(rm) {
 			@Override
 			protected void handleSuccess() {
 				// For a restart, we are given the container context of the original process.  However, we want to start
@@ -1287,7 +1329,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 				// Pass in the groupId because starting with GDB 7.2, we must re-use the same groupId.
 				IContainerDMContext newContainerDmc = createContainerContextForRestart(groupId);
 
-				startOrRestart(newContainerDmc, attributes, true, new DataRequestMonitor<IContainerDMContext>(ImmediateExecutor.getInstance(), rm) {
+				startOrRestart(newContainerDmc, attributes, true, new ImmediateDataRequestMonitor<IContainerDMContext>(rm) {
 					@Override
 					protected void handleCompleted() {
 						if (!isSuccess()) {
@@ -1311,6 +1353,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	}
 	
 	/** @since 4.0 */
+	@Override
 	public void start(IContainerDMContext containerDmc, Map<String, Object> attributes, DataRequestMonitor<IContainerDMContext> rm) {
 		startOrRestart(containerDmc, attributes, false, rm);
 	}
@@ -1414,7 +1457,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     				// We also do this for a remote attach session, since the 'auto terminate' preference
     				// is enabled.  If users want to keep the session alive to attach to another process,
     				// they can simply disable that preference
-    				fCommandControl.terminate(new RequestMonitor(ImmediateExecutor.getInstance(), null));
+    				fCommandControl.terminate(new ImmediateRequestMonitor());
     			}
     		}
     		fProcRestarting = false;
@@ -1423,6 +1466,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
     	}
     }
 
+	@Override
 	public void flushCache(IDMContext context) {
 		fContainerCommandCache.reset(context);
 		fThreadCommandCache.reset(context);
@@ -1432,6 +1476,7 @@ public class GDBProcesses_7_0 extends AbstractDsfService
 	 * Catch =thread-created/exited and =thread-group-exited events to update our
 	 * groupId to threadId map. 
 	 */
+	@Override
 	public void eventReceived(Object output) {
     	for (MIOOBRecord oobr : ((MIOutput)output).getMIOOBRecords()) {
 			if (oobr instanceof MINotifyAsyncOutput) {

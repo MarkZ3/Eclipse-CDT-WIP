@@ -12,6 +12,7 @@ Export-Package: org.eclipse.cdt.core.cdescriptor.tests,
  org.eclipse.cdt.core.internal.tests;x-internal:=true,
  org.eclipse.cdt.core.internal.tests.filesystem.ram,
  org.eclipse.cdt.core.language,
+ org.eclipse.cdt.core.language.settings.providers,
  org.eclipse.cdt.core.model.tests,
  org.eclipse.cdt.core.parser.tests,
  org.eclipse.cdt.core.parser.tests.ast2,
@@ -31,7 +32,6 @@ Export-Package: org.eclipse.cdt.core.cdescriptor.tests,
  org.eclipse.cdt.core.testplugin,
  org.eclipse.cdt.core.testplugin.util,
  org.eclipse.cdt.core.tests,
- org.eclipse.cdt.core.tests.templateengine,
  org.eclipse.cdt.core.winreg.tests,
  org.eclipse.cdt.internal.index.tests;x-internal:=true,
  org.eclipse.cdt.internal.pdom.tests;x-internal:=true,
@@ -47,4 +47,4 @@ Require-Bundle: org.eclipse.core.resources,
  org.eclipse.ltk.core.refactoring;bundle-version="3.4.0"
 Bundle-ActivationPolicy: lazy
 Bundle-Vendor: Eclipse CDT
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6

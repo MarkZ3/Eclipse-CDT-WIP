@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
+ *     Doug Schaefer (IBM) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -20,7 +20,7 @@ public interface IASTParameterDeclaration extends IASTNode {
 	/**
 	 * Constant/sentinel.
 	 */
-	public static final IASTParameterDeclaration[] EMPTY_PARAMETERDECLARATION_ARRAY = new IASTParameterDeclaration[0];
+	public static final IASTParameterDeclaration[] EMPTY_PARAMETERDECLARATION_ARRAY = {};
 
 	/**
 	 * <code>DECL_SPECIFIER</code> represents the relationship between an
@@ -39,21 +39,21 @@ public interface IASTParameterDeclaration extends IASTNode {
 			"IASTParameterDeclaration.DECLARATOR - IASTDeclarator for IASTParameterDeclaration"); //$NON-NLS-1$
 
 	/**
-	 * Get the decl specifier.
+	 * Returns the decl specifier.
 	 * 
 	 * @return <code>IASTDeclSpecifier</code>
 	 */
 	public IASTDeclSpecifier getDeclSpecifier();
 
 	/**
-	 * Get the declarator.
+	 * Returns the declarator.
 	 * 
 	 * @return <code>IASTDeclarator</code>
 	 */
 	public IASTDeclarator getDeclarator();
 
 	/**
-	 * Set the decl specifier.
+	 * Sets the decl specifier.
 	 * 
 	 * @param declSpec
 	 *            <code>IASTDeclSpecifier</code>.
@@ -61,7 +61,7 @@ public interface IASTParameterDeclaration extends IASTNode {
 	public void setDeclSpecifier(IASTDeclSpecifier declSpec);
 
 	/**
-	 * Set the declarator.
+	 * Sets the declarator.
 	 * 
 	 * @param declarator
 	 *            <code>IASTDeclarator</code>
@@ -71,10 +71,12 @@ public interface IASTParameterDeclaration extends IASTNode {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTParameterDeclaration copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTParameterDeclaration copy(CopyStyle style);
 }

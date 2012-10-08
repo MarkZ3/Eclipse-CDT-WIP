@@ -30,25 +30,13 @@ public class Activator extends AbstractUIPlugin {
 	public Activator() {
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.eclipse.ui.plugin.AbstractUIPlugin#start(org.osgi.framework.BundleContext
-	 * )
-	 */
+	@Override
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		plugin = this;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.eclipse.ui.plugin.AbstractUIPlugin#stop(org.osgi.framework.BundleContext
-	 * )
-	 */
+	@Override
 	public void stop(BundleContext context) throws Exception {
 		plugin = null;
 		super.stop(context);
@@ -66,8 +54,7 @@ public class Activator extends AbstractUIPlugin {
 	/**
 	 * Logs the specified status with this plug-in's log.
 	 * 
-	 * @param status
-	 *        status to log
+	 * @param status the status to log
 	 */
 	public static void log(IStatus status) {
 		getDefault().getLog().log(status);
@@ -76,11 +63,10 @@ public class Activator extends AbstractUIPlugin {
 	/**
 	 * Logs an internal error with the specified throwable
 	 * 
-	 * @param e
-	 *        the exception to be logged
+	 * @param e the exception to be logged
 	 */
 	public static void log(Throwable e) {
-		log(new Status(IStatus.ERROR, PLUGIN_ID, 1, "Internal Error", e)); //$NON-NLS-1$
+		log(new Status(IStatus.ERROR, PLUGIN_ID, 1, Messages.Activatior_Error, e));
 	}
 
 	/**

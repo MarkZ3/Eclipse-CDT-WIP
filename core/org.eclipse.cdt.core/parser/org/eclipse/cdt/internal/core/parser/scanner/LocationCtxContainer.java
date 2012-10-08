@@ -241,7 +241,7 @@ class LocationCtxContainer extends LocationCtx {
 		if (idx < 0) {
 			return -idx;
 		}
-		return idx+1;
+		return idx + 1;
 	}
 
 	private int[] computeLineOffsets() {
@@ -255,8 +255,12 @@ class LocationCtxContainer extends LocationCtx {
 		int[] result= new int[offsets.size()];
 		for (int i = 0; i < result.length; i++) {
 			result[i]= offsets.get(i).intValue();
-			
 		}
 		return result;
+	}
+	
+	@Override
+	public String toString() {
+		return "<synthetic>"; //$NON-NLS-1$
 	}
 }

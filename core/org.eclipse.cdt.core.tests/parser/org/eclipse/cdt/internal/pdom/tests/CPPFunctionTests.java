@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 IBM Corporation.
+ * Copyright (c) 2006, 2012 IBM Corporation.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.internal.pdom.tests;
 
@@ -31,16 +32,13 @@ import org.eclipse.cdt.internal.core.index.IIndexFragmentBinding;
 import org.eclipse.cdt.internal.core.pdom.PDOM;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.NullProgressMonitor;
 
 /**
  * Tests for verifying whether the PDOM correctly stores information about
  * C++ non-member functions.
  */
 public class CPPFunctionTests extends PDOMTestBase {
-
 	protected ICProject project;
-
 	protected PDOM pdom;
 
 	public static Test suite() {
@@ -58,13 +56,14 @@ public class CPPFunctionTests extends PDOMTestBase {
 	protected void tearDown() throws Exception {
 		pdom.releaseReadLock();
 		if (project != null) {
-			project.getProject().delete(IResource.FORCE | IResource.ALWAYS_DELETE_PROJECT_CONTENT, new NullProgressMonitor());
+			project.getProject().delete(IResource.FORCE | IResource.ALWAYS_DELETE_PROJECT_CONTENT, npm());
 		}
 	}
 	
 	public void testPointerToFunctionType() throws Exception {
 		assertDeclarationCount(pdom, "int2intPtr", 1);
-		IIndexFragmentBinding[] b= pdom.findBindings(new char[][] {"int2intPtr".toCharArray()}, IndexFilter.ALL, npm());
+		IIndexFragmentBinding[] b=
+				pdom.findBindings(new char[][] { "int2intPtr".toCharArray() }, IndexFilter.ALL, npm());
 		assertEquals(1, b.length);
 		assertInstance(b[0], ICPPVariable.class);
 		ICPPVariable v= (ICPPVariable) b[0];
@@ -103,11 +102,11 @@ public class CPPFunctionTests extends PDOMTestBase {
 		assertEquals(1, bindings.length);
 		ICPPFunction function = (ICPPFunction) bindings[0];
 		IParameter[] parameters = function.getParameters();
-		assertEquals(IBasicType.t_int, ((ICPPBasicType) parameters[0].getType()).getType());
+		assertEquals(IBasicType.Kind.eInt, ((ICPPBasicType) parameters[0].getType()).getKind());
 		assertEquals("p1", parameters[0].getName());
-		assertEquals(IBasicType.t_char, ((ICPPBasicType) parameters[1].getType()).getType());
+		assertEquals(IBasicType.Kind.eChar, ((ICPPBasicType) parameters[1].getType()).getKind());
 		assertEquals("p2", parameters[1].getName());
-		assertEquals(IBasicType.t_float, ((ICPPBasicType) parameters[2].getType()).getType());
+		assertEquals(IBasicType.Kind.eFloat, ((ICPPBasicType) parameters[2].getType()).getKind());
 		assertEquals("p3", parameters[2].getName());
 	}
 	
@@ -127,7 +126,7 @@ public class CPPFunctionTests extends PDOMTestBase {
 	}
 
 	public void testStaticCPPFunction() throws Exception {
-		// static elements cannot be found on global scope, see bug 161216
+		// Static elements cannot be found in global scope, see bug 161216
 		IBinding[] bindings = findUnqualifiedName(pdom, "staticCPPFunction");
 		assertEquals(1, bindings.length);
 		assertTrue(((ICPPFunction) bindings[0]).isStatic());
@@ -138,13 +137,19 @@ public class CPPFunctionTests extends PDOMTestBase {
 		assertEquals(1, bindings.length);
 		assertTrue(((ICPPFunction) bindings[0]).isInline());
 	}
-	
+
 	public void testVarArgsCPPFunction() throws Exception {
 		IBinding[] bindings = findQualifiedName(pdom, "varArgsCPPFunction");
 		assertEquals(1, bindings.length);
 		assertTrue(((ICPPFunction) bindings[0]).takesVarArgs());
 	}
-	
+
+	public void testNoReturnCPPFunction() throws Exception {
+		IBinding[] bindings = findQualifiedName(pdom, "noReturnCPPFunction");
+		assertEquals(1, bindings.length);
+		assertTrue(((ICPPFunction) bindings[0]).isNoReturn());
+	}
+
 	public void testForwardDeclarationType() throws Exception {
 		assertType(pdom, "forwardDeclaration", ICPPFunction.class);		
 	}

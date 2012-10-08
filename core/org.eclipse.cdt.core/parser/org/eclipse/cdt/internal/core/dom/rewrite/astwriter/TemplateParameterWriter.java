@@ -11,12 +11,12 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.rewrite.astwriter;
 
-import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTSimpleTypeTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplatedTypeTemplateParameter;
+import org.eclipse.cdt.core.parser.Keywords;
 import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
 
 /**
@@ -35,7 +35,7 @@ public class TemplateParameterWriter extends NodeWriter {
 	 * @param scribe
 	 * @param visitor
 	 */
-	public TemplateParameterWriter(Scribe scribe, ASTVisitor visitor, NodeCommentMap commentMap) {
+	public TemplateParameterWriter(Scribe scribe, ASTWriterVisitor visitor, NodeCommentMap commentMap) {
 		super(scribe, visitor, commentMap);
 	}
 	
@@ -70,10 +70,10 @@ public class TemplateParameterWriter extends NodeWriter {
 	private void writeSimpleTypeTemplateParameter(ICPPASTSimpleTypeTemplateParameter simple) {
 		switch (simple.getParameterType()) {
 		case ICPPASTSimpleTypeTemplateParameter.st_class:
-			scribe.print(CLASS_SPACE);
+			scribe.printStringSpace(Keywords.CLASS);
 			break;
 		case ICPPASTSimpleTypeTemplateParameter.st_typename:
-			scribe.print(TYPENAME);
+			scribe.printStringSpace(Keywords.TYPENAME);
 			break;
 		}
 					

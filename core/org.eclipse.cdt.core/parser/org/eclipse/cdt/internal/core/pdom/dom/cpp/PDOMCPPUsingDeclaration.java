@@ -6,13 +6,10 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * 	  Sergey Prigogin (Google) - initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ * 	   Sergey Prigogin (Google) - initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
-
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.IBinding;
@@ -20,7 +17,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPUsingDeclaration;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
 import org.eclipse.cdt.internal.core.pdom.db.Database;
-import org.eclipse.cdt.internal.core.pdom.dom.PDOMBinding;
 import org.eclipse.cdt.internal.core.pdom.dom.PDOMLinkage;
 import org.eclipse.cdt.internal.core.pdom.dom.PDOMNode;
 import org.eclipse.core.runtime.CoreException;
@@ -33,15 +29,14 @@ import org.eclipse.core.runtime.CoreException;
  * @see ICPPUsingDeclaration
  */
 class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclaration {
-	
-	private static final int TARGET_BINDING = PDOMCPPBinding.RECORD_SIZE + 0;
+	private static final int TARGET_BINDING = PDOMCPPBinding.RECORD_SIZE;
 	// Using declarations for functions may have multiple delegates. We model such case
 	// by creating a chain of PDOMCPPUsingDeclaration objects linked by NEXT_DELEGATE field.
 	
-	private static final int NEXT_DELEGATE = PDOMCPPBinding.RECORD_SIZE + 4;
+	private static final int NEXT_DELEGATE = TARGET_BINDING + Database.TYPE_SIZE;
 	
 	@SuppressWarnings("hiding")
-	protected static final int RECORD_SIZE = PDOMCPPBinding.RECORD_SIZE + 8;
+	protected static final int RECORD_SIZE = NEXT_DELEGATE + Database.PTR_SIZE;
 	
 	private volatile IBinding[] delegates;
 	
@@ -51,17 +46,15 @@ class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclara
 
 		final Database db = getDB();
 		final char[] name = using.getNameCharArray();
-		Set<PDOMBinding> targets= new LinkedHashSet<PDOMBinding>();
 		PDOMCPPUsingDeclaration last= null;
 		for (IBinding delegate : using.getDelegates()) {
-			PDOMBinding target = getLinkage().addPotentiallyUnknownBinding(delegate);
-			if (target != null && targets.add(target)) {
+			if (delegate != null) {
 				if (last == null) {
-					setTargetBinding(linkage, target);
+					setTargetBinding(linkage, delegate);
 					last= this;
 				} else {
 					PDOMCPPUsingDeclaration next= new PDOMCPPUsingDeclaration(linkage, parent, name);
-					next.setTargetBinding(linkage, target);
+					next.setTargetBinding(linkage, delegate);
 					db.putRecPtr(last.getRecord() + NEXT_DELEGATE, next.record);
 					last= next;
 				}
@@ -77,8 +70,8 @@ class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclara
 		super(linkage, parent, name);
 	}
 
-	private void setTargetBinding(PDOMLinkage linkage, PDOMBinding delegate) throws CoreException {
-		getDB().putRecPtr(record + TARGET_BINDING, delegate != null ? delegate.getRecord() : 0);
+	private void setTargetBinding(PDOMLinkage linkage, IBinding delegate) throws CoreException {
+		getLinkage().storeBinding(record + TARGET_BINDING, delegate);
 	}
 
 	@Override
@@ -91,6 +84,7 @@ class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclara
 		return IIndexCPPBindingConstants.CPP_USING_DECLARATION;
 	}
 
+	@Override
 	public IBinding[] getDelegates() {
 		if (delegates == null) {
 			delegates = new IBinding[1];
@@ -100,13 +94,13 @@ class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclara
 				do {
 					IBinding delegate = alias.getBinding();
 					if (delegate != null) {
-						delegates= (IBinding[]) ArrayUtil.append(IBinding.class, delegates, i++, delegate);
+						delegates= ArrayUtil.appendAt(IBinding.class, delegates, i++, delegate);
 					}
 				} while ((alias = alias.getNext()) != null);
 			} catch (CoreException e) {
 				CCorePlugin.log(e);
 			}
-			delegates = (IBinding[]) ArrayUtil.trim(IBinding.class, delegates);
+			delegates = ArrayUtil.trim(IBinding.class, delegates);
 		}
 		return delegates;
 	}
@@ -118,8 +112,7 @@ class PDOMCPPUsingDeclaration extends PDOMCPPBinding implements	ICPPUsingDeclara
 
 	private IBinding getBinding() {
 		try {
-			return (IBinding) getLinkage().getNode(
-					getPDOM().getDB().getRecPtr(record + TARGET_BINDING));
+			return getLinkage().loadBinding(record + TARGET_BINDING);
 		} catch (CoreException e) {
 			CCorePlugin.log(e);
 		}

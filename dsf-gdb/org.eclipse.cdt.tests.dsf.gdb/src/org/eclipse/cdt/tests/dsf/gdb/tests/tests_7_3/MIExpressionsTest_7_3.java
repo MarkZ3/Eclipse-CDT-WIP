@@ -25,17 +25,16 @@ import org.eclipse.cdt.tests.dsf.gdb.framework.BackgroundRunner;
 import org.eclipse.cdt.tests.dsf.gdb.framework.SyncUtil;
 import org.eclipse.cdt.tests.dsf.gdb.launching.TestsPlugin;
 import org.eclipse.cdt.tests.dsf.gdb.tests.ITestConstants;
-import org.eclipse.cdt.tests.dsf.gdb.tests.MIExpressionsTest;
+import org.eclipse.cdt.tests.dsf.gdb.tests.tests_7_2.MIExpressionsTest_7_2;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(BackgroundRunner.class)
-public class MIExpressionsTest_7_3 extends MIExpressionsTest {
-	@BeforeClass
-	public static void beforeClassMethod_7_3() {
+public class MIExpressionsTest_7_3 extends MIExpressionsTest_7_2 {
+	@Override
+	protected void setGdbVersion() {
 		setGdbProgramNamesLaunchAttributes(ITestConstants.SUFFIX_GDB_7_3);
 	}
 	
@@ -51,7 +50,8 @@ public class MIExpressionsTest_7_3 extends MIExpressionsTest {
         final AsyncCompletionWaitor wait = new AsyncCompletionWaitor();
         
         fExpService.getExecutor().submit(new Runnable() {
-        	public void run() {
+        	@Override
+			public void run() {
 
         		// First create the var object and all its children
         		IExpressionDMContext parentDmc = fExpService.createExpression(frameDmc, "f");
@@ -113,7 +113,8 @@ public class MIExpressionsTest_7_3 extends MIExpressionsTest {
         wait.waitReset();
         
         fExpService.getExecutor().submit(new Runnable() {
-        	public void run() {
+        	@Override
+			public void run() {
 
         		// Now create more than 1000 expressions to trigger the deletion of the children
         		// that were created above
@@ -142,7 +143,8 @@ public class MIExpressionsTest_7_3 extends MIExpressionsTest {
         wait.waitReset();
         
         fExpService.getExecutor().submit(new Runnable() {
-        	public void run() {
+        	@Override
+			public void run() {
 
         		// Evaluate the expression of a child that we know is deleted to make sure
         		// the expression service can handle that

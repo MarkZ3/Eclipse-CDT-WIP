@@ -1,25 +1,23 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 Wind River Systems, Inc. and others.
+ * Copyright (c) 2006, 2012 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Markus Schorn - initial API and implementation
- *    Andrew Ferguson (Symbian)
- *    Sergey Prigogin (Google)
+ *     Markus Schorn - initial API and implementation
+ *     Andrew Ferguson (Symbian)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/ 
 package org.eclipse.cdt.internal.core.index;
-
-import java.util.Collection;
 
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.index.IIndex;
-import org.eclipse.cdt.core.index.IIndexFile;
 import org.eclipse.cdt.core.index.IIndexFileLocation;
+import org.eclipse.cdt.core.parser.ISignificantMacros;
 import org.eclipse.cdt.internal.core.pdom.ASTFilePathResolver;
 import org.eclipse.cdt.internal.core.pdom.YieldableIndexLock;
 import org.eclipse.core.runtime.CoreException;
@@ -33,26 +31,37 @@ import org.eclipse.core.runtime.CoreException;
 public interface IWritableIndex extends IIndex {
 	
 	static class IncludeInformation {
-		public IASTPreprocessorIncludeStatement fStatement;
-		public IIndexFileLocation fLocation;
+		public final IASTPreprocessorIncludeStatement fStatement;
+		public final IIndexFileLocation fLocation;
+		public final ISignificantMacros fSignificantMacros;
+		public final boolean fIsContext;
 		public IIndexFragmentFile fTargetFile;
-		public boolean fIsContext= false;
+		
+		public IncludeInformation(IASTPreprocessorIncludeStatement stmt, 
+				IIndexFileLocation location, ISignificantMacros sig, boolean isContext) {
+			fStatement= stmt;
+			fSignificantMacros= sig;
+			fLocation= location;
+			fIsContext= isContext;
+		}
 	}
 	
 	/**
-	 * Checks whether the given file can be written to in this index.
+	 * Returns a writable file for the given location, linkage, and the set of macro definitions,
+	 * or null. This method returns file objects without content, also.
 	 */
-	boolean isWritableFile(IIndexFile file);
+	IIndexFragmentFile getWritableFile(int linkageID, IIndexFileLocation location,
+			ISignificantMacros macroDictionary) throws CoreException;
 
 	/**
-	 * Returns a writable file for the given location and linkage, or null. This method
-	 * returns file-objects without content, also.
+	 * Returns the writable files for the given location and linkage. This method
+	 * returns file objects without content, also.
 	 */
-	IIndexFragmentFile getWritableFile(int linkageID, IIndexFileLocation location) throws CoreException;
+	IIndexFragmentFile[] getWritableFiles(int linkageID, IIndexFileLocation location) throws CoreException;
 
 	/**
 	 * Returns the writable files for the given location in any linkage. This method
-	 * returns file-objects without content, also.
+	 * returns file objects without content, also.
 	 */
 	IIndexFragmentFile[] getWritableFiles(IIndexFileLocation location) throws CoreException;
 
@@ -62,21 +71,29 @@ public interface IWritableIndex extends IIndex {
 	 * @param a collection that receives IndexFileLocation objects for files that
 	 *     had the cleared file as a context. May be <code>null</code>.
 	 */
-	void clearFile(IIndexFragmentFile file, Collection<IIndexFileLocation> clearedContexts) throws CoreException;
+	void clearFile(IIndexFragmentFile file) throws CoreException;
 
 	/**
 	 * Creates a file object for the given location or returns an existing one.
+	 * @param linkageID the id of the linkage in which the file has been parsed.
+	 * @param location the IIndexFileLocation representing the location of the file
+	 * @param macroDictionary The names and definitions of the macros used to disambiguate between
+	 *     variants of the file contents corresponding to different inclusion points.
+	 * @return A created or an existing file.  
 	 */
-	IIndexFragmentFile addFile(int linkageID, IIndexFileLocation location) throws CoreException;
+	IIndexFragmentFile addFile(int linkageID, IIndexFileLocation location,
+			ISignificantMacros macroDictionary) throws CoreException;
 
 	/**
 	 * Creates a uncommitted file object for the given location.
 	 */
-	IIndexFragmentFile addUncommittedFile(int linkageID, IIndexFileLocation location) throws CoreException;
+	IIndexFragmentFile addUncommittedFile(int linkageID, IIndexFileLocation location,
+			ISignificantMacros macroDictionary) throws CoreException;
 
 	/**
 	 * Makes an uncommitted file that was created earlier by calling
-	 * {@link #addUncommittedFile(int, IIndexFileLocation)} method visible in the index.
+	 * {@link #addUncommittedFile(int, IIndexFileLocation, ISignificantMacros)} method visible
+	 * in the index.
 	 *
 	 * @return The file that was updated.
 	 * @throws CoreException
@@ -106,20 +123,20 @@ public interface IWritableIndex extends IIndex {
 	/**
 	 * Acquires a write lock, while giving up a certain amount of read locks.
 	 */
-	void acquireWriteLock(int giveupReadLockCount) throws InterruptedException;
+	void acquireWriteLock() throws InterruptedException;
 
 	/**
 	 * Releases a write lock, reestablishing a certain amount of read locks.
 	 * Fully equivalent to <code>releaseWriteLock(int, true)</code>.
 	 */
-	void releaseWriteLock(int establishReadLockCount);
+	void releaseWriteLock();
 
 	/**
 	 * Releases a write lock, reestablishing a certain amount of read locks.
 	 * @param establishReadLockCount amount of read-locks to establish.
 	 * @param flushDatabase when true the changes are flushed to disk.
 	 */
-	void releaseWriteLock(int establishReadLockCount, boolean flushDatabase);
+	void releaseWriteLock(boolean flushDatabase);
 	
 	/**
 	 * Resets the counters for cache-hits
@@ -156,4 +173,16 @@ public interface IWritableIndex extends IIndex {
 	 * Clears the result cache, caller needs to hold a write-lock.
 	 */
 	void clearResultCache();
+
+	/**
+	 * Changes the inclusions pointing to 'source' to point to 'target', instead. 
+	 * Both files must belong to the writable fragment.
+	 */
+	void transferIncluders(IIndexFragmentFile source, IIndexFragmentFile target) throws CoreException;
+
+	/**
+	 * Changes the inclusion from the context of 'source' to point to 'target', instead. 
+	 * Both files must belong to the writable fragment.
+	 */
+	void transferContext(IIndexFragmentFile source, IIndexFragmentFile target) throws CoreException;
 }

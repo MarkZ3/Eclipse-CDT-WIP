@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2010 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@
  *     Yuan Zhang / Beth Tibbitts (IBM Research)
  *     Markus Schorn (Wind River Systems)
  *     Mike Kucera (IBM) - implicit names
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -22,15 +23,15 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateParameter;
 import org.eclipse.cdt.internal.core.dom.parser.ASTAmbiguousNode;
 
 /**
- * Abstract base class for all visitors to traverse ast nodes.  <br>
+ * Abstract base class for all visitors to traverse AST nodes. <br>
  * visit() methods implement a top-down traversal, and <br>
  * leave() methods implement a bottom-up traversal. <br>
- * 
+ *
  * <p> Clients may subclass. </p>
  */
 public abstract class ASTVisitor {
 	/**
-	 * Skip the traversal of children of this node, don't call leave on this node. 
+	 * Skip the traversal of children of this node, don't call leave on this node.
 	 */
 	public final static int PROCESS_SKIP = 1;
 	/**
@@ -77,6 +78,16 @@ public abstract class ASTVisitor {
 	 */
 	public boolean shouldVisitPointerOperators = false;
 	/**
+	 * Set this flag to visit attributes.
+	 * @since 5.4
+	 */
+	public boolean shouldVisitAttributes = false;
+	/**
+	 * Set this flag to visit token nodes.
+	 * @since 5.4
+	 */
+	public boolean shouldVisitTokens = false;
+	/**
 	 * Set this flag to visit expressions.
 	 */
 	public boolean shouldVisitExpressions = false;
@@ -105,7 +116,7 @@ public abstract class ASTVisitor {
 	 * Set this flag to visit designators of initializers.
 	 */
 	public boolean shouldVisitDesignators = false;
-	
+
 	/**
 	 * Set this flag to visit base specifiers off composite types.
 	 */
@@ -120,20 +131,20 @@ public abstract class ASTVisitor {
 	 * Set this flag to visit template parameters.
 	 */
 	public boolean shouldVisitTemplateParameters = false;
-	
+
 	/**
 	 * Set this flag to visit captures
 	 * @since 5.3
 	 */
 	public boolean shouldVisitCaptures= false;
-	
+
 	/**
 	 * Per default inactive nodes are not visited. You can change that by setting
 	 * this flag to <code>true</code>.
 	 * @since 5.1
 	 */
 	public boolean includeInactiveNodes= false;
-	
+
 	/**
 	 * Normally neither ambiguous nodes nor their children are visited. By setting
 	 * this flag to <code>true</code> ambiguous nodes are visited, their children
@@ -141,37 +152,35 @@ public abstract class ASTVisitor {
 	 * @noreference This field is not intended to be referenced by clients.
 	 */
 	public boolean shouldVisitAmbiguousNodes = false;
-	
-	
+
 	/**
 	 * Implicit names are created to allow implicit bindings to be resolved,
 	 * normally they are not visited, set this flag to true to visit them.
 	 * @since 5.1
 	 */
 	public boolean shouldVisitImplicitNames = false;
-	
-	
+
 	/**
 	 * Sometimes more than one implicit name is created for a binding,
 	 * set this flag to true to visit more than one name for an implicit binding.
 	 * @since 5.1
 	 */
 	public boolean shouldVisitImplicitNameAlternates = false;
-	
-	
+
 	/**
 	 * Creates a visitor that does not visit any kind of node per default.
 	 */
 	public ASTVisitor() {
 		this(false);
 	}
-	
+
 	/**
 	 * Creates a visitor.
 	 * @param visitNodes whether visitor is setup to visit all nodes per default, except
 	 * ambiguous nodes ({@link #shouldVisitAmbiguousNodes}),
 	 * inactive nodes ({@link #includeInactiveNodes}),
-	 * and implicit names (@link {@link #shouldVisitImplicitNames}).
+	 * implicit names ({@link #shouldVisitImplicitNames}),
+	 * and tokens ({@link #shouldVisitTokens}).
 	 * @since 5.1
 	 */
 	public ASTVisitor(boolean visitNodes) {
@@ -189,6 +198,7 @@ public abstract class ASTVisitor {
 		shouldVisitNamespaces= visitNodes;
 		shouldVisitParameterDeclarations= visitNodes;
 		shouldVisitPointerOperators= visitNodes;
+		shouldVisitAttributes= visitNodes;
 		shouldVisitProblems= visitNodes;
 		shouldVisitStatements= visitNodes;
 		shouldVisitTemplateParameters= visitNodes;
@@ -225,17 +235,23 @@ public abstract class ASTVisitor {
 		return PROCESS_CONTINUE;
 	}
 
-	/**
-	 * @since 5.1
-	 */
+	/** @since 5.1 */
 	public int visit(IASTArrayModifier arrayModifier) {
 		return PROCESS_CONTINUE;
 	}
 
-	/**
-	 * @since 5.1
-	 */
+	/** @since 5.1 */
 	public int visit(IASTPointerOperator ptrOperator) {
+		return PROCESS_CONTINUE;
+	}
+
+	/** @since 5.4 */
+	public int visit(IASTAttribute attribute) {
+		return PROCESS_CONTINUE;
+	}
+
+	/** @since 5.4 */
+	public int visit(IASTToken token) {
 		return PROCESS_CONTINUE;
 	}
 
@@ -254,11 +270,11 @@ public abstract class ASTVisitor {
 	public int visit(IASTEnumerator enumerator) {
 		return PROCESS_CONTINUE;
 	}
-	
+
 	public int visit( IASTProblem problem ){
 		return PROCESS_CONTINUE;
 	}
-	
+
 	/**
 	 * @since 5.3
 	 */
@@ -323,16 +339,23 @@ public abstract class ASTVisitor {
 		return PROCESS_CONTINUE;
 	}
 
-	/**
-	 * @since 5.1
-	 */
+	/** @since 5.1 */
 	public int leave(IASTArrayModifier arrayModifier) {
 		return PROCESS_CONTINUE;
 	}
-	/**
-	 * @since 5.1
-	 */
+
+	/** @since 5.1 */
 	public int leave(IASTPointerOperator ptrOperator) {
+		return PROCESS_CONTINUE;
+	}
+
+	/** @since 5.4 */
+	public int leave(IASTAttribute attribute) {
+		return PROCESS_CONTINUE;
+	}
+
+	/** @since 5.4 */
+	public int leave(IASTToken token) {
 		return PROCESS_CONTINUE;
 	}
 
@@ -351,11 +374,11 @@ public abstract class ASTVisitor {
 	public int leave(IASTEnumerator enumerator) {
 		return PROCESS_CONTINUE;
 	}
-	
+
 	public int leave(IASTProblem problem){
 		return PROCESS_CONTINUE;
 	}
-	
+
 	/**
 	 * @since 5.3
 	 */
@@ -398,6 +421,7 @@ public abstract class ASTVisitor {
 	public int visit( IASTComment comment){
 		return PROCESS_CONTINUE;
 	}
+
 	/**
 	 * @deprecated use {@link IASTTranslationUnit#getComments()}, instead.
 	 */
@@ -409,7 +433,7 @@ public abstract class ASTVisitor {
 	/**
 	 * For internal use, only. When {@link ASTVisitor#shouldVisitAmbiguousNodes} is set to true, the
 	 * visitor will be called for ambiguous nodes. However, the children of an ambiguous will not be
-	 * traversed. 
+	 * traversed.
 	 * @nooverride This method is not intended to be re-implemented or extended by clients.
 	 * @noreference This method is not intended to be referenced by clients.
 	 */

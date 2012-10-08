@@ -6,8 +6,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
- *    Markus Schorn (Wind River Systems)
+ *     John Camelon (IBM) - Initial API and implementation
+ *     Markus Schorn (Wind River Systems)
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser.cpp;
 
@@ -18,8 +18,8 @@ import org.eclipse.cdt.core.dom.ast.gnu.cpp.IGPPASTSimpleDeclSpecifier;
  * @deprecated Replaced by {@link CPPASTSimpleDeclSpecifier}
  */
 @Deprecated
-public class GPPASTSimpleDeclSpecifier extends CPPASTSimpleDeclSpecifier implements
-		IGPPASTSimpleDeclSpecifier {
+public class GPPASTSimpleDeclSpecifier extends CPPASTSimpleDeclSpecifier
+		implements IGPPASTSimpleDeclSpecifier {
 
     public GPPASTSimpleDeclSpecifier() {
 	}
@@ -36,19 +36,16 @@ public class GPPASTSimpleDeclSpecifier extends CPPASTSimpleDeclSpecifier impleme
 
 	@Override
 	public GPPASTSimpleDeclSpecifier copy(CopyStyle style) {
-		GPPASTSimpleDeclSpecifier copy = new GPPASTSimpleDeclSpecifier();
-		copySimpleDeclSpec(copy, style);
-		if (style == CopyStyle.withLocations) {
-			copy.setCopyLocation(this);
-		}
-		return copy;
+		return copy(new GPPASTSimpleDeclSpecifier(), style);
 	}
 
-    public void setTypeofExpression(IASTExpression typeofExpression) {
+    @Override
+	public void setTypeofExpression(IASTExpression typeofExpression) {
     	setDeclTypeExpression(typeofExpression);
     }
 
-    public IASTExpression getTypeofExpression() {
+    @Override
+	public IASTExpression getTypeofExpression() {
         return getDeclTypeExpression();
     }
 }

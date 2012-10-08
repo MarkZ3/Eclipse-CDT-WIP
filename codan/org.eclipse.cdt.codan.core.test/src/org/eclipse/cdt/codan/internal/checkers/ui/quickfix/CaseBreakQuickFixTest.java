@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2010, 2012 Tomasz Wesolowski and others
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Tomasz Wesolowski - initial API and implementation
+ *******************************************************************************/
 package org.eclipse.cdt.codan.internal.checkers.ui.quickfix;
 
 import org.eclipse.cdt.codan.ui.AbstractCodanCMarkerResolution;
@@ -10,43 +20,45 @@ public class CaseBreakQuickFixTest extends QuickFixTestCase {
 		return new CaseBreakQuickFixBreak();
 	}
 
-	// void func() {
-	//	 int a;
-	//   switch(a) {
-	//	   case 1:
-	//	     hello();
-	//     case 2:
-	//	 }
-	// }
-	public void testMiddleCase() {
+	//void func() {
+	//	int a;
+	//	switch(a) {
+	//	case 1:
+	//		hello();
+	//	case 2:
+	//		break;
+	//	}
+	//}
+	public void testMiddleCase() throws Exception {
 		loadcode(getAboveComment());
 		String result = runQuickFixOneFile();
-		assertContainedIn("break;     case 2:", result);
+		assertContainedIn("break;\tcase 2:", result);
 	}
 
-	// void func() {
-	//	 int a;
-	//   switch(a) {
-	//	   case 1:
-	//	     hello();
-	//	 }
-	// }
-	public void testLastCase() {
+	//void func() {
+	//	int a;
+	//	switch(a) {
+	//	case 1:
+	//		hello();
+	//	}
+	//}
+	public void testLastCase() throws Exception {
 		loadcode(getAboveComment());
 		String result = runQuickFixOneFile();
-		assertContainedIn("break;	 }", result);
+		assertContainedIn("break;\t}", result);
 	}
-	// void func() {
-	//	 int a;
-	//   switch(a) {
-	//	   case 1: {
-	//	     hello();
-	//     }
-	//	 }
-	// }
-	public void testLastCaseComp() {
+
+	//void func() {
+	//	int a;
+	//	switch(a) {
+	//	case 1: {
+	//		hello();
+	//	}
+	//	}
+	//}
+	public void testLastCaseComp() throws Exception {
 		loadcode(getAboveComment());
 		String result = runQuickFixOneFile();
-		assertContainedIn("hello();    break;", result);
+		assertContainedIn("hello();\t\tbreak;", result);
 	}
 }

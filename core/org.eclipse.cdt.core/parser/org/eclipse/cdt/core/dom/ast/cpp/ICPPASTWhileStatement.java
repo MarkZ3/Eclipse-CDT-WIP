@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    John Camelon (IBM) - Initial API and implementation
+ *     John Camelon (IBM) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast.cpp;
 
@@ -22,7 +22,6 @@ import org.eclipse.cdt.core.dom.ast.IScope;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface ICPPASTWhileStatement extends IASTWhileStatement {
-
 	/**
 	 * In C++ conditions can be declarations w/side effects.
 	 */
@@ -54,10 +53,12 @@ public interface ICPPASTWhileStatement extends IASTWhileStatement {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public ICPPASTWhileStatement copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public ICPPASTWhileStatement copy(CopyStyle style);
 }

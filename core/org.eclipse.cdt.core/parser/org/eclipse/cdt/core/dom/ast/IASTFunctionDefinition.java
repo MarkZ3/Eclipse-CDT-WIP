@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Doug Schaefer (IBM) - Initial API and implementation
+ *     Doug Schaefer (IBM) - Initial API and implementation
  *******************************************************************************/
 package org.eclipse.cdt.core.dom.ast;
 
@@ -17,7 +17,6 @@ package org.eclipse.cdt.core.dom.ast;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 public interface IASTFunctionDefinition extends IASTDeclaration {
-
 	/**
 	 * <code>DECL_SPECIFIER</code> represents the relationship between a
 	 * <code>IASTFunctionDefinition</code> and its
@@ -42,8 +41,7 @@ public interface IASTFunctionDefinition extends IASTDeclaration {
 			"IASTFunctionDefinition.FUNCTION_BODY - Function Body for IASTFunctionDefinition"); //$NON-NLS-1$
 
 	/**
-	 * Get the decl specifier for the function.
-	 * 
+	 * Returns the decl specifier for the function.
 	 */
 	public IASTDeclSpecifier getDeclSpecifier();
 
@@ -55,7 +53,7 @@ public interface IASTFunctionDefinition extends IASTDeclaration {
 	public void setDeclSpecifier(IASTDeclSpecifier declSpec);
 
 	/**
-	 * Get the function declarator of the function.
+	 * Returns the function declarator of the function.
 	 * Note, that the function declarator may contain nested declarators and may also nest within 
 	 * another declarator. In the latter case this function definition is always the parent of the
 	 * outermost declarator.
@@ -67,7 +65,7 @@ public interface IASTFunctionDefinition extends IASTDeclaration {
 	public IASTFunctionDeclarator getDeclarator();
 
 	/**
-	 * Set the declarator for the function. 
+	 * Sets the declarator for the function. 
 	 * Note, that the function declarator may contain nested declarators and may also nest within 
 	 * another declarator. In the latter case this function definition is set to be the parent of the
 	 * outermost declarator.
@@ -80,14 +78,14 @@ public interface IASTFunctionDefinition extends IASTDeclaration {
 	public void setDeclarator(IASTFunctionDeclarator declarator);
 
 	/**
-	 * Get the body of the function. This is usually a compound statement but
+	 * Returns the body of the function. This is usually a compound statement but
 	 * C++ also has a function try block.
 	 * 
 	 */
 	public IASTStatement getBody();
 
 	/**
-	 * Set the body of the function.
+	 * Sets the body of the function.
 	 * 
 	 * @param statement
 	 */
@@ -103,10 +101,12 @@ public interface IASTFunctionDefinition extends IASTDeclaration {
 	/**
 	 * @since 5.1
 	 */
+	@Override
 	public IASTFunctionDefinition copy();
 
 	/**
 	 * @since 5.3
 	 */
+	@Override
 	public IASTFunctionDefinition copy(CopyStyle style);
 }

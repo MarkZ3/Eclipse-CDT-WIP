@@ -15,31 +15,36 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Properties;
 
+import org.eclipse.cdt.internal.core.Cygwin;
+import org.eclipse.cdt.internal.core.Messages;
 import org.eclipse.cdt.internal.core.ProcessClosure;
+import org.eclipse.cdt.utils.PathUtil;
 import org.eclipse.cdt.utils.spawner.EnvironmentReader;
 import org.eclipse.cdt.utils.spawner.ProcessFactory;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.osgi.util.NLS;
 
 /**
  * @noextend This class is not intended to be subclassed by clients.
  */
 public class CommandLauncher implements ICommandLauncher {
-
 	public final static int COMMAND_CANCELED = ICommandLauncher.COMMAND_CANCELED;
 	public final static int ILLEGAL_COMMAND = ICommandLauncher.ILLEGAL_COMMAND;
 	public final static int OK = ICommandLauncher.OK;
 
-	
+	private static final String PATH_ENV = "PATH"; //$NON-NLS-1$
+	private static final String NEWLINE = System.getProperty("line.separator", "\n"); //$NON-NLS-1$ //$NON-NLS-2$
+
 	protected Process fProcess;
 	protected boolean fShowCommand;
 	protected String[] fCommandArgs;
+	private Properties fEnvironment = null;
 
 	protected String fErrorMessage = ""; //$NON-NLS-1$
-
-	private String lineSeparator;
 	private IProject fProject;
 
 	/**
@@ -55,12 +60,12 @@ public class CommandLauncher implements ICommandLauncher {
 	public CommandLauncher() {
 		fProcess = null;
 		fShowCommand = false;
-		lineSeparator = System.getProperty("line.separator", "\n"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#showCommand(boolean)
 	 */
+	@Override
 	public void showCommand(boolean show) {
 		fShowCommand = show;
 	}
@@ -68,6 +73,7 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#getErrorMessage()
 	 */
+	@Override
 	public String getErrorMessage() {
 		return fErrorMessage;
 	}
@@ -75,6 +81,7 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#setErrorMessage(java.lang.String)
 	 */
+	@Override
 	public void setErrorMessage(String error) {
 		fErrorMessage = error;
 	}
@@ -82,6 +89,7 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#getCommandArgs()
 	 */
+	@Override
 	public String[] getCommandArgs() {
 		return fCommandArgs;
 	}
@@ -89,13 +97,19 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#getEnvironment()
 	 */
+	@Override
 	public Properties getEnvironment() {
-		return EnvironmentReader.getEnvVars();
+		if (fEnvironment == null) {
+			// for backward compatibility, note that this return may be not accurate
+			return EnvironmentReader.getEnvVars();
+		}
+		return fEnvironment;
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#getCommandLine()
 	 */
+	@Override
 	public String getCommandLine() {
 		return getCommandLine(getCommandArgs());
 	}
@@ -111,47 +125,91 @@ public class CommandLauncher implements ICommandLauncher {
 	}
 
 	/**
+	 * Parse array of "ENV=value" pairs to Properties.
+	 */
+	private void parseEnvironment(String[] env) {
+		fEnvironment = null;
+		if (env != null) {
+			fEnvironment = new Properties();
+			for (String envStr : env) {
+				// Split "ENV=value" and put in Properties
+				int pos = envStr.indexOf('=');
+				if (pos < 0)
+					pos = envStr.length();
+				String key = envStr.substring(0, pos);
+				String value = envStr.substring(pos + 1);
+				fEnvironment.put(key, value);
+			}
+		}
+	}
+
+	/**
 	 * @deprecated
 	 * @since 5.1
 	 */
 	@Deprecated
 	public Process execute(IPath commandPath, String[] args, String[] env, IPath changeToDirectory) {
 		try {
-			// add platform specific arguments (shell invocation)
-			fCommandArgs = constructCommandArray(commandPath.toOSString(), args);
-			
-			File file = null;
-			
-			if(changeToDirectory != null)
-				file = changeToDirectory.toFile();
-			
-			fProcess = ProcessFactory.getFactory().exec(fCommandArgs, env, file);
-			fErrorMessage = ""; //$NON-NLS-1$
-		} catch (IOException e) {
-			setErrorMessage(e.getMessage());
-			fProcess = null;
+			return execute(commandPath, args, env, changeToDirectory, null);
+		} catch (CoreException e) {
+			CCorePlugin.log(e);
 		}
-		return fProcess;
+		return null;
 	}
-	
+
+
 	/**
 	 * @since 5.1
 	 * @see org.eclipse.cdt.core.ICommandLauncher#execute(IPath, String[], String[], IPath, IProgressMonitor)
 	 */
-	public Process execute(IPath commandPath, String[] args, String[] env, IPath changeToDirectory, IProgressMonitor monitor) throws CoreException {
+	@Override
+	public Process execute(IPath commandPath, String[] args, String[] env, IPath workingDirectory, IProgressMonitor monitor) throws CoreException {
+		parseEnvironment(env);
+		String envPathValue = (String) getEnvironment().get(PATH_ENV);
+
+		Boolean isFound = null;
+		String command = commandPath.toOSString();
+		fCommandArgs = constructCommandArray(command, args);
+		if (Platform.getOS().equals(Platform.OS_WIN32)) {
+			// Handle cygwin link
+			IPath location = PathUtil.findProgramLocation(command, envPathValue);
+			isFound = location != null;
+			if (location != null) {
+				try {
+					fCommandArgs[0] = Cygwin.cygwinToWindowsPath(location.toString(), envPathValue);
+				} catch (Exception e) {
+					// if no cygwin nothing to worry about
+				}
+			}
+		}
+
+		File dir = workingDirectory != null ? workingDirectory.toFile() : null;
+
 		try {
-			// add platform specific arguments (shell invocation)
-			fCommandArgs = constructCommandArray(commandPath.toOSString(), args);
-			
-			File file = null;
-			
-			if(changeToDirectory != null)
-				file = changeToDirectory.toFile();
-			
-			fProcess = ProcessFactory.getFactory().exec(fCommandArgs, env, file);
+			fProcess = ProcessFactory.getFactory().exec(fCommandArgs, env, dir);
+			fCommandArgs[0] = command; // to print original command on the console
 			fErrorMessage = ""; //$NON-NLS-1$
 		} catch (IOException e) {
-			setErrorMessage(e.getMessage());
+			if (isFound == null) {
+				IPath location = PathUtil.findProgramLocation(command, envPathValue);
+				isFound = location != null;
+			}
+
+			String errorMessage = getCommandLineQuoted(fCommandArgs, true);
+			String exMsg = e.getMessage();
+			if (exMsg != null && !exMsg.isEmpty()) {
+				errorMessage = errorMessage + exMsg + NEWLINE;
+			}
+
+			if (!isFound) {
+				if (envPathValue == null) {
+					envPathValue = System.getenv(PATH_ENV);
+				}
+				errorMessage = errorMessage + NEWLINE
+						+ NLS.bind(Messages.CommandLauncher_ProgramNotFoundInPath, command) + NEWLINE
+						+ "PATH=[" + envPathValue + "]" + NEWLINE; //$NON-NLS-1$ //$NON-NLS-2$
+			}
+			setErrorMessage(errorMessage);
 			fProcess = null;
 		}
 		return fProcess;
@@ -160,6 +218,8 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#waitAndRead(java.io.OutputStream, java.io.OutputStream)
 	 */
+	@Override
+	@Deprecated
 	public int waitAndRead(OutputStream out, OutputStream err) {
 		if (fShowCommand) {
 			printCommandLine(out);
@@ -177,6 +237,7 @@ public class CommandLauncher implements ICommandLauncher {
 	/* (non-Javadoc)
 	 * @see org.eclipse.cdt.core.ICommandLauncher#waitAndRead(java.io.OutputStream, java.io.OutputStream, org.eclipse.core.runtime.IProgressMonitor)
 	 */
+	@Override
 	public int waitAndRead(OutputStream output, OutputStream err, IProgressMonitor monitor) {
 		if (fShowCommand) {
 			printCommandLine(output);
@@ -202,7 +263,7 @@ public class CommandLauncher implements ICommandLauncher {
 		if (monitor.isCanceled()) {
 			closure.terminate();
 			state = COMMAND_CANCELED;
-			setErrorMessage(CCorePlugin.getResourceString("CommandLauncher.error.commandCanceled")); //$NON-NLS-1$
+			setErrorMessage(Messages.CommandLauncher_CommandCancelled);
 		}
 
 		try {
@@ -215,9 +276,8 @@ public class CommandLauncher implements ICommandLauncher {
 
 	protected void printCommandLine(OutputStream os) {
 		if (os != null) {
-			String cmd = getCommandLine(getCommandArgs());
 			try {
-				os.write(cmd.getBytes());
+				os.write(getCommandLineQuoted(getCommandArgs(), true).getBytes());
 				os.flush();
 			} catch (IOException e) {
 				// ignore;
@@ -225,23 +285,32 @@ public class CommandLauncher implements ICommandLauncher {
 		}
 	}
 
-	protected String getCommandLine(String[] commandArgs) {
+	@SuppressWarnings("nls")
+	private String getCommandLineQuoted(String[] commandArgs, boolean quote) {
 		StringBuffer buf = new StringBuffer();
-		if (fCommandArgs != null) {
+		if (commandArgs != null) {
 			for (String commandArg : commandArgs) {
+				if (quote && (commandArg.contains(" ") || commandArg.contains("\"") || commandArg.contains("\\"))) {
+					commandArg = '"' + commandArg.replaceAll("\\\\", "\\\\\\\\").replaceAll("\"", "\\\\\"") + '"';
+				}
 				buf.append(commandArg);
 				buf.append(' ');
 			}
-			buf.append(lineSeparator);
+			buf.append(NEWLINE);
 		}
 		return buf.toString();
 	}
 
-	
+	protected String getCommandLine(String[] commandArgs) {
+		return getCommandLineQuoted(commandArgs, false);
+	}
+
+
 	/**
 	 * @since 5.1
 	 * @see org.eclipse.cdt.core.ICommandLauncher#getProject()
 	 */
+	@Override
 	public IProject getProject() {
 		return fProject;
 	}
@@ -250,6 +319,7 @@ public class CommandLauncher implements ICommandLauncher {
 	 * @since 5.1
 	 * @see org.eclipse.cdt.core.ICommandLauncher#setProject(org.eclipse.core.resources.IProject)
 	 */
+	@Override
 	public void setProject(IProject project) {
 		fProject = project;
 	}

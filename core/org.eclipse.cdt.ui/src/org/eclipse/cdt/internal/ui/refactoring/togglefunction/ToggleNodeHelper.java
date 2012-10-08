@@ -7,7 +7,7 @@
  * http://www.eclipse.org/legal/epl-v10.html  
  * 
  * Contributors: 
- * 		Martin Schwab & Thomas Kallenberg - initial API and implementation 
+ *     Martin Schwab & Thomas Kallenberg - initial API and implementation 
  ******************************************************************************/
 package org.eclipse.cdt.internal.ui.refactoring.togglefunction;
 
@@ -16,11 +16,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Stack;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Path;
-
-import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.IASTComment;
 import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
@@ -46,15 +41,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateDeclaration;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateId;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite.CommentPosition;
-import org.eclipse.cdt.core.index.IIndex;
-import org.eclipse.cdt.core.index.IIndexFile;
-import org.eclipse.cdt.core.index.IIndexInclude;
-import org.eclipse.cdt.core.index.IndexLocationFactory;
-import org.eclipse.cdt.core.model.CoreModel;
-import org.eclipse.cdt.core.model.CoreModelUtil;
-import org.eclipse.cdt.core.model.ICElement;
-import org.eclipse.cdt.core.model.ICProject;
-import org.eclipse.cdt.core.model.ITranslationUnit;
 
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTCompoundStatement;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTFunctionDefinition;
@@ -64,13 +50,11 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTQualifiedName;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTSimpleDeclaration;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTemplateId;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTypeId;
-import org.eclipse.cdt.internal.core.model.TranslationUnit;
 
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 
 public class ToggleNodeHelper extends NodeHelper {
-	
 	private static final String EMPTY_STRING = ""; //$NON-NLS-1$
 
 	private static void removeParameterInitializations(IASTFunctionDeclarator funcDecl) {
@@ -82,10 +66,9 @@ public class ToggleNodeHelper extends NodeHelper {
 		}
 	}
 
-	private static ArrayList<ICPPASTConstructorChainInitializer> 
-			getInitializerList(IASTFunctionDefinition definition) {
+	private static List<ICPPASTConstructorChainInitializer> getInitializerList(IASTFunctionDefinition definition) {
 		ArrayList<ICPPASTConstructorChainInitializer> initalizers = 
-			new ArrayList<ICPPASTConstructorChainInitializer>();
+				new ArrayList<ICPPASTConstructorChainInitializer>();
 	
 		for (IASTNode node : definition.getChildren()) {
 			if (node instanceof ICPPASTConstructorChainInitializer) {
@@ -95,8 +78,7 @@ public class ToggleNodeHelper extends NodeHelper {
 		return initalizers;
 	}
 
-	static IASTSimpleDeclaration createDeclarationFromDefinition(
-			IASTFunctionDefinition oldDefinition) {
+	static IASTSimpleDeclaration createDeclarationFromDefinition(IASTFunctionDefinition oldDefinition) {
 		IASTDeclarator newDeclarator = oldDefinition.getDeclarator().copy(CopyStyle.withLocations);
 		IASTDeclSpecifier newDeclSpec = oldDefinition.getDeclSpecifier().copy(CopyStyle.withLocations);
 		IASTSimpleDeclaration newDeclaration = new CPPASTSimpleDeclaration(newDeclSpec);
@@ -133,8 +115,7 @@ public class ToggleNodeHelper extends NodeHelper {
 		return newFuncDecl;
 	}
 
-	private static void copyInitializerList(ICPPASTFunctionDefinition newFunc, 
-			IASTFunctionDefinition oldFunc) {
+	private static void copyInitializerList(ICPPASTFunctionDefinition newFunc, IASTFunctionDefinition oldFunc) {
 		for (ICPPASTConstructorChainInitializer initializer : getInitializerList(oldFunc)) {
 			initializer.setParent(newFunc);
 			newFunc.addMemberInitializer(initializer);
@@ -145,8 +126,7 @@ public class ToggleNodeHelper extends NodeHelper {
 			IASTTranslationUnit definitionUnit, IASTNode nameSpace) {
 		
 		ICPPASTDeclSpecifier newDeclSpec = 
- (ICPPASTDeclSpecifier) oldDefinition.getDeclSpecifier().copy(
-				CopyStyle.withLocations);
+				(ICPPASTDeclSpecifier) oldDefinition.getDeclSpecifier().copy(CopyStyle.withLocations);
 		
 		newDeclSpec.setVirtual(false);
 		newDeclSpec.setInline(true);
@@ -157,7 +137,7 @@ public class ToggleNodeHelper extends NodeHelper {
 		removeParameterInitializations(newDeclarator);
 		
 		ICPPASTFunctionDefinition newFunction = 
-			createFunctionSignatureWithEmptyBody(newDeclSpec, newDeclarator, oldDefinition);
+				createFunctionSignatureWithEmptyBody(newDeclSpec, newDeclarator, oldDefinition);
 	
 		return newFunction;
 	}
@@ -169,12 +149,12 @@ public class ToggleNodeHelper extends NodeHelper {
 	}
 
 	private static ICPPASTTemplateDeclaration addTemplateDeclarationsInOrder(
-			ArrayList<ICPPASTTemplateDeclaration> templdecs, IASTFunctionDefinition newfunc) {
-		ListIterator<ICPPASTTemplateDeclaration> iter1 = templdecs.listIterator();
+			ArrayList<ICPPASTTemplateDeclaration> templDecs, IASTFunctionDefinition newFunction) {
+		ListIterator<ICPPASTTemplateDeclaration> iter1 = templDecs.listIterator();
 		ICPPASTTemplateDeclaration child = null;
-		while(iter1.hasNext()) {
+		while (iter1.hasNext()) {
 			child = iter1.next();
-			child.setDeclaration(newfunc);
+			child.setDeclaration(newFunction);
 			ListIterator<ICPPASTTemplateDeclaration> iter2 = iter1;
 			if (iter2.hasNext()) {
 				ICPPASTTemplateDeclaration parent = iter2.next();
@@ -186,8 +166,7 @@ public class ToggleNodeHelper extends NodeHelper {
 		return child;
 	}
 
-	private static ArrayList<ICPPASTTemplateDeclaration> getAllTemplateDeclaration(
-			IASTNode node) {
+	private static ArrayList<ICPPASTTemplateDeclaration> getAllTemplateDeclaration(IASTNode node) {
 		ArrayList<ICPPASTTemplateDeclaration> templdecs = new ArrayList<ICPPASTTemplateDeclaration>();
 		while (node.getParent() != null) {
 			node = node.getParent();
@@ -198,13 +177,11 @@ public class ToggleNodeHelper extends NodeHelper {
 		return templdecs;
 	}
 
-	static IASTFunctionDefinition createInClassDefinition(
-			IASTFunctionDeclarator dec, 
-			IASTFunctionDefinition def, 
-			IASTTranslationUnit insertionunit) {
+	static IASTFunctionDefinition createInClassDefinition(IASTFunctionDeclarator dec, 
+			IASTFunctionDefinition def, IASTTranslationUnit insertionAst) {
 		IASTFunctionDeclarator declarator = dec.copy(CopyStyle.withLocations);
-		ICPPASTDeclSpecifier declSpec = (ICPPASTDeclSpecifier) def.getDeclSpecifier().copy(
-				CopyStyle.withLocations);
+		ICPPASTDeclSpecifier declSpec =
+				(ICPPASTDeclSpecifier) def.getDeclSpecifier().copy(CopyStyle.withLocations);
 		declSpec.setInline(false);
 		if (ToggleNodeHelper.isVirtual(dec)) {
 			declSpec.setVirtual(true);
@@ -232,9 +209,10 @@ public class ToggleNodeHelper extends NodeHelper {
 
 	static IASTNode getParentRemovePoint(IASTFunctionDefinition definition) {
 		IASTNode toremove = definition;
-		while (toremove.getParent() != null && 
-				toremove.getParent() instanceof ICPPASTTemplateDeclaration)
+		while (toremove.getParent() != null &&
+				toremove.getParent() instanceof ICPPASTTemplateDeclaration) {
 			toremove = toremove.getParent();
+		}
 		return toremove;
 	}
 
@@ -252,36 +230,32 @@ public class ToggleNodeHelper extends NodeHelper {
 
 	private static CPPASTQualifiedName reAssembleQualifiedName(Stack<IASTNode> nodes) {
 		CPPASTQualifiedName qName = new CPPASTQualifiedName();
-		while(!nodes.isEmpty()) {
+		while (!nodes.isEmpty()) {
 			IASTNode nnode = nodes.pop();
 			if (nnode instanceof IASTCompositeTypeSpecifier) {
 				qName.addName(((IASTCompositeTypeSpecifier) nnode).getName());
-			}
-			else if (nnode instanceof ICPPASTNamespaceDefinition) {
+			} else if (nnode instanceof ICPPASTNamespaceDefinition) {
 				qName.addName(((ICPPASTNamespaceDefinition) nnode).getName());
-			}
-			else if (nnode instanceof ICPPASTTemplateId) {
+			} else if (nnode instanceof ICPPASTTemplateId) {
 				qName.addName((ICPPASTTemplateId) nnode);
 			}
 		}
 		return qName;
 	}
 
-	private static Stack<IASTNode> getQualifiedNames(
-			IASTFunctionDeclarator declarator, IASTNode limiter, IASTNode node) {
+	private static Stack<IASTNode> getQualifiedNames(IASTFunctionDeclarator declarator,
+			IASTNode limiter, IASTNode node) {
 		IASTName lastName = declarator.getName();
 		Stack<IASTNode> nodes = new Stack<IASTNode>();
-		while(node.getParent() != null && node.getParent() != limiter) {
+		while (node.getParent() != null && node.getParent() != limiter) {
 			node = node.getParent();
 			if (node instanceof IASTCompositeTypeSpecifier) {
 				nodes.push(((IASTCompositeTypeSpecifier) node).copy(CopyStyle.withLocations));
 				lastName = ((IASTCompositeTypeSpecifier) node).getName();
-			}
-			else if (node instanceof ICPPASTNamespaceDefinition) {
+			} else if (node instanceof ICPPASTNamespaceDefinition) {
 				nodes.push(((ICPPASTNamespaceDefinition) node).copy(CopyStyle.withLocations));
 				lastName = ((ICPPASTNamespaceDefinition) node).getName();
-			}
-			else if (shouldAddTemplateBrackets(node)) {
+			} else if (shouldAddTemplateBrackets(node)) {
 				if (!nodes.isEmpty())
 					nodes.pop();
 				ICPPASTTemplateId templateID = ToggleNodeHelper.getTemplateParameter(node, lastName);
@@ -300,12 +274,12 @@ public class ToggleNodeHelper extends NodeHelper {
 	private static ICPPASTTemplateId getTemplateParameter(IASTNode node, IASTName name) {
 		ICPPASTTemplateId templateID = new CPPASTTemplateId();
 		templateID.setTemplateName(name.copy(CopyStyle.withLocations));
-		for(IASTNode child : node.getChildren()) {
+		for (IASTNode child : node.getChildren()) {
 			if (child instanceof ICPPASTSimpleTypeTemplateParameter) {
-				ICPPASTSimpleTypeTemplateParameter tempcild = (ICPPASTSimpleTypeTemplateParameter) child;
+				ICPPASTSimpleTypeTemplateParameter tempChild = (ICPPASTSimpleTypeTemplateParameter) child;
 	
 				CPPASTNamedTypeSpecifier namedTypeSpecifier = new CPPASTNamedTypeSpecifier();
-				namedTypeSpecifier.setName(tempcild.getName().copy(CopyStyle.withLocations));
+				namedTypeSpecifier.setName(tempChild.getName().copy(CopyStyle.withLocations));
 				
 				CPPASTTypeId id = new CPPASTTypeId();
 				id.setDeclSpecifier(namedTypeSpecifier);
@@ -313,46 +287,6 @@ public class ToggleNodeHelper extends NodeHelper {
 			}
 		}
 		return templateID;
-	}
-
-	static IASTTranslationUnit getSiblingFile(IFile file, IASTTranslationUnit asttu) throws CoreException {
-		ICProject cProject = CoreModel.getDefault().create(file).getCProject();
-		ICProject[] projects = CoreModel.getDefault().getCModel().getCProjects();
-		IIndex projectIndex = CCorePlugin.getIndexManager().getIndex(projects);
-		try {
-			projectIndex.acquireReadLock();
-
-			IIndexFile thisFile = projectIndex.getFile(asttu.getLinkage().getLinkageID(),
-					IndexLocationFactory.getWorkspaceIFL(file));
-			String fileName = ToggleNodeHelper.getFilenameWithoutExtension(
-					file.getFullPath().toString());
-			if (asttu.isHeaderUnit()) {
-				for (IIndexInclude include : projectIndex.findIncludedBy(thisFile)) {
-					if (ToggleNodeHelper.getFilenameWithoutExtension(include.getIncludedBy().getLocation().getFullPath()).equals(fileName)) {
-						ITranslationUnit tu = CoreModelUtil.findTranslationUnitForLocation(include.getIncludedBy().getLocation().getURI(), cProject);
-						return tu.getAST(projectIndex, ITranslationUnit.AST_SKIP_ALL_HEADERS);
-					}
-				}
-			} else {
-				for (IIndexInclude include : projectIndex.findIncludes(thisFile)) {
-					if (ToggleNodeHelper.getFilenameWithoutExtension(include.getFullName()).equals(fileName)) {
-						if (include.getIncludesLocation() == null){
-							throw new NotSupportedException("The include file does not exist"); //$NON-NLS-1$
-						}
-						String loc = include.getIncludesLocation().getFullPath();
-	                	ICElement tufile = CoreModel.getDefault().create(new Path(loc));
-	                	if (tufile instanceof TranslationUnit) {
-	                		   return ((TranslationUnit) tufile).getAST(null, ITranslationUnit.AST_SKIP_ALL_HEADERS);
-	                	}
-					}
-				}
-			}
-		}catch (InterruptedException e) {
-			e.printStackTrace();
-		} finally {
-			projectIndex.releaseReadLock();
- 		}
-		return null;
 	}
 
 	public static String getFilenameWithoutExtension(String filename) {
@@ -393,31 +327,31 @@ public class ToggleNodeHelper extends NodeHelper {
 	 * Gets comments inside the body of a function.
 	 * @return The body as a string and all the catch handlers
 	 */
-	public static String getBody(IASTFunctionDefinition oldDefinition, IASTTranslationUnit oldUnit,
+	public static String getBody(IASTFunctionDefinition oldDefinition, IASTTranslationUnit ast,
 			ModificationCollector modifications) {
-		return getBodyOnly(oldDefinition, oldUnit, modifications)
-				+ getCatchHandlers(oldDefinition, oldUnit, modifications);
+		return getBodyOnly(oldDefinition, ast, modifications)
+				+ getCatchHandlers(oldDefinition, ast, modifications);
 	}
 
-	private static String getBodyOnly(IASTFunctionDefinition oldDefinition, IASTTranslationUnit oldUnit,
+	private static String getBodyOnly(IASTFunctionDefinition oldDefinition, IASTTranslationUnit ast,
 			ModificationCollector modifications) {
 		String leadingComments = getCommentsAsString(getLeadingCommentsFromNode(oldDefinition.getBody(),
-				oldUnit, modifications));
-		String trailingComments = getCommentsAsString(getTrailingComments(oldDefinition.getBody(), oldUnit,
-				modifications));
+				ast, modifications));
+		String trailingComments = getCommentsAsString(getTrailingComments(oldDefinition.getBody(),
+				ast, modifications));
 		return leadingComments + oldDefinition.getBody().getRawSignature() + trailingComments;
 	}
 
-	private static String getCatchHandlers(IASTFunctionDefinition oldDefinition, IASTTranslationUnit oldUnit,
+	private static String getCatchHandlers(IASTFunctionDefinition oldDefinition, IASTTranslationUnit ast,
 			ModificationCollector modifications) {
 		if (oldDefinition instanceof ICPPASTFunctionWithTryBlock) {
-			ICPPASTCatchHandler[] oldCatches = ((ICPPASTFunctionWithTryBlock) oldDefinition)
-					.getCatchHandlers();
+			ICPPASTCatchHandler[] oldCatches =
+					((ICPPASTFunctionWithTryBlock) oldDefinition).getCatchHandlers();
 			String allCatchHandlers = ""; //$NON-NLS-1$
 			for (int i = 0; i < oldCatches.length; i++) {
-				String lead = getCommentsAsString(getLeadingCommentsFromNode(oldCatches[i], oldUnit,
+				String lead = getCommentsAsString(getLeadingCommentsFromNode(oldCatches[i], ast,
 						modifications));
-				String trail = getCommentsAsString(getTrailingComments(oldCatches[i], oldUnit, modifications));
+				String trail = getCommentsAsString(getTrailingComments(oldCatches[i], ast, modifications));
 				allCatchHandlers += lead + oldCatches[i].getRawSignature() + trail;
 			}
 			return allCatchHandlers;
@@ -426,27 +360,24 @@ public class ToggleNodeHelper extends NodeHelper {
 	}
 
 	private static List<IASTComment> getLeadingCommentsFromNode(IASTNode existingNode,
-			IASTTranslationUnit oldUnit, ModificationCollector modifications) {
-		ASTRewrite rw = modifications.rewriterForTranslationUnit(oldUnit);
+			IASTTranslationUnit ast, ModificationCollector modifications) {
+		ASTRewrite rw = modifications.rewriterForTranslationUnit(ast);
 		return rw.getComments(existingNode, CommentPosition.leading);
 	}
 
 	private static List<IASTComment> getTrailingComments(IASTNode existingNode,
-			IASTTranslationUnit oldUnit, ModificationCollector modifications) {
-		ASTRewrite rw = modifications.rewriterForTranslationUnit(oldUnit);
+			IASTTranslationUnit ast, ModificationCollector modifications) {
+		ASTRewrite rw = modifications.rewriterForTranslationUnit(ast);
 		return rw.getComments(existingNode, CommentPosition.trailing);
 	}
 
-	
-	public static IASTNode getParentTemplateDeclaration(
-			IASTNode def) {
+	public static IASTNode getParentTemplateDeclaration(IASTNode def) {
 		if (def == null)
 			return null;
 		IASTNode lastSeen = def;
 		IASTNode node = def.getParent();
 		while (node != null) {
-			if (node instanceof ICPPASTTemplateDeclaration || 
-					node instanceof IASTSimpleDeclaration) {
+			if (node instanceof ICPPASTTemplateDeclaration || node instanceof IASTSimpleDeclaration) {
 				lastSeen = node;
 				node = node.getParent();
 				continue;
@@ -462,16 +393,5 @@ public class ToggleNodeHelper extends NodeHelper {
 			comments += c.getRawSignature() + System.getProperty("line.separator"); //$NON-NLS-1$
 		}
 		return comments;
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T getAncestorOfType(IASTNode node, Class<?> T) {
-		while(node != null) {
-			if (T.isInstance(node)) {
-				return (T) node;
-			}
-			node = node.getParent();
-		}
-		return null;
 	}
 }

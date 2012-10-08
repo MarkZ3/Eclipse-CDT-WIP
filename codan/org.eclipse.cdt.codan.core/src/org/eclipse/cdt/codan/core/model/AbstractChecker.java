@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2010 Alena Laskavaia
+ * Copyright (c) 2009, 2012 Alena Laskavaia
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -37,12 +37,10 @@ public abstract class AbstractChecker implements IChecker {
 	public AbstractChecker() {
 	}
 
-	/**
-	 * @return true if checker is enabled in context of resource, if returns
-	 *         false checker's "processResource" method won't be called
-	 */
-	public boolean enabledInContext(IResource res) {
-		return res instanceof IFile;
+	@Deprecated
+	@Override
+	public boolean enabledInContext(IResource resource) {
+		return false;
 	}
 
 	/**
@@ -120,6 +118,7 @@ public abstract class AbstractChecker implements IChecker {
 	 * @return problem reporter for given checker
 	 * @since 2.0
 	 */
+	@Override
 	public IProblemReporter getProblemReporter() {
 		return problemReporter;
 	}
@@ -159,13 +158,14 @@ public abstract class AbstractChecker implements IChecker {
 	 * @return instance of IProblemLocation
 	 */
 	protected IProblemLocation createProblemLocation(IFile file, int startChar, int endChar) {
-		return getRuntime().getProblemLocationFactory().createProblemLocation(file, startChar, endChar);
+		return getRuntime().getProblemLocationFactory().createProblemLocation(file, startChar, endChar, -1);
 	}
 
 	/**
 	 * Defines if checker should be run as user type in editor. Override this
 	 * method is checker is too heavy for that (runs too long)
 	 */
+	@Override
 	public boolean runInEditor() {
 		return this instanceof IRunnableInEditorChecker;
 	}
@@ -202,27 +202,27 @@ public abstract class AbstractChecker implements IChecker {
 	/**
 	 * @since 2.0
 	 */
+	@Override
 	public void before(IResource resource) {
-		IProblemReporter problemReporter = CodanRuntime.getInstance().getProblemReporter();
-		this.problemReporter = problemReporter;
-		if (problemReporter instanceof IProblemReporterSessionPersistent) {
-			// create session problem reporter
-			this.problemReporter = ((IProblemReporterSessionPersistent) problemReporter).createReporter(resource, this);
-			((IProblemReporterSessionPersistent) this.problemReporter).start();
-		} else if (problemReporter instanceof IProblemReporterPersistent) {
-			// delete markers if checker can possibly run on this
-			// resource  this way if checker is not enabled markers would be
-			// deleted too
-			((IProblemReporterPersistent) problemReporter).deleteProblems(resource, this);
+		IProblemReporter reporter = CodanRuntime.getInstance().getProblemReporter();
+		problemReporter = reporter;
+		if (reporter instanceof IProblemReporterSessionPersistent) {
+			// Create session problem reporter
+			problemReporter = ((IProblemReporterSessionPersistent) reporter).createReporter(resource, this);
+			((IProblemReporterSessionPersistent) problemReporter).start();
+		} else if (reporter instanceof IProblemReporterPersistent) {
+			// Delete markers.
+			((IProblemReporterPersistent) reporter).deleteProblems(resource, this);
 		}
 	}
 
 	/**
 	 * @since 2.0
 	 */
+	@Override
 	public void after(IResource resource) {
 		if (problemReporter instanceof IProblemReporterSessionPersistent) {
-			// Delete general markers
+			// Delete general markers.
 			((IProblemReporterSessionPersistent) problemReporter).done();
 		}
 		problemReporter = null;
@@ -241,6 +241,7 @@ public abstract class AbstractChecker implements IChecker {
 	 * @see IChecker#processResource(IResource, ICheckerInvocationContext)
 	 * @since 2.0
 	 */
+	@Override
 	public synchronized boolean processResource(IResource resource, ICheckerInvocationContext context)
 			throws OperationCanceledException {
 		this.setContext(context);

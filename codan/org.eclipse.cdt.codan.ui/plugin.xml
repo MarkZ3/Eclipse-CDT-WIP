@@ -71,8 +71,8 @@
             name="%view.name">
       </view>
    </extension>
-   <extension-point id="codanProblemDetails" name="%extension-point.name" schema="schema/codanProblemDetails.exsd"/>
-    <extension-point id="codanMarkerResolution" name="%extension-point.name.codamMarkerResolution" schema="schema/codanMarkerResolution.exsd"/>
+   <extension-point id="codanProblemDetails" name="%codanProblemDetailsExtensionPoint" schema="schema/codanProblemDetails.exsd"/>
+   <extension-point id="codanMarkerResolution" name="%codanMarkerResolutionExtensionPoint" schema="schema/codanMarkerResolution.exsd"/>
    <!--
    <extension
          point="org.eclipse.ui.bindings">
@@ -238,4 +238,8 @@
 
       </objectContribution>
     </extension>
+   <extension
+         point="org.eclipse.cdt.codan.core.checkerEnablement">
+         <verifier class="org.eclipse.cdt.codan.internal.ui.CheckerEnablementVerifier" />
+   </extension>
 </plugin>

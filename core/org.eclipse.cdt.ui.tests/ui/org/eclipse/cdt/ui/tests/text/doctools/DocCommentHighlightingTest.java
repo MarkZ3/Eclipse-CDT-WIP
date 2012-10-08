@@ -1,12 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2010 Symbian Software Systems and others.
+ * Copyright (c) 2008, 2012 Symbian Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- * Andrew Ferguson (Symbian) - Initial implementation
+ *     Andrew Ferguson (Symbian) - Initial implementation
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
 package org.eclipse.cdt.ui.tests.text.doctools;
 
@@ -18,6 +19,7 @@ import junit.framework.Test;
 import junit.framework.TestSuite;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
@@ -46,9 +48,6 @@ import org.eclipse.cdt.ui.tests.BaseUITestCase;
 import org.eclipse.cdt.internal.ui.editor.CEditor;
 import org.eclipse.cdt.internal.ui.text.doctools.DocCommentOwnerManager;
 
-/**
- * 
- */
 public class DocCommentHighlightingTest extends BaseUITestCase {
 	private static final DocCommentOwnerManager DCMAN= DocCommentOwnerManager.getInstance();
 	private static final String LINKED_FOLDER= "resources/docComments";
@@ -77,9 +76,8 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 	private static final int[] comment12= {449, 19};
 	private static final int[] scomment7= {469, 17};
 	
-	
 	private ICProject fCProject;
-	private final String fTestFilename= "/"+PROJECT+"/src/this.cpp";
+	private final String fTestFilename= "/" + PROJECT + "/src/this.cpp";
 
 	private static SourceViewer fSourceViewer;
 
@@ -95,10 +93,13 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 	protected void setUp() throws Exception {
 		super.setUp();
 		fCProject= EditorTestHelper.createCProject(PROJECT, LINKED_FOLDER);
-		CUIPlugin.getDefault().getPreferenceStore().setValue(PreferenceConstants.REMOVE_TRAILING_WHITESPACE, false);
-		AbstractTextEditor fEditor= (CEditor) EditorTestHelper.openInEditor(ResourceTestHelper.findFile(fTestFilename), true);
+		IPreferenceStore preferenceStore = CUIPlugin.getDefault().getPreferenceStore();
+		preferenceStore.setValue(PreferenceConstants.REMOVE_TRAILING_WHITESPACE, false);
+		preferenceStore.setValue(PreferenceConstants.EDITOR_FOLDING_ENABLED, false);
+		AbstractTextEditor fEditor=
+				(CEditor) EditorTestHelper.openInEditor(ResourceTestHelper.findFile(fTestFilename), true);
 		fSourceViewer= EditorTestHelper.getSourceViewer(fEditor);
-		// source positions depend on Windows line separator
+		// Source positions depend on Windows line separator
 		adjustLineSeparator(fSourceViewer.getDocument(), "\r\n");
 		fEditor.doSave(new NullProgressMonitor());
 		assertTrue(EditorTestHelper.joinReconciler(fSourceViewer, 0, 10000, 100));
@@ -111,18 +112,20 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 		if (fCProject != null)
 			CProjectHelper.delete(fCProject);
 
-		CUIPlugin.getDefault().getPreferenceStore().setToDefault(PreferenceConstants.REMOVE_TRAILING_WHITESPACE);
+		IPreferenceStore preferenceStore = CUIPlugin.getDefault().getPreferenceStore();
+		preferenceStore.setToDefault(PreferenceConstants.REMOVE_TRAILING_WHITESPACE);
+		preferenceStore.setToDefault(PreferenceConstants.EDITOR_FOLDING_ENABLED);
 		super.tearDown();
 	}
 
 	/**
-	 * Make the document use the given line separator.
+	 * Makes the document use the given line separator.
 	 * 
 	 * @param document
 	 * @param lineSeparator
 	 */
 	private void adjustLineSeparator(IDocument document, String lineSeparator) throws BadLocationException {
-		for (int i= 0; i < document.getNumberOfLines(); i++) {
+		for (int i = 0; i < document.getNumberOfLines(); i++) {
 			String delimiter= document.getLineDelimiter(i);
 			if (delimiter != null && !delimiter.equals(lineSeparator)) {
 				IRegion lineRegion= document.getLineInformation(i);
@@ -134,12 +137,12 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 	protected List<Position> findRangesColored(RGB rgb) {
 		List<Position> result= new ArrayList<Position>();
 		IEditorPart p= get();
-		ISourceViewer vw= ((CEditor)p).getViewer();
+		ISourceViewer vw= ((CEditor) p).getViewer();
 		Accessor a= new Accessor(vw, TextViewer.class);
 		StyledText st= (StyledText) a.get("fTextWidget");
 		StyleRange[] rgs= st.getStyleRanges();
-		for(int i=0; i<rgs.length; i++) {
-			if(rgs[i].foreground != null && rgs[i].foreground.getRGB().equals(rgb)) {
+		for (int i = 0; i < rgs.length; i++) {
+			if (rgs[i].foreground != null && rgs[i].foreground.getRGB().equals(rgb)) {
 				result.add(new Position(rgs[i].start, rgs[i].length));
 			}
 		}
@@ -148,12 +151,12 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 
 	protected IEditorPart get(){
 		IWorkbenchWindow window= PlatformUI.getWorkbench().getActiveWorkbenchWindow();
-		if(window!=null) {
-			if(window.getActivePage()!=null) {
+		if (window!=null) {
+			if (window.getActivePage()!=null) {
 				IEditorReference[] es= window.getActivePage().getEditorReferences();
-				for(int i=0; i<es.length; i++) {
+				for (int i = 0; i < es.length; i++) {
 					IEditorPart part= es[i].getEditor(false);
-					if(part != null)
+					if (part != null)
 						return part;
 				}
 			}
@@ -163,7 +166,7 @@ public class DocCommentHighlightingTest extends BaseUITestCase {
 
 	private List<Position> mkPositions(int[][] raw) {
 		List<Position> result= new ArrayList<Position>();
-		for(int i=0; i<raw.length; i++) {
+		for (int i = 0; i < raw.length; i++) {
 			Assert.assertEquals(2, raw[i].length);
 			result.add(new Position(raw[i][0], raw[i][1]));
 		}

@@ -1204,10 +1204,26 @@
 		  </option>
 		  <option
 			  defaultValue="false"
+			  name="%Option.Posix.Warn.extrawarn"
+			  category="gnu.c.compiler.category.warnings"
+			  command="-Wextra"
+			  id="gnu.c.compiler.option.warnings.extrawarn"
+			  valueType="boolean">
+		  </option>
+		  <option
+			  defaultValue="false"
 			  name="%Option.Posix.Warn.toerrs"
 			  category="gnu.c.compiler.category.warnings"
 			  command="-Werror"
 			  id="gnu.c.compiler.option.warnings.toerrors"
+			  valueType="boolean">
+		  </option>
+		  <option
+			  defaultValue="false"
+			  name="%Option.Posix.Warn.wconversion"
+			  category="gnu.c.compiler.category.warnings"
+			  command="-Wconversion"
+			  id="gnu.c.compiler.option.warnings.wconversion"
 			  valueType="boolean">
 		  </option>
 		  <optionCategory
@@ -1253,7 +1269,6 @@
 			  dependencyExtensions="h"
 			  dependencyCalculator="org.eclipse.cdt.managedbuilder.makegen.gnu.DefaultGCCDependencyCalculator2"
               id="cdt.managedbuild.tool.gnu.c.compiler.input"
-              scannerConfigDiscoveryProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC|org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile"
               languageId="org.eclipse.cdt.core.gcc">
           </inputType>
           <outputType
@@ -1518,10 +1533,26 @@
 		  </option>
 		  <option
 			  defaultValue="false"
+			  name="%Option.Posix.Warn.extrawarn"
+			  category="gnu.cpp.compiler.category.warnings"
+			  command="-Wextra"
+			  id="gnu.cpp.compiler.option.warnings.extrawarn"
+			  valueType="boolean">
+		  </option>
+		  <option
+			  defaultValue="false"
 			  name="%Option.Posix.Warn.toerrs"
 			  category="gnu.cpp.compiler.category.warnings"
 			  command="-Werror"
 			  id="gnu.cpp.compiler.option.warnings.toerrors"
+			  valueType="boolean">
+		  </option>
+		  <option
+			  defaultValue="false"
+			  name="%Option.Posix.Warn.wconversion"
+			  category="gnu.cpp.compiler.category.warnings"
+			  command="-Wconversion"
+			  id="gnu.cpp.compiler.option.warnings.wconversion"
 			  valueType="boolean">
 		  </option>
 		  <optionCategory
@@ -1559,7 +1590,6 @@
 			  dependencyExtensions="h,H,hpp"
 			  dependencyCalculator="org.eclipse.cdt.managedbuilder.makegen.gnu.DefaultGCCDependencyCalculator2"
               id="cdt.managedbuild.tool.gnu.cpp.compiler.input"
-              scannerConfigDiscoveryProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP|org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile"
               languageId="org.eclipse.cdt.core.g++">
           </inputType>
           <outputType
@@ -1626,7 +1656,7 @@
           <inputType
           	  id="cdt.managedbuild.tool.gnu.c.compiler.input.cygwin"
               superClass="cdt.managedbuild.tool.gnu.c.compiler.input"
-              scannerConfigDiscoveryProfileId="org.eclipse.cdt.managedbuilder.core.GCCWinManagedMakePerProjectProfileC"/>
+          />
       </tool>      
       <tool
           id="cdt.managedbuild.tool.gnu.cpp.compiler.cygwin"
@@ -1640,7 +1670,7 @@
           <inputType
           	  id="cdt.managedbuild.tool.gnu.cpp.compiler.input.cygwin"
               superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"
-              scannerConfigDiscoveryProfileId="org.eclipse.cdt.managedbuilder.core.GCCWinManagedMakePerProjectProfileCPP"/>
+          />
       </tool>      
 
 	  <builder
@@ -1672,11 +1702,12 @@
    	  </builder>   
    	  
       <toolChain
-          archList="all"
-          osList="linux,hpux,aix,qnx"
-          name="%ToolChainName.Linux"
-          targetTool="cdt.managedbuild.tool.gnu.c.linker;cdt.managedbuild.tool.gnu.cpp.linker;cdt.managedbuild.tool.gnu.archiver"
-          id="cdt.managedbuild.toolchain.gnu.base">
+            archList="all"
+            id="cdt.managedbuild.toolchain.gnu.base"
+            languageSettingsProviders="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser;org.eclipse.cdt.managedbuilder.core.GCCBuiltinSpecsDetector"
+            name="%ToolChainName.Linux"
+            osList="linux,hpux,aix,qnx"
+            targetTool="cdt.managedbuild.tool.gnu.c.linker;cdt.managedbuild.tool.gnu.cpp.linker;cdt.managedbuild.tool.gnu.archiver">
 		          <targetPlatform
 		              id="cdt.managedbuild.target.gnu.platform.base"
 		              name="%PlatformName.Dbg"
@@ -1810,6 +1841,7 @@
                     configurationEnvironmentSupplier="org.eclipse.cdt.managedbuilder.gnu.mingw.MingwEnvironmentVariableSupplier"
                     id="cdt.managedbuild.toolchain.gnu.mingw.base"
                     isToolChainSupported="org.eclipse.cdt.managedbuilder.gnu.mingw.MingwIsToolChainSupported"
+                    languageSettingsProviders="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser;org.eclipse.cdt.managedbuilder.core.GCCBuiltinSpecsDetectorMinGW"
                     name="%ToolChainName.MinGW"
                     osList="win32"
                     targetTool="cdt.managedbuild.tool.gnu.cpp.linker.mingw.base;cdt.managedbuild.tool.gnu.c.linker.mingw.base;cdt.managedbuild.tool.gnu.archiver">
@@ -1890,10 +1922,11 @@
 
                <toolChain
                      archList="all"
-                     osList="macosx"
+                     id="cdt.managedbuild.toolchain.gnu.macosx.base"
+                     languageSettingsProviders="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser;org.eclipse.cdt.managedbuilder.core.GCCBuiltinSpecsDetector"
                      name="%ToolChainName.Macosx"
-                     targetTool="cdt.managedbuild.tool.macosx.c.linker.macosx.base;cdt.managedbuild.tool.macosx.cpp.linker.macosx.base;cdt.managedbuild.tool.gnu.archiver"
-                     id="cdt.managedbuild.toolchain.gnu.macosx.base">
+                     osList="macosx"
+                     targetTool="cdt.managedbuild.tool.macosx.c.linker.macosx.base;cdt.managedbuild.tool.macosx.cpp.linker.macosx.base;cdt.managedbuild.tool.gnu.archiver">
                   <targetPlatform
 					  id="cdt.managedbuild.target.gnu.platform.macosx.base"
 				 	  name="%PlatformName.Dbg"
@@ -2020,9 +2053,10 @@
 
                <toolChain
                      archList="all"
-                     osList="solaris"
                      id="cdt.managedbuild.toolchain.gnu.solaris.base"
+                     languageSettingsProviders="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser;org.eclipse.cdt.managedbuilder.core.GCCBuiltinSpecsDetector"
                      name="%ToolChainName.Solaris"
+                     osList="solaris"
                      superClass="cdt.managedbuild.toolchain.gnu.base">
 		          <targetPlatform
 		              id="cdt.managedbuild.target.gnu.solaris.base"
@@ -2051,9 +2085,9 @@
 			  </toolChain>
 
          <configuration
-               id="cdt.managedbuild.config.gnu.base"
                cleanCommand="rm -rf"
-			   >
+               id="cdt.managedbuild.config.gnu.base"
+               languageSettingsProviders="org.eclipse.cdt.ui.UserLanguageSettingsProvider;org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider;${Toolchain};-org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser">
 		    <enablement type="CONTAINER_ATTRIBUTE" 
               	attribute="artifactExtension"
               	value="so"
@@ -2448,27 +2482,27 @@
       </projectType>
       
       <configuration
-               id="cdt.managedbuild.config.gnu.cygwin.base"
-               cleanCommand="rm -rf"
-               artifactExtension="exe"
-			   >
-		    <enablement type="CONTAINER_ATTRIBUTE" 
-              	attribute="artifactExtension" 
-              	value="dll"
-              	extensionAdjustment="false">
-			  	<checkBuildProperty 
-			  		property="org.eclipse.cdt.build.core.buildArtefactType"
-			  		value="org.eclipse.cdt.build.core.buildArtefactType.sharedLib"/>
-			  </enablement>
-		    <enablement type="CONTAINER_ATTRIBUTE" 
-              	attribute="artifactExtension" 
-              	value="a"
-              	extensionAdjustment="false">
-			  	<checkBuildProperty 
-			  		property="org.eclipse.cdt.build.core.buildArtefactType"
-			  		value="org.eclipse.cdt.build.core.buildArtefactType.staticLib"/>
-			  </enablement>
-		</configuration>
+            artifactExtension="exe"
+            cleanCommand="rm -rf"
+            id="cdt.managedbuild.config.gnu.cygwin.base"
+            languageSettingsProviders="org.eclipse.cdt.ui.UserLanguageSettingsProvider;org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider;${Toolchain};-org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser">
+         <enablement type="CONTAINER_ATTRIBUTE" 
+               attribute="artifactExtension" 
+               value="dll"
+               extensionAdjustment="false">
+            <checkBuildProperty 
+                  property="org.eclipse.cdt.build.core.buildArtefactType"
+                  value="org.eclipse.cdt.build.core.buildArtefactType.sharedLib"/>
+         </enablement>
+         <enablement type="CONTAINER_ATTRIBUTE" 
+               attribute="artifactExtension" 
+               value="a"
+               extensionAdjustment="false">
+            <checkBuildProperty 
+                  property="org.eclipse.cdt.build.core.buildArtefactType"
+                  value="org.eclipse.cdt.build.core.buildArtefactType.staticLib"/>
+         </enablement>
+      </configuration>
 
       <projectType 
             buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe"
@@ -2846,10 +2880,10 @@
       </projectType>
       
       <configuration
-               id="cdt.managedbuild.config.gnu.mingw.base"
-               cleanCommand="rm -rf"
-               artifactExtension="exe"
-			   >
+            artifactExtension="exe"
+            cleanCommand="rm -rf"
+            id="cdt.managedbuild.config.gnu.mingw.base"
+            languageSettingsProviders="org.eclipse.cdt.ui.UserLanguageSettingsProvider;org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider;${Toolchain};-org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser">
 		    <enablement type="CONTAINER_ATTRIBUTE" 
               	attribute="artifactExtension" 
               	value="dll"
@@ -3223,9 +3257,9 @@
       </projectType>
 
             <configuration
-               id="cdt.managedbuild.config.gnu.macosx.base"
-               cleanCommand="rm -rf"
-			   >
+                  cleanCommand="rm -rf"
+                  id="cdt.managedbuild.config.gnu.macosx.base"
+                  languageSettingsProviders="org.eclipse.cdt.ui.UserLanguageSettingsProvider;org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider;${Toolchain};-org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser">
 		    <enablement type="CONTAINER_ATTRIBUTE" 
               	attribute="artifactExtension" 
               	value="dylib"
@@ -3636,8 +3670,9 @@
       </projectType>      
         
       <configuration
-               id="cdt.managedbuild.config.gnu.solaris.base"
-               cleanCommand="rm -rf">
+            cleanCommand="rm -rf"
+            id="cdt.managedbuild.config.gnu.solaris.base"
+            languageSettingsProviders="org.eclipse.cdt.ui.UserLanguageSettingsProvider;org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider;${Toolchain};-org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser">
 		    <enablement type="CONTAINER_ATTRIBUTE" 
               	attribute="artifactExtension" 
               	value="so"

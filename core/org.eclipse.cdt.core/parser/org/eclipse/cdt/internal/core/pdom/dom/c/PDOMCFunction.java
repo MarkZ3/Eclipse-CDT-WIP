@@ -1,17 +1,17 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 QNX Software Systems and others.
+ * Copyright (c) 2006, 2012 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    QNX - Initial API and implementation
- *    IBM Corporation
- *    Andrew Ferguson (Symbian)
- *    Markus Schorn (Wind River Systems)
+ *     QNX - Initial API and implementation
+ *     IBM Corporation
+ *     Andrew Ferguson (Symbian)
+ *     Markus Schorn (Wind River Systems)
+ *     Sergey Prigogin (Google)
  *******************************************************************************/
-
 package org.eclipse.cdt.internal.core.pdom.dom.c;
 
 import org.eclipse.cdt.core.CCorePlugin;
@@ -32,30 +32,25 @@ import org.eclipse.core.runtime.CoreException;
 
 /**
  * @author Doug Schaefer
- *
  */
 class PDOMCFunction extends PDOMBinding implements IFunction {
 	/**
-	 * Offset of total number of function parameters (relative to the
-	 * beginning of the record).
+	 * Offset of total number of function parameters (relative to the beginning of the record).
 	 */
 	public static final int NUM_PARAMS = PDOMBinding.RECORD_SIZE;
 	
 	/**
-	 * Offset of total number of function parameters (relative to the
-	 * beginning of the record).
+	 * Offset of total number of function parameters (relative to the beginning of the record).
 	 */
 	public static final int FIRST_PARAM = NUM_PARAMS + 4;
 	
 	/**
-	 * Offset for the type of this function (relative to
-	 * the beginning of the record).
+	 * Offset for the type of this function (relative to the beginning of the record).
 	 */
 	private static final int FUNCTION_TYPE = FIRST_PARAM + Database.PTR_SIZE;
 	
 	/**
-	 * Offset of annotation information (relative to the beginning of the
-	 * record).
+	 * Offset of annotation information (relative to the beginning of the record).
 	 */
 	private static final int ANNOTATIONS = FUNCTION_TYPE + Database.TYPE_SIZE; // byte
 	
@@ -64,7 +59,7 @@ class PDOMCFunction extends PDOMBinding implements IFunction {
 	 */
 	@SuppressWarnings("hiding")
 	public static final int RECORD_SIZE = ANNOTATIONS + 1;
-	
+
 	public PDOMCFunction(PDOMLinkage linkage, long record) {
 		super(linkage, record);
 	}
@@ -135,6 +130,7 @@ class PDOMCFunction extends PDOMBinding implements IFunction {
 		return IIndexCBindingConstants.CFUNCTION;
 	}
 
+	@Override
 	public IFunctionType getType() {
 		try {
 			return (IFunctionType) getLinkage().loadType(record + FUNCTION_TYPE);
@@ -144,14 +140,17 @@ class PDOMCFunction extends PDOMBinding implements IFunction {
 		}
 	}
 
+	@Override
 	public boolean isStatic() {
 		return getBit(getByte(record + ANNOTATIONS), PDOMCAnnotation.STATIC_OFFSET);
 	}
 
+	@Override
 	public boolean isExtern() {
 		return getBit(getByte(record + ANNOTATIONS), PDOMCAnnotation.EXTERN_OFFSET);
 	}
 
+	@Override
 	public IParameter[] getParameters() {
 		try {
 			PDOMLinkage linkage= getLinkage();
@@ -176,24 +175,34 @@ class PDOMCFunction extends PDOMBinding implements IFunction {
 		}
 	}
 	
+	@Override
 	public boolean isAuto() {
 		// ISO/IEC 9899:TC1 6.9.1.4
 		return false;
 	}
 
+	@Override
 	public boolean isRegister() {
 		// ISO/IEC 9899:TC1 6.9.1.4
 		return false;
 	}
 
+	@Override
 	public boolean isInline() {
 		return getBit(getByte(record + ANNOTATIONS), PDOMCAnnotation.INLINE_OFFSET);
 	}
 
+	@Override
 	public boolean takesVarArgs() {
 		return getBit(getByte(record + ANNOTATIONS), PDOMCAnnotation.VARARGS_OFFSET);
 	}
-	
+
+	@Override
+	public boolean isNoReturn() {
+		return getBit(getByte(record + ANNOTATIONS), PDOMCAnnotation.NO_RETURN);
+	}
+
+	@Override
 	public IScope getFunctionScope() {
 		return null;
 	}

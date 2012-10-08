@@ -43,12 +43,9 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 	public static final String PARAM_EMPTY_CASE = "empty_case_param"; //$NON-NLS-1$
 	public static final String PARAM_NO_BREAK_COMMENT = "no_break_comment"; //$NON-NLS-1$
 	public static final String DEFAULT_NO_BREAK_COMMENT = "no break"; //$NON-NLS-1$
-	private Boolean _checkLastCase; // Should we check the last case in the switch?
-	private Boolean _checkEmptyCase; // Should we check an empty case (a case without any statements within it)
-	private String _noBreakComment; // The comment suppressing this warning
-
-	public CaseBreakChecker() {
-	}
+	private boolean fCheckLastCase; // Should we check the last case in the switch?
+	private boolean fCheckEmptyCase; // Should we check an empty case (a case without any statements within it)
+	private String fNoBreakComment; // The comment suppressing this warning
 
 	/**
 	 * This visitor looks for "switch" statements and invokes "SwitchVisitor" on them.
@@ -71,10 +68,9 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 		 *         - "exit"
 		 */
 		protected boolean isBreakOrExitStatement(IASTStatement statement) {
-			CxxAstUtils utils = CxxAstUtils.getInstance();
 			return (statement instanceof IASTBreakStatement) || statement instanceof IASTReturnStatement
 					|| statement instanceof IASTContinueStatement || statement instanceof IASTGotoStatement
-					|| utils.isThrowStatement(statement) || utils.isExitStatement(statement);
+					|| CxxAstUtils.isThrowStatement(statement) || CxxAstUtils.isExitStatement(statement);
 		}
 
 		@Override
@@ -100,10 +96,10 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 						// Next is case or end of switch - means this one is the last
 						if (prevCase != null && (isCaseStatement(next) || next == null)) {
 							// Check that current statement end with break or any other exit statement
-							if (!_checkEmptyCase && isCaseStatement(curr) && next != null) {
+							if (!fCheckEmptyCase && isCaseStatement(curr) && next != null) {
 								continue; // Empty case and we don't care
 							}
-							if (!_checkLastCase && next == null) {
+							if (!fCheckLastCase && next == null) {
 								continue; // Last case and we don't care
 							}
 							if (!isProducedByMacroExpansion(prevCase) && isFallThroughStamement(curr)) {
@@ -117,7 +113,7 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 								}
 								if (comment != null) {
 									String str = getTrimmedComment(comment);
-									if (str.toLowerCase().contains(_noBreakComment.toLowerCase()))
+									if (str.toLowerCase().contains(fNoBreakComment.toLowerCase()))
 										continue;
 								}
 								reportProblem(curr, prevCase);
@@ -163,7 +159,7 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 		}
 	}
 
-	public void reportProblem(IASTStatement curr, IASTStatement prevCase) {
+	private void reportProblem(IASTStatement curr, IASTStatement prevCase) {
 		reportProblem(ER_ID, getProblemLocationAtEndOfNode(curr));
 	}
 
@@ -217,6 +213,7 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 		return getCommentMap().getLastFreestandingCommentForNode(statement);
 	}
 
+	@Override
 	public void initPreferences(IProblemWorkingCopy problem) {
 		super.initPreferences(problem);
 		addPreference(problem, PARAM_NO_BREAK_COMMENT, CheckersMessages.CaseBreakChecker_DefaultNoBreakCommentDescription,
@@ -225,10 +222,11 @@ public class CaseBreakChecker extends AbstractIndexAstChecker implements IChecke
 		addPreference(problem, PARAM_EMPTY_CASE, CheckersMessages.CaseBreakChecker_EmptyCaseDescription, Boolean.FALSE);
 	}
 
+	@Override
 	public void processAst(IASTTranslationUnit ast) {
-		_checkLastCase = (Boolean) getPreference(getProblemById(ER_ID, getFile()), PARAM_LAST_CASE);
-		_checkEmptyCase = (Boolean) getPreference(getProblemById(ER_ID, getFile()), PARAM_EMPTY_CASE);
-		_noBreakComment = (String) getPreference(getProblemById(ER_ID, getFile()), PARAM_NO_BREAK_COMMENT);
+		fCheckLastCase = (Boolean) getPreference(getProblemById(ER_ID, getFile()), PARAM_LAST_CASE);
+		fCheckEmptyCase = (Boolean) getPreference(getProblemById(ER_ID, getFile()), PARAM_EMPTY_CASE);
+		fNoBreakComment = (String) getPreference(getProblemById(ER_ID, getFile()), PARAM_NO_BREAK_COMMENT);
 		SwitchFindingVisitor visitor = new SwitchFindingVisitor();
 		ast.accept(visitor);
 	}

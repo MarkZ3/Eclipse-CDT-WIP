@@ -34,12 +34,11 @@ import org.eclipse.jface.text.TabsToSpacesConverter;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.cdt.core.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.PreferenceConstants;
 import org.eclipse.cdt.ui.text.ICPartitions;
 import org.eclipse.cdt.ui.text.doctools.DefaultMultilineCommentAutoEditStrategy;
-
-import org.eclipse.cdt.internal.formatter.DefaultCodeFormatterOptions;
 
 import org.eclipse.cdt.internal.ui.text.CAutoIndentStrategy;
 import org.eclipse.cdt.internal.ui.text.CTextTools;
@@ -73,6 +72,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 
 		fStatusLog= Collections.synchronizedList(new ArrayList<IStatus>());
 		fLogListener= new ILogListener() {
+			@Override
 			public void logging(IStatus status, String plugin) {
 				if(!status.isOK()) {
 					fStatusLog.add(status);
@@ -111,7 +111,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testCAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("void main() {\n"); //$NON-NLS-1$
 		assertEquals(1, tester.getCaretLine());
 		// Nested statement is indented by one.
@@ -149,7 +149,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testPasteAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("class A {\n"); //$NON-NLS-1$
 		tester.goTo(1, 0);
 		tester.paste("class B {\n" +
@@ -176,7 +176,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testDefaultAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("   initial indent=5\n"); //$NON-NLS-1$
 		assertEquals(1, tester.getCaretLine());
 		assertEquals(5, tester.getCaretColumn());
@@ -198,7 +198,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testCCommentAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("/*\n"); //$NON-NLS-1$
 		assertEquals(ICPartitions.C_MULTI_LINE_COMMENT, tester.getContentType(tester.getCaretOffset()-1));
 		assertEquals(1, tester.getCaretLine());
@@ -215,7 +215,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testPreprocessorAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("void main() {\n"); //$NON-NLS-1$
 		assertEquals(1, tester.getCaretLine());
 		// Nested statement is indented by one.
@@ -237,7 +237,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testPasteBlockCommentAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("class A {\n};"); //$NON-NLS-1$
 		tester.goTo(1, 0);
 		tester.paste("/*\n" +
@@ -250,7 +250,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testPasteLineCommentAutoIndent() throws BadLocationException {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		tester.type("class A {\n};"); //$NON-NLS-1$
 		tester.goTo(1, 0);
 		tester.paste("// int f;\n");
@@ -269,28 +269,28 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 		String[] kw_inh= new String[] {"class", "union", "struct"};
 		String[] kw_anon= new String[] {"union", "struct", "enum"};
 
-		for(int i=0; i<kw.length; i++) {
+		for (int i= 0; i < kw.length; i++) {
 			tester.reset();
 
 			tester.type("\n\n\n "+kw[i]+" A {\n"); //$NON-NLS-1$
 			assertEquals("\n\n\n "+kw[i]+" A {\n\t \n };", tester.fDoc.get()); //$NON-NLS-1$
 		}
 		
-		for(int i=0; i<kw.length; i++) {
+		for (int i= 0; i < kw.length; i++) {
 			tester.reset();
 
 			tester.type("\n\n\n"+kw[i]+" A {\n"); //$NON-NLS-1$
 			assertEquals("\n\n\n"+kw[i]+" A {\n\t\n};", tester.fDoc.get()); //$NON-NLS-1$
 		}
 		
-		for(int i=0; i<kw.length; i++) {		
+		for (int i= 0; i < kw.length; i++) {		
 			tester.reset();
 
 			tester.type("\n\n\n "+kw[i]+" A {\n"); //$NON-NLS-1$
 			assertEquals("\n\n\n "+kw[i]+" A {\n\t \n };", tester.fDoc.get()); //$NON-NLS-1$
 		}
 		
-		for(int i=0; i<kw.length; i++) {		
+		for (int i= 0; i < kw.length; i++) {		
 			tester.reset();
 
 			tester.type("\n// foo\n\n\n//bar\n\n"); //$NON-NLS-1$
@@ -299,17 +299,17 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 			assertEquals("\n// foo\n"+kw[i]+" A {\n\t\n};\n\n//bar\n\n", tester.fDoc.get()); //$NON-NLS-1$
 		}
 
-		// this tests for a sensible behaviour for enums, although the
+		// this tests for a sensible behavior for enums, although the
 		// code generated is invalid, its the user entered part that is
 		// the problem
-		for(int i=0; i<kw_inh.length; i++) {		
+		for (int i= 0; i < kw_inh.length; i++) {		
 			tester.reset();
 
 			tester.type("\n\n\n"+kw_inh[i]+" A\n:\npublic B\n,\npublic C\n{\n"); //$NON-NLS-1$
-			assertEquals("\n\n\n"+kw_inh[i]+" A\n:\n\tpublic B\n\t,\n\tpublic C\n\t{\n\t\t\n\t};", tester.fDoc.get()); //$NON-NLS-1$
+			assertEquals("\n\n\n"+kw_inh[i]+" A\n:\n\t\tpublic B\n\t\t,\n\t\tpublic C\n{\n\t\n};", tester.fDoc.get()); //$NON-NLS-1$
 		}
 		
-		for(int i=0; i<kw.length; i++) {		
+		for (int i= 0; i < kw.length; i++) {		
 			tester.reset();
 
 			tester.type("\n// foo\n\n\n//bar\n\n"); //$NON-NLS-1$
@@ -318,13 +318,13 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 			assertEquals("\n// foo\n"+kw[i]+" /* for(int i=0; i<100; i++) {} */\nA \n{\n\t\n};\n\n//bar\n\n", tester.fDoc.get()); //$NON-NLS-1$
 		}		
 
-		for(int i=0; i<kw_anon.length; i++) {		
+		for (int i= 0; i < kw_anon.length; i++) {		
 			tester.reset();
 
 			tester.type("\n\n\n"+kw_anon[i]+" {\n"); //$NON-NLS-1$
 			assertEquals("\n\n\n"+kw_anon[i]+" {\n\t\n};", tester.fDoc.get()); //$NON-NLS-1$
 		}
-}
+	}
 	
 	/**
 	 * Tests that brackets are inserted (without semi-colons) in appropriate
@@ -353,7 +353,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	public void testBracketIndentForConstructorDefinition_Bug183814() throws BadLocationException {
 		DefaultCodeFormatterOptions whitesmiths= DefaultCodeFormatterOptions.getWhitesmithsSettings();
 		CCorePlugin.setOptions(new HashMap<String, String>(whitesmiths.getMap()));
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		
 		tester.type("Foo::Foo()\n{");
 		assertEquals("Foo::Foo()\n    {", tester.fDoc.get());
@@ -362,7 +362,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	public void testSmartPasteWhitesmiths_Bug180531() throws Exception {
 		DefaultCodeFormatterOptions whitesmiths= DefaultCodeFormatterOptions.getWhitesmithsSettings();
 		CCorePlugin.setOptions(new HashMap<String, String>(whitesmiths.getMap()));
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		
 		tester.type("A::~A()\n{");
 		assertEquals("A::~A()\n    {", tester.fDoc.get());
@@ -394,7 +394,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 	
 	public void testSmartPaste_Bug215310() throws Exception  {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		
 		tester.type("#define S \\ \n");
 		tester.type("d\n");
@@ -408,7 +408,7 @@ public class CAutoIndentTest extends AbstractAutoEditTest {
 	}
 
 	public void testAutoIndentDisabled_Bug219923() throws Exception  {
-		AutoEditTester tester = createAutoEditTester(); //$NON-NLS-1$
+		AutoEditTester tester = createAutoEditTester(); 
 		IPreferenceStore store= PreferenceConstants.getPreferenceStore();
 		try {
 			store.setValue(PreferenceConstants.EDITOR_AUTO_INDENT, false);
