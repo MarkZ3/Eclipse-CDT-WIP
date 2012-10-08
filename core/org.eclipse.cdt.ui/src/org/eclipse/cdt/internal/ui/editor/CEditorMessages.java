@@ -45,6 +45,8 @@ public final class CEditorMessages extends NLS {
 	public static String OpenDeclarations_dialog_title;
 	public static String OpenDeclarations_label;
 	public static String OpenDeclarations_tooltip;
+	public static String OpenOverriders_label;
+	public static String OpenOverriders_NotFound;
 	public static String OverrideIndicatorManager_implements;
 	public static String OverrideIndicatorManager_overrides;
 	public static String OverrideIndicatorManager_shadows;
