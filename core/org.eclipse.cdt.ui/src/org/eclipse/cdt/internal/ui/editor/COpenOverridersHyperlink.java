@@ -29,14 +29,14 @@ import org.eclipse.cdt.internal.ui.util.StatusLineHandler;
 import org.eclipse.cdt.internal.ui.viewsupport.EditorOpener;
 import org.eclipse.cdt.internal.ui.viewsupport.IndexUI;
 
-public class CImplementationHyperlink extends CElementHyperlink {
+public class COpenOverridersHyperlink extends CElementHyperlink {
 
 	IWorkbenchPage workbenchPage;
 	IASTName name;
 	IAction typeHierarchyAction;
 	IEditorSite editorSite;
 	
-	public CImplementationHyperlink(IRegion region, IAction openAction, IAction typeHierarchyAction, IASTName selectedName, IEditorSite iEditorSite) {
+	public COpenOverridersHyperlink(IRegion region, IAction openAction, IAction typeHierarchyAction, IASTName selectedName, IEditorSite iEditorSite) {
 		super(region, openAction);
 		editorSite = iEditorSite;
 		workbenchPage = iEditorSite.getPage();
@@ -52,9 +52,9 @@ public class CImplementationHyperlink extends CElementHyperlink {
 			IBinding[] virtualOverriders = ClassTypeHelper.findOverriders(index, (ICPPMethod)name.resolveBinding());
 			switch (virtualOverriders.length) {
 			case 0:
+				super.open();
 				StatusLineHandler.clearStatusLine(editorSite);
 				StatusLineHandler.showStatusLineMessage(editorSite, CEditorMessages.OpenOverriders_NotFound);
-				super.open();
 				break;
 			case 1:
 				ICElement[] cElementHandles = IndexUI.findRepresentative(index, virtualOverriders[0]);

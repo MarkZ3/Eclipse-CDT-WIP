@@ -23,7 +23,7 @@ import org.eclipse.cdt.core.model.IWorkingCopy;
 
 import org.eclipse.cdt.internal.ui.typehierarchy.TypeHierarchyUI;
 
-public class CImplementationHyperlinkDetector extends CElementHyperlinkDetector {
+public class COpenOverridersHyperlinkDetector extends CElementHyperlinkDetector {
 
 	@Override
 	protected IHyperlink createHyperLink(IRegion region, IASTName selectedName, IAction openAction) {
@@ -34,7 +34,7 @@ public class CImplementationHyperlinkDetector extends CElementHyperlinkDetector 
 				if(method.isPureVirtual() && TypeHierarchyUI.isValidInput(binding)) {
 					ITextEditor textEditor= (ITextEditor)getAdapter(ITextEditor.class);
 					if(textEditor != null) {
-						return new CImplementationHyperlink(region, openAction, textEditor.getAction("OpenHierarchy"), //$NON-NLS-1$
+						return new COpenOverridersHyperlink(region, openAction, textEditor.getAction("OpenHierarchy"), //$NON-NLS-1$
 								selectedName, textEditor.getEditorSite());
 					}
 				}

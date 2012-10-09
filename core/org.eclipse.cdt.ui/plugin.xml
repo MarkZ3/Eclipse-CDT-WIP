@@ -4150,9 +4150,9 @@
             targetId="org.eclipse.cdt.ui.cCode">
       </hyperlinkDetector>
        <hyperlinkDetector
-             class="org.eclipse.cdt.internal.ui.editor.CImplementationHyperlinkDetector"
-             id="org.eclipse.cdt.ui.editor.CImplementationHyperlinkDetector"
-             name="%cImplementationHyperlinkDetector"
+             class="org.eclipse.cdt.internal.ui.editor.COpenOverridersHyperlinkDetector"
+             id="org.eclipse.cdt.ui.editor.COpenOverridersHyperlinkDetector"
+             name="%cOpenOverridersHyperlinkDetector"
              targetId="org.eclipse.cdt.ui.cCode">
        </hyperlinkDetector>
    </extension>
