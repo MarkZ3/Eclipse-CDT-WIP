@@ -25,7 +25,7 @@ import org.eclipse.jface.text.hyperlink.IHyperlink;
 public class CElementHyperlink implements IHyperlink {
 
 	private final IRegion fRegion;
-	protected final IAction fOpenAction;
+	private final IAction fOpenAction;
 
 	
 	/**

@@ -34,7 +34,6 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
-import org.eclipse.ui.IWorkbenchPartSite;
 import org.eclipse.ui.progress.IWorkbenchSiteProgressService;
 
 import com.ibm.icu.text.MessageFormat;
@@ -54,11 +53,9 @@ public class THInformationControl extends AbstractInformationControl implements 
 	private TreeViewer fHierarchyTreeViewer;
 	private boolean fDisposed= false;
 	private KeyAdapter fKeyAdapter;
-	private IWorkbenchPartSite fWorkbenchPartSite;
 	
-	public THInformationControl(Shell parent, int shellStyle, int treeStyle, IWorkbenchPartSite iWorkbenchPartSite) {
+	public THInformationControl(Shell parent, int shellStyle, int treeStyle) {
 		super(parent, shellStyle, treeStyle, ICEditorActionDefinitionIds.OPEN_QUICK_TYPE_HIERARCHY, true);
-		fWorkbenchPartSite = iWorkbenchPartSite;
 	}
 
 	private KeyAdapter getKeyAdapter() {
@@ -234,7 +231,6 @@ public class THInformationControl extends AbstractInformationControl implements 
 
 	@Override
 	public IWorkbenchSiteProgressService getProgressService() {
-		//return (IWorkbenchSiteProgressService) fWorkbenchPartSite.getAdapter(IWorkbenchSiteProgressService.class);
 		return null;
 	}
 
