@@ -1684,16 +1684,16 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		} catch (InterruptedException e) {
 			throw new CoreException(CCorePlugin.createStatus(Messages.PDOMManager_creationOfIndexInterrupted, e));
 		}
-		pdom.setCreatedFromScratch(fromScratch);
 		
+		boolean versionMismatch = false;
 		if (!pdom.isSupportedVersion()) {
 			pdom.clear();
-			pdom.setClearedBecauseOfVersionMismatch(true);
+			versionMismatch = true;
 		}
 		writeProjectPDOMProperties(pdom, project.getProject());
 		pdom.releaseWriteLock();
 		
-		boolean rebuild = pdom.isClearedBecauseOfVersionMismatch() || pdom.isCreatedFromScratch();
+		boolean rebuild = versionMismatch || fromScratch;
 		if (rebuild) {
 			reindex(project);
 		} else {
