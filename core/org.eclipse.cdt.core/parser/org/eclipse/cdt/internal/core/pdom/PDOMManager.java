@@ -1695,7 +1695,9 @@ public class PDOMManager implements IWritableIndexManager, IListener {
 		
 		boolean rebuild = versionMismatch || fromScratch;
 		if (rebuild) {
-			reindex(project);
+			if (IndexerPreferences.getReindexOnConfigChange(project.getProject())) {
+				reindex(project);
+			}
 		} else {
 			update(new ICElement[] { project }, IIndexManager.UPDATE_CHECK_TIMESTAMPS |
 					IIndexManager.UPDATE_EXTERNAL_FILES_FOR_PROJECT |
