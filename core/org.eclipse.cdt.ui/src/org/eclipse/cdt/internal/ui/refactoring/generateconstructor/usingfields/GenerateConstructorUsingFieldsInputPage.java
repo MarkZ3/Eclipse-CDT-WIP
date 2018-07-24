@@ -135,11 +135,9 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 	
 			@Override
 			public void checkStateChanged(CheckStateChangedEvent event) {
-				for (Object currentElement : variableSelectionView.getCheckedElements()) {
-					if (currentElement instanceof GenerateConstructorInsertEditProvider) {
-						GenerateConstructorInsertEditProvider editProvider = (GenerateConstructorInsertEditProvider) currentElement;
-						editProvider.setSelected(event.getChecked());
-					}
+				if (event.getElement() instanceof GenerateConstructorInsertEditProvider) {
+					GenerateConstructorInsertEditProvider editProvider = (GenerateConstructorInsertEditProvider) event.getElement();
+					editProvider.setSelected(event.getChecked());
 				}
 			}
 		});
