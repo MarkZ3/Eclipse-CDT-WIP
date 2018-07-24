@@ -21,9 +21,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCompositeTypeSpecifier.ICPPASTBas
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 
 public class GenerateConstructorUsingFieldsContext implements ITreeContentProvider {
-	
-	//public ArrayList<IASTSimpleDeclaration> existingFunctionDeclarations = new ArrayList<IASTSimpleDeclaration>();
-	//public ArrayList<IASTFunctionDefinition> existingFunctionDefinitions = new ArrayList<IASTFunctionDefinition>();
+
 	ICPPASTCompositeTypeSpecifier currentClass = null;
 	
 	public ArrayList<ICPPASTBaseSpecifier> baseClasses = new ArrayList<ICPPASTBaseSpecifier>();
@@ -33,7 +31,7 @@ public class GenerateConstructorUsingFieldsContext implements ITreeContentProvid
 	public ArrayList<GenerateConstructorInsertEditProvider> treeFields = new ArrayList<GenerateConstructorInsertEditProvider>();
 	ArrayList<GenerateConstructorInsertEditProvider> existingFields = new ArrayList<GenerateConstructorInsertEditProvider>();
 
-	private boolean implementationInHeader = false;
+	private boolean separateDefinition = false;
 	
 	/* Declaration options */
 	
@@ -90,12 +88,12 @@ public class GenerateConstructorUsingFieldsContext implements ITreeContentProvid
 		return selectedFieldsInOrder;
 	}
 
-	public void setImplementationInHeader(boolean implementationInHeader) {
-		this.implementationInHeader = implementationInHeader;
+	public void setSeparateDefinition(boolean implementationInHeader) {
+		this.separateDefinition = implementationInHeader;
 	}
 
-	public boolean isImplementationInHeader() {
-		return implementationInHeader;
+	public boolean isSeparateDefinition() {
+		return separateDefinition;
 	}
 
 	public boolean isInitializeOtherMembers() {

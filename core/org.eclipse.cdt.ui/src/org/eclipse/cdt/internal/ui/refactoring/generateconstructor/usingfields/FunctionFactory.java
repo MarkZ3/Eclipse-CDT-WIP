@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Marc-Andre Laperle and others.
+ * Copyright (c) 2010, 2013 Marc-Andre Laperle and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -56,18 +56,6 @@ public class FunctionFactory {
 	
 	static ICPPNodeFactory nodeFactory = ASTNodeFactoryFactory.getDefaultCPPNodeFactory();
 
-	private static ICPPASTFunctionDeclarator getConstructorDeclarator(
-			GenerateConstructorUsingFieldsContext context) {
-		IASTCompositeTypeSpecifier currentClass = context.currentClass;
-		
-		IASTName constructorAstName = nodeFactory.newName(currentClass.getName().toString().toCharArray());
-
-		ICPPASTFunctionDeclarator declarator = nodeFactory.newFunctionDeclarator(constructorAstName);
-
-		addFieldsToDeclarator(context, declarator);
-		return declarator;
-	}
-
 	public static IASTSimpleDeclaration getConstructorDeclaration(
 			GenerateConstructorUsingFieldsContext context) {
 		IASTSimpleDeclSpecifier declSpecifier = nodeFactory.newSimpleDeclSpecifier();
@@ -78,14 +66,26 @@ public class FunctionFactory {
 		return constructorDeclaration;
 	}
 
+	private static ICPPASTFunctionDeclarator getConstructorDeclarator(
+			GenerateConstructorUsingFieldsContext context) {
+		IASTCompositeTypeSpecifier currentClass = context.currentClass;
+		
+		IASTName constructorAstName = nodeFactory.newName(currentClass.getName().toString().toCharArray());
+	
+		ICPPASTFunctionDeclarator declarator = nodeFactory.newFunctionDeclarator(constructorAstName);
+	
+		addFieldsToDeclarator(context, declarator);
+		return declarator;
+	}
+
 	public static IASTFunctionDefinition getConstructorDefinition(
 			GenerateConstructorUsingFieldsContext context) {
 		IASTSimpleDeclSpecifier declSpecifier = nodeFactory.newSimpleDeclSpecifier();
 		declSpecifier.setType(IASTSimpleDeclSpecifier.t_unspecified);
 		
 		IASTName constructorName;
-		if(!context.isImplementationInHeader()) {
-			constructorName = getClassname(context); 
+		if (context.isSeparateDefinition()) {
+			constructorName = getClassname(context);
 		} else {
 			constructorName = nodeFactory.newName(context.currentClass.getName().toString().toCharArray());
 		}
@@ -167,33 +167,34 @@ public class FunctionFactory {
 		
 		boolean initializeInInitList = context.initializeMembers
 				&& context.initializeMembersMethod == GenerateConstructorUsingFieldsContext.INITMEMBERS_INITLIST;
-		if (initializeInInitList) {
-			// Actual constructor params
-			for (GenerateConstructorInsertEditProvider field : context.getSelectedFieldsInOrder()) {
-				
-				IASTDeclarator fieldDeclarator = field.getFieldDeclarator();
-				
-				CPPASTConstructorChainInitializer chainInit = new CPPASTConstructorChainInitializer();
-				chainInit.setMemberInitializerId(fieldDeclarator.getName().copy());
-				String paramNameStr = fieldDeclarator.getName().toString();
-				
-				
-				boolean sameAfterTrimmed = paramNameStr.equals(NameHelper.trimFieldName(paramNameStr));
-				// Add _ before the variable name to avoid name clashes. Not needed if the trimmed name is different
-				if(sameAfterTrimmed) {
-					paramNameStr = "_" + paramNameStr; //$NON-NLS-1$
-				} else {
-					paramNameStr = NameHelper.trimFieldName(paramNameStr);
-				}
-				IASTName cppastName = nodeFactory.newName(paramNameStr.toCharArray());
-				fieldDeclarator = nodeFactory.newDeclarator(cppastName);
-				
-				IASTIdExpression idExpr = nodeFactory.newIdExpression(nodeFactory.newName(paramNameStr.toCharArray()));
-				
-				ICPPASTConstructorInitializer initalizer = nodeFactory.newConstructorInitializer(new IASTIdExpression[] { idExpr });
-				chainInit.setInitializer(initalizer);
-				constructorDefinition.addMemberInitializer(chainInit);
+		if (!initializeInInitList) {
+			return;
+		}
+			
+		// Actual constructor params
+		for (GenerateConstructorInsertEditProvider field : context.getSelectedFieldsInOrder()) {
+			
+			IASTDeclarator fieldDeclarator = field.getFieldDeclarator();
+			
+			CPPASTConstructorChainInitializer chainInit = new CPPASTConstructorChainInitializer();
+			chainInit.setMemberInitializerId(fieldDeclarator.getName().copy());
+			String paramNameStr = fieldDeclarator.getName().toString();
+			
+			boolean sameAfterTrimmed = paramNameStr.equals(NameHelper.trimFieldName(paramNameStr));
+			// Add _ before the variable name to avoid name clashes. Not needed if the trimmed name is different
+			if (sameAfterTrimmed) {
+				paramNameStr = "_" + paramNameStr; //$NON-NLS-1$
+			} else {
+				paramNameStr = NameHelper.trimFieldName(paramNameStr);
 			}
+			IASTName cppastName = nodeFactory.newName(paramNameStr.toCharArray());
+			fieldDeclarator = nodeFactory.newDeclarator(cppastName);
+			
+			IASTIdExpression idExpr = nodeFactory.newIdExpression(nodeFactory.newName(paramNameStr.toCharArray()));
+			
+			ICPPASTConstructorInitializer initalizer = nodeFactory.newConstructorInitializer(new IASTIdExpression[] { idExpr });
+			chainInit.setInitializer(initalizer);
+			constructorDefinition.addMemberInitializer(chainInit);
 		}
 	}
 
@@ -210,7 +211,7 @@ public class FunctionFactory {
 						IASTNode physicalNode = paramTest.getPhysicalNode();
 						
 						// A normal parameter
-						if(physicalNode != null) {
+						if (physicalNode != null) {
 							IASTNode baseConstructorParamNode = physicalNode.getParent().getParent();
 							if (baseConstructorParamNode instanceof IASTParameterDeclaration) {
 								IASTParameterDeclaration fieldDeclaration = (IASTParameterDeclaration) baseConstructorParamNode;
@@ -234,7 +235,7 @@ public class FunctionFactory {
 									
 									String typeToString = type.toString();
 									String firstLowered = typeToString.substring(0, 1).toLowerCase();
-									if(typeToString.length() > 1) {
+									if (typeToString.length() > 1) {
 										firstLowered += typeToString.substring(1);
 									}
 									
@@ -253,7 +254,7 @@ public class FunctionFactory {
 			}
 		}
 		 
-		// Actual constructor params
+		// Member constructor params
 		for (GenerateConstructorInsertEditProvider field : context.getSelectedFieldsInOrder()) {
 			String paramNameStr = field.getFieldDeclarator().getName().toString();
 			
@@ -262,7 +263,7 @@ public class FunctionFactory {
 			boolean sameAfterTrimmed = paramNameStr.equals(NameHelper.trimFieldName(paramNameStr));
 			
 			// Add _ before the variable name to avoid name clashes. Not needed if the trimmed name is different
-			if(sameAfterTrimmed && initializeInInitList) {
+			if (sameAfterTrimmed && initializeInInitList) {
 				paramNameStr = "_" + paramNameStr; //$NON-NLS-1$
 			} else {
 				paramNameStr = NameHelper.trimFieldName(paramNameStr);

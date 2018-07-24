@@ -37,7 +37,7 @@ public class GenerateConstructorInsertEditProvider  implements Comparable<Genera
 		IASTPointerOperator[] iastPointerOperators = fieldDeclarator.getPointerOperators();
 		String operatorsStr = new String();
 		for(IASTPointerOperator iastPointerOperator : iastPointerOperators) {
-			if(iastPointerOperator instanceof IASTPointer) {
+			if (iastPointerOperator instanceof IASTPointer) {
 				operatorsStr += " * "; //$NON-NLS-1$
 			} else if (iastPointerOperator instanceof ICPPASTReferenceOperator) {
 				operatorsStr += " & "; //$NON-NLS-1$

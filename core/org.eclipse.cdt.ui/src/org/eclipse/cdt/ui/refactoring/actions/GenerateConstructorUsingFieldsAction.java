@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2010, 2013 Marc-Andre Laperle and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Marc-Andre Laperle - Initial API and implementation
+ *******************************************************************************/
 package org.eclipse.cdt.ui.refactoring.actions;
 
 import org.eclipse.cdt.core.model.ICElement;
@@ -11,10 +21,10 @@ import org.eclipse.ui.IEditorPart;
 
 /**
  * @since 6.5
+ * @noextend This class is not intended to be subclassed by clients.
  */
 public class GenerateConstructorUsingFieldsAction extends RefactoringAction {
 
-	// TODO: needed?
 	public GenerateConstructorUsingFieldsAction() {
 		super(Messages.GenerateConstructorUsingFields_label);
 	}
@@ -30,7 +40,6 @@ public class GenerateConstructorUsingFieldsAction extends RefactoringAction {
 		if (res instanceof IFile) {
 			new GenerateConstructorUsingFieldsRefactoringRunner((IFile) res, s, wc, shellProvider, wc.getCProject()).run();
 		}
-
 	}
 
 	@Override

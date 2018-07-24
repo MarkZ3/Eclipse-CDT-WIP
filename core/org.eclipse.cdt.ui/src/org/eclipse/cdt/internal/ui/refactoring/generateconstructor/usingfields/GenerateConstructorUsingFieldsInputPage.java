@@ -260,7 +260,7 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 		baseNameColumn = new TableColumn(table, SWT.NONE);
-		baseNameColumn.setText("Class");
+		baseNameColumn.setText(Messages.GenerateConstructorUsingFieldsInputPage_ClassColumn);
 		baseNameColumn.setWidth(100);
 		
 		baseConstructorColumn = new TableColumn(table, SWT.NONE);
@@ -273,8 +273,8 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 			
 			TableEditor editor = new TableEditor(table);
 			final Combo combo = new Combo(table, SWT.NONE);
-			combo.add("None");
-			combo.setData("None", null);
+			combo.add(Messages.GenerateConstructorUsingFieldsInputPage_None);
+			combo.setData(Messages.GenerateConstructorUsingFieldsInputPage_None, null);
 			combo.select(0);
 			combo.addSelectionListener(new SelectionAdapter() {
 				@Override
@@ -307,19 +307,15 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 			table.setEnabled(false);
 		}
 		
-		final Button placeImplemetation = new Button(optionComposite, SWT.CHECK);
-		placeImplemetation.setText(Messages.GenerateConstructorUsingFieldsInputPage_PlaceImplHeader);
+		final Button separateDefinition = new Button(optionComposite, SWT.CHECK);
+		separateDefinition.setText(Messages.GenerateConstructorUsingFieldsInputPage_SeparateDefinition);
 		gd = new GridData(GridData.GRAB_HORIZONTAL);
 		gd.horizontalSpan = 2;
-		placeImplemetation.setLayoutData(gd);
-		placeImplemetation.addSelectionListener(new SelectionAdapter() {
+		separateDefinition.setLayoutData(gd);
+		separateDefinition.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				if(placeImplemetation.getSelection()) {
-					context.setImplementationInHeader(true);
-				} else {
-					context.setImplementationInHeader(false);
-				}
+				context.setSeparateDefinition(separateDefinition.getSelection());
 			}
 		});
 		
@@ -435,7 +431,7 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 			}
 		});
 		initializeOtherMembers = new Button(initializeMemComp, SWT.CHECK);
-		initializeOtherMembers.setText("Initalize non parameter members");
+		initializeOtherMembers.setText(Messages.GenerateConstructorUsingFieldsInputPage_InitializeNonParameterMembers);
 		initializeOtherMembers.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {

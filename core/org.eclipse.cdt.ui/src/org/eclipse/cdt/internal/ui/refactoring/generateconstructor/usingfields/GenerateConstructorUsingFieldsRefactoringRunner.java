@@ -29,7 +29,6 @@ public class GenerateConstructorUsingFieldsRefactoringRunner extends Refactoring
 
 	@Override
 	public void run() {
-
 		GenerateConstructorUsingFieldsRefactoring refactoring = new GenerateConstructorUsingFieldsRefactoring(
 				element, selection, project);
 		GenerateConstructorUsingFieldsRefactoringWizard wizard = new GenerateConstructorUsingFieldsRefactoringWizard(

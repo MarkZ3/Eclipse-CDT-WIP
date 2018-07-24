@@ -76,6 +76,8 @@ final class Messages extends NLS {
 		NLS.initializeMessages(Messages.class.getName(), Messages.class);
 	}
 
+	public static String InputPage_SeparateDefinition;
+
 	// Do not instantiate
 	private Messages() {
 	}

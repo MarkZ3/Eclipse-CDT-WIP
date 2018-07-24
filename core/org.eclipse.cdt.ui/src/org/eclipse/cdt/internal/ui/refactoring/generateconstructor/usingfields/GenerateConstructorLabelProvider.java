@@ -21,11 +21,11 @@ public class GenerateConstructorLabelProvider extends LabelProvider {
 
 	@Override
 	public Image getImage(Object element) {
-		if(element != null) {
+		if (element != null) {
 			if (element instanceof GenerateConstructorInsertEditProvider) {
 				GenerateConstructorInsertEditProvider gcInsertEditProv = (GenerateConstructorInsertEditProvider) element;
 				ASTAccessVisibility visibility = ASTAccessVisibility.PUBLIC;
-				switch(gcInsertEditProv.getVisibility()) {
+				switch (gcInsertEditProv.getVisibility()) {
 				case ICPPASTVisibilityLabel.v_private:
 					visibility = ASTAccessVisibility.PRIVATE;
 					break;

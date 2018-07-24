@@ -18,11 +18,10 @@ public class Messages extends NLS {
 	public static String GenerateConstructorUsingFieldsInputPage_header;
 	public static String GenerateConstructorUsingFields_NoFields;
 	public static String GenerateConstructorUsingFields_NoCassDefFound;
-	public static String GenerateConstructorUsingFieldsInputPage_PlaceImplHeader;
 	public static String GenerateConstructorUsingFieldsInputPage_SelectAll;
 	public static String GenerateConstructorUsingFieldsInputPage_DeselectAll;
-	
 	public static String GenerateConstructorUsingFieldsInputPage_AddConst;
+	public static String GenerateConstructorUsingFieldsInputPage_ClassColumn;
 	public static String GenerateConstructorUsingFieldsInputPage_ConstructorDefinition;
 	public static String GenerateConstructorUsingFieldsInputPage_ConstructorDeclaration;
 	public static String GenerateConstructorUsingFieldsInputPage_Down;
@@ -32,8 +31,11 @@ public class Messages extends NLS {
 	public static String GenerateConstructorUsingFieldsInputPage_Up;
 	public static String GenerateConstructorUsingFieldsInputPage_UsingAssignments;
 	public static String GenerateConstructorUsingFieldsInputPage_UsingInitList;
+	public static String GenerateConstructorUsingFieldsInputPage_InitializeNonParameterMembers;
 	public static String GenerateConstructorUsingFieldsInputPage_ConstructorCalls;
 	public static String GenerateConstructorUsingFieldsInputPage_ConstructorToCall;
+	public static String GenerateConstructorUsingFieldsInputPage_None;
+	public static String GenerateConstructorUsingFieldsInputPage_SeparateDefinition;
 	public static String GenerateConstructorUsingFieldsRefactoring_NoImplFile;
 	private static final String BUNDLE_NAME = "org.eclipse.cdt.internal.ui.refactoring.generateconstructor.usingfields.messages";//$NON-NLS-1$
 	
