@@ -154,6 +154,12 @@ public interface ICEditorActionDefinitionIds extends ITextEditorActionDefinition
 	public static final String GETTERS_AND_SETTERS = "org.eclipse.cdt.ui.refactor.getters.and.setters"; //$NON-NLS-1$
 
 	/**
+	 * Action definition ID of the source -> generate constructor using fields
+	 * (value <code>"org.eclipse.cdt.ui.refactor.generate.constructor.using.fields"</code>).
+	 */
+	public static final String GENERATE_CONTRUCTOR_USING_FIELDS = "org.eclipse.cdt.ui.refactor.generate.constructor.using.fields"; //$NON-NLS-1$
+	
+	/**
 	 * Action definition ID of the refactor -> undo action
 	 * (value <code>"org.eclipse.cdt.ui.edit.text.undo.action"</code>).
 	 */

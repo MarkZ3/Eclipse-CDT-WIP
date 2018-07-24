@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2012 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2013 Wind River Systems, Inc. and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -26,6 +26,7 @@ class Messages extends NLS {
 	public static String GettersAndSetters_label;
 	public static String ToggleFunctionAction_label;
 	public static String OverrideMethods_label;
+	public static String GenerateConstructorUsingFields_label;
 
 	static {
 		NLS.initializeMessages(Messages.class.getName(), Messages.class);
