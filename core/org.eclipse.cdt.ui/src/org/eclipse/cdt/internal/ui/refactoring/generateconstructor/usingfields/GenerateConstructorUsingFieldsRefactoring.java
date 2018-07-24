@@ -23,6 +23,7 @@ import org.eclipse.ltk.core.refactoring.RefactoringDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
 
+import org.eclipse.cdt.core.dom.ast.ASTNodeFactoryFactory;
 import org.eclipse.cdt.core.dom.ast.ASTNodeProperty;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
@@ -54,6 +55,7 @@ import org.eclipse.cdt.internal.ui.refactoring.implementmethod.InsertLocation;
 import org.eclipse.cdt.internal.ui.refactoring.implementmethod.MethodDefinitionInsertLocationFinder;
 import org.eclipse.cdt.internal.ui.refactoring.utils.Checks;
 import org.eclipse.cdt.internal.ui.refactoring.utils.CompositeTypeSpecFinder;
+import org.eclipse.cdt.internal.ui.refactoring.utils.NameHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.VisibilityEnum;
 
@@ -81,32 +83,31 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 	@Override
 	protected void collectModifications(IProgressMonitor pm, ModificationCollector collector)
 			throws CoreException, OperationCanceledException {
-		IASTNode constructorNode = null;
+		IASTNode constructorMemberNode;
+		
 		if(!context.isSeparateDefinition()) {
-			constructorNode = FunctionFactory.getConstructorDefinition(context);
+			IASTName constructorName = ASTNodeFactoryFactory.getDefaultCPPNodeFactory().newName(context.currentClass.getName().toString().toCharArray());
+			constructorMemberNode = FunctionFactory.getConstructorDefinition(context, constructorName);
 		} else {
-			constructorNode = FunctionFactory.getConstructorDeclaration(context);
-			IASTFunctionDefinition functionDef = FunctionFactory.getConstructorDefinition(context);
-			addDefinition(collector, functionDef, pm);
+			constructorMemberNode = FunctionFactory.getConstructorDeclaration(context);
+
+			IASTName constructorName =  NameHelper.createQualifiedNameFor(
+					context.currentClass.getName(), tu, context.currentClass.getFileLocation().getNodeOffset(),
+					definitionInsertLocation.getTranslationUnit(), definitionInsertLocation.getInsertPosition(), refactoringContext);
+			IASTFunctionDefinition functionDef = FunctionFactory.getConstructorDefinition(context, constructorName);
+			
+			IASTTranslationUnit targetUnit = refactoringContext.getAST(definitionInsertLocation.getTranslationUnit(), pm);
+			IASTNode parent = definitionInsertLocation.getParentOfNodeToInsertBefore();
+			ASTRewrite rewrite = collector.rewriterForTranslationUnit(targetUnit);
+			IASTNode nodeToInsertBefore = definitionInsertLocation.getNodeToInsertBefore();
+			
+			ContainerNode cont = new ContainerNode();
+			cont.addNode(functionDef);
+			rewrite = rewrite.insertBefore(parent, nodeToInsertBefore, cont, null);
 		}
 		
 		ClassMemberInserter.createChange(context.currentClass, VisibilityEnum.v_public,
-				constructorNode, false, collector);
-	}
-	
-	private void addDefinition(ModificationCollector collector, IASTFunctionDefinition functionDefinition, IProgressMonitor pm)
-			throws CoreException {		
-		findDefinitionInsertLocation(pm);
-		
-		IASTTranslationUnit targetUnit = refactoringContext.getAST(definitionInsertLocation.getTranslationUnit(), null);
-		IASTNode parent = definitionInsertLocation.getParentOfNodeToInsertBefore();
-		ASTRewrite rewrite = collector.rewriterForTranslationUnit(targetUnit);
-		IASTNode nodeToInsertBefore = definitionInsertLocation.getNodeToInsertBefore();
-		
-		ContainerNode cont = new ContainerNode();
-		cont.addNode(functionDefinition);
-		rewrite = rewrite.insertBefore(parent, nodeToInsertBefore, cont, null);
-		return;
+				constructorMemberNode, false, collector);
 	}
 	
 	private void findDefinitionInsertLocation(IProgressMonitor subProgressMonitor) throws CoreException {
@@ -124,7 +125,6 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 		}
 		
 		definitionInsertLocation = insertLocation;
-
 	}
 
 	public GenerateConstructorUsingFieldsContext getContext() {
@@ -143,7 +143,13 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 
 		if(!initStatus.hasFatalError()) {
 
-			initRefactoring(pm);
+			context.currentClass = findCurrentCompositeTypeSpecifier();
+			if (context.currentClass != null) {
+				collectBaseContructors();
+				collectFieldDeclarations();
+			} else {
+				initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoCassDefFound);
+			}
 
 			if(context.existingFields.size() == 0) {
 				initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoFields);
@@ -157,17 +163,6 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 			}
 		}	
 		return initStatus;
-	}
-	
-	private void initRefactoring(IProgressMonitor pm) throws OperationCanceledException, CoreException {
-		context.currentClass = findCurrentCompositeTypeSpecifier();
-		if(context.currentClass != null) {
-			collectBaseContructors();
-			collectFieldDeclarations();
-		}else {
-			initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoCassDefFound);
-		}
-		
 	}
 	
 	private ICPPASTCompositeTypeSpecifier findCurrentCompositeTypeSpecifier() throws OperationCanceledException, CoreException {
@@ -185,7 +180,7 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 		return null;
 	}
 	
-	protected void collectFieldDeclarations() {
+	private void collectFieldDeclarations() {
 		context.currentClass.accept(new ASTVisitor() {
 
 			{

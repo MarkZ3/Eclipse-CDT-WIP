@@ -89,25 +89,18 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 	//}
 	public void testSingleField() throws Exception {
 		definitionSeparate = true;
-		selectedFields = new String[] { "number" };
+		selectedFields = new String[] { "a" };
 		assertRefactoringSuccess();
 	}
 	
 	//A.h
-	//#ifndef A_H_
-	//#define A_H_
-	//
 	//class Person {
 	//private:
 	//	/*$*/int a, b;/*$$*/
 	//	int c;
 	//};
 	//
-	//#endif /* A_H_ */
 	//====================
-	//#ifndef A_H_
-	//#define A_H_
-	//
 	//class Person {
 	//public:
 	//	Person(int a, int b) {
@@ -118,8 +111,104 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 	//	int c;
 	//};
 	//
-	//#endif /* A_H_ */
 	public void testSelection() throws Exception {
+		assertRefactoringSuccess();
+	}
+	
+	//A.h
+	//namespace ns {
+	//class Foo {
+	//private:
+	//  int /*$*/a/*$$*/;
+	//};
+	//}
+	//====================
+	//namespace ns {
+	//class Foo {
+	//public:
+	//	Foo(int a);
+	//
+	//private:
+	//  int a;
+	//};
+	//}
+
+	//A.cpp
+	//#include "A.h"
+	//
+	//====================
+	//#include "A.h"
+	//
+	//ns::Foo::Foo(int a) {
+	//}
+	public void testNamespace() throws Exception {
+		definitionSeparate = true;
+		assertRefactoringSuccess();
+	}
+	
+	//A.h
+	//class Bar {
+	//	class Foo {
+	//	private:
+	//		int /*$*/a/*$$*/;
+	//	};
+	//};
+	//====================
+	//class Bar {
+	//	class Foo {
+	//	public:
+	//		Foo(int a);
+	//
+	//	private:
+	//		int a;
+	//	};
+	//};
+
+	//A.cpp
+	//#include "A.h"
+	//
+	//====================
+	//#include "A.h"
+	//
+	//Bar::Foo::Foo(int a) {
+	//}
+	public void testNestedClasses() throws Exception {
+		definitionSeparate = true;
+		assertRefactoringSuccess();
+	}
+	
+	//A.h
+	//namespace ns {
+	//class Bar {
+	//	class Foo {
+	//	private:
+	//		int /*$*/a/*$$*/;
+	//	};
+	//};
+	//}
+	//====================
+	//namespace ns {
+	//class Bar {
+	//	class Foo {
+	//	public:
+	//		Foo(int a);
+	//
+	//	private:
+	//		int a;
+	//	};
+	//};
+	//}
+
+	//A.cpp
+	//#include "A.h"
+	//
+	//====================
+	//#include "A.h"
+	//
+	//ns::Bar::Foo::Foo(int a) {
+	//}
+	public void testNestedClassesInNamespace() throws Exception {
+		definitionSeparate = true;
 		assertRefactoringSuccess();
 	}
 

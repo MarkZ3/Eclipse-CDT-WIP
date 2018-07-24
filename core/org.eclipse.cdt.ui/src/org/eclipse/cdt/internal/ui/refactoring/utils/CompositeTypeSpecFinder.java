@@ -17,6 +17,8 @@ import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
 
 public final class CompositeTypeSpecFinder extends ASTVisitor {
 	private final int selectionStartOffset;
+	private int currentNodeLength = Integer.MAX_VALUE;
+	
 	IASTCompositeTypeSpecifier compositeTypeSpecifier;
 	{
 		shouldVisitDeclSpecifiers = true;
@@ -35,9 +37,11 @@ public final class CompositeTypeSpecFinder extends ASTVisitor {
 
 		if (declSpec instanceof IASTCompositeTypeSpecifier) {
 			IASTFileLocation loc = declSpec.getFileLocation();
-			if (selectionStartOffset > loc.getNodeOffset() && selectionStartOffset < loc.getNodeOffset() + loc.getNodeLength()) {
+			if ((compositeTypeSpecifier == null || selectionStartOffset > loc.getNodeOffset()
+					&& selectionStartOffset < loc.getNodeOffset() + loc.getNodeLength())
+					&& currentNodeLength > loc.getNodeLength()) {
 				compositeTypeSpecifier = (IASTCompositeTypeSpecifier) declSpec;
-				return ASTVisitor.PROCESS_ABORT;
+				currentNodeLength = loc.getNodeLength();
 			}
 		}
 

@@ -40,7 +40,6 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTParameterDeclaration;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNodeFactory;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPParameter;
@@ -79,19 +78,11 @@ public class FunctionFactory {
 	}
 
 	public static IASTFunctionDefinition getConstructorDefinition(
-			GenerateConstructorUsingFieldsContext context) {
+			GenerateConstructorUsingFieldsContext context, IASTName constructorName) {
 		IASTSimpleDeclSpecifier declSpecifier = nodeFactory.newSimpleDeclSpecifier();
 		declSpecifier.setType(IASTSimpleDeclSpecifier.t_unspecified);
 		
-		IASTName constructorName;
-		if (context.isSeparateDefinition()) {
-			constructorName = getClassname(context);
-		} else {
-			constructorName = nodeFactory.newName(context.currentClass.getName().toString().toCharArray());
-		}
-		
 		ICPPASTFunctionDeclarator declarator = getConstructorDeclarator(context, constructorName);
-	
 		
 		ICPPASTFunctionDefinition constructorDefinition = nodeFactory.newFunctionDefinition(declSpecifier, declarator, getConstructorBody(context));
 		addInitializerList(context, constructorDefinition);
@@ -328,18 +319,5 @@ public class FunctionFactory {
 		addFieldsToDeclarator(context, declarator);
 		
 		return declarator;
-	}
-
-	private static ICPPASTQualifiedName getClassname(GenerateConstructorUsingFieldsContext context) {
-		IASTNode n = context.existingFields.get(0).getFieldDeclarator().getParent();
-		while (!(n instanceof IASTCompositeTypeSpecifier)) {
-			n = n.getParent();
-		}
-		IASTCompositeTypeSpecifier comp = (IASTCompositeTypeSpecifier) n;
-
-		ICPPASTQualifiedName qname = nodeFactory.newQualifiedName();
-		qname.addName(comp.getName().copy());
-		qname.addName(comp.getName().copy());
-		return qname;
 	}
 }
