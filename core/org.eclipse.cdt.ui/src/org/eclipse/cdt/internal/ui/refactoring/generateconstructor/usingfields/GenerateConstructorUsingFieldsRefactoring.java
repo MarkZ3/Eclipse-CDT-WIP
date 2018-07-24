@@ -31,7 +31,6 @@ import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDeclarator;
-import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
@@ -94,7 +93,7 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 			IASTName constructorName =  NameHelper.createQualifiedNameFor(
 					context.currentClass.getName(), tu, context.currentClass.getFileLocation().getNodeOffset(),
 					definitionInsertLocation.getTranslationUnit(), definitionInsertLocation.getInsertPosition(), refactoringContext);
-			IASTFunctionDefinition functionDef = FunctionFactory.getConstructorDefinition(context, constructorName);
+			IASTNode functionDef = FunctionFactory.getConstructorDefinition(context, constructorName);
 			
 			IASTTranslationUnit targetUnit = refactoringContext.getAST(definitionInsertLocation.getTranslationUnit(), pm);
 			IASTNode parent = definitionInsertLocation.getParentOfNodeToInsertBefore();

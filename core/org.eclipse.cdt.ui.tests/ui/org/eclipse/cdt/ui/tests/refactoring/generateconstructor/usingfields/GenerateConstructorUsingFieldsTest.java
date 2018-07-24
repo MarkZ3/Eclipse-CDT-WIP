@@ -212,4 +212,32 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 		assertRefactoringSuccess();
 	}
 
+	//A.h
+	//namespace ns {
+	//template<class A, class B>
+	//class Foo {
+	//public:
+	//	int /*$*/a/*$$*/;
+	//};
+	//}
+	//====================
+	//namespace ns {
+	//template<class A, class B>
+	//class Foo {
+	//public:
+	//	int a;
+	//
+	//	Foo(int a);
+	//};
+	//}
+	//
+	//template<class A, class B>
+	//ns::Foo<A, B>::Foo(int a) {
+	//}
+	public void testTemplate() throws Exception {
+		definitionSeparate = true;
+		expectedFinalInfos = 1;
+		assertRefactoringSuccess();
+	}
+
 }

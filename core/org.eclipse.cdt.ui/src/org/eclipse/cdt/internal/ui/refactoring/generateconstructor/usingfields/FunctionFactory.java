@@ -19,13 +19,13 @@ import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTExpressionStatement;
-import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTInitializerClause;
 import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNamedTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
+import org.eclipse.cdt.core.dom.ast.IASTNode.CopyStyle;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
@@ -40,6 +40,8 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTParameterDeclaration;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateDeclaration;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNodeFactory;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPParameter;
@@ -48,6 +50,7 @@ import org.eclipse.cdt.core.parser.Keywords;
 
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTConstructorChainInitializer;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPParameter;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 import org.eclipse.cdt.internal.ui.refactoring.utils.NameHelper;
 
@@ -77,7 +80,7 @@ public class FunctionFactory {
 		return declarator;
 	}
 
-	public static IASTFunctionDefinition getConstructorDefinition(
+	public static IASTNode getConstructorDefinition(
 			GenerateConstructorUsingFieldsContext context, IASTName constructorName) {
 		IASTSimpleDeclSpecifier declSpecifier = nodeFactory.newSimpleDeclSpecifier();
 		declSpecifier.setType(IASTSimpleDeclSpecifier.t_unspecified);
@@ -86,6 +89,19 @@ public class FunctionFactory {
 		
 		ICPPASTFunctionDefinition constructorDefinition = nodeFactory.newFunctionDefinition(declSpecifier, declarator, getConstructorBody(context));
 		addInitializerList(context, constructorDefinition);
+		
+		if (context.isSeparateDefinition()) {
+			ICPPASTTemplateDeclaration templateDeclaration = CPPVisitor.findAncestorWithType(
+					context.currentClass, ICPPASTTemplateDeclaration.class);
+			if (templateDeclaration != null) {
+				ICPPASTTemplateDeclaration newTemplateDeclaration = nodeFactory.newTemplateDeclaration(constructorDefinition);
+				for (ICPPASTTemplateParameter templateParameter : templateDeclaration.getTemplateParameters()) {
+					newTemplateDeclaration.addTemplateParameter(templateParameter.copy(CopyStyle.withLocations));
+				}
+
+				return newTemplateDeclaration;
+			}
+		}
 
 		return constructorDefinition;
 	}
