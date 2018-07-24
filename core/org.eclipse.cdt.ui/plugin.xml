@@ -1923,6 +1923,13 @@
                style="pulldown">
          </action>
 <!-- Generate Group -->
+         <action
+               definitionId="org.eclipse.cdt.ui.refactor.generate.constructor.using.fields"
+               label="%Refactoring.generateConstructorUsingFields.label"
+               menubarPath="org.eclipse.jdt.ui.source.menu/generateGroup"
+               id="org.eclipse.cdt.ui.actions.GenerateConstructorUsingFields"
+               retarget="true">
+         </action>
         <action
                definitionId="org.eclipse.cdt.ui.refactor.getters.and.setters"
                label="%Refactoring.gettersAndSetters.label"
@@ -3240,10 +3247,15 @@
             categoryId="org.eclipse.cdt.ui.category.source"
             id="org.eclipse.cdt.ui.refactor.implement.method"/>
       <command
-      		name="%ActionDefinition.gettersAndSetters.name"
-            description="%ActionDefinition.gettersAndSetters.description"
+      		name="%ActionDefinition.generateConstructorUsingFields.name"
+            description="%ActionDefinition.generateConstructorUsingFields.description"
 	        categoryId="org.eclipse.cdt.ui.category.source"
-	        id="org.eclipse.cdt.ui.refactor.getters.and.setters"/>
+	        id="org.eclipse.cdt.ui.refactor.generate.constructor.using.fields"/>
+	  <command
+            name="%ActionDefinition.gettersAndSetters.name"
+            description="%ActionDefinition.gettersAndSetters.description"
+            categoryId="org.eclipse.cdt.ui.category.source"
+            id="org.eclipse.cdt.ui.refactor.getters.and.setters"/>
       <command
       		name="%ActionDefinition.overrideMethods.name"
             description="%ActionDefinition.overrideMethods.description"

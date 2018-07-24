@@ -100,4 +100,54 @@ public class NameHelper {
 		}
 		return ""; //$NON-NLS-1$
 	}
+	
+	/**
+	 * Returns the trimmed field name. Leading and trailing non-letters-digits are trimmed.
+	 * If the first letter-digit is in lower case and the next is in upper case, 
+	 * the first letter is trimmed.
+	 * 
+	 * @param fieldName Complete, unmodified name of the field to trim
+	 * @return Trimmed field
+	 */
+	public static String trimFieldName(String fieldName){
+		char[] letters = fieldName.toCharArray();
+		int start = 0;
+		int end = letters.length - 1;
+		try {
+			// Trim, non-letters at the beginning
+			while (!Character.isLetterOrDigit(letters[start]) && start < end) {
+				++start;
+			}
+			
+			// If the next character is not a letter or digit, 
+			// look ahead because the first letter might not be needed
+			if (start + 1 <= end
+					&& !Character.isLetterOrDigit(letters[start + 1])) {
+				int lookAhead = 1;
+				while (start + lookAhead <= end) {
+					// Only change the start if something is found after the non-letters
+					if (Character.isLetterOrDigit(letters[start + lookAhead])) {
+						start += lookAhead;
+						break;
+					}
+					lookAhead++;
+				}
+				
+			}
+			// Sometimes, a one letter lower case prefix is used to add some info
+			// Example: mMyMember, sMyStatic
+			// Trim the first letter
+			else if (!Character.isUpperCase(letters[start]) && start + 1 <= end && Character.isUpperCase(letters[start + 1])) {
+				start++;
+			}
+			
+			// Trim, non-letters at the end
+			while ((!Character.isLetter(letters[end]) && !Character.isDigit(letters[end])) && start < end) {
+				--end;
+			}
+		} catch (IndexOutOfBoundsException e) {
+		}	
+		
+		return new String(letters, start, end - start + 1);
+	}
 }
