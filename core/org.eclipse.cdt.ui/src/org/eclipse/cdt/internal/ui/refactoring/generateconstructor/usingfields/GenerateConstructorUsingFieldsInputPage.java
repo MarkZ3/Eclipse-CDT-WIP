@@ -112,25 +112,11 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 		variableSelectionView.setLabelProvider(labelProvider);
 	
 		variableSelectionView.setInput(""); //$NON-NLS-1$
-		
-		
-		/*if (context.selectedName != null) {
-			String rawSignature = context.selectedName.getRawSignature();
-			for (Object obj : variableSelectionView.getVisibleExpandedElements()) {
-				if (obj instanceof FieldWrapper) {
-					if (obj.toString().contains(rawSignature)) {
-						variableSelectionView.setSubtreeChecked(obj, true);
-					}
-				}
-			}
-		}*/
-		/*Set<GenerateConstructorInsertEditProvider> checkedFunctions = context.selectedFunctions;
-		for (Object currentElement : variableSelectionView.getCheckedElements()) {
-			if (currentElement instanceof GenerateConstructorInsertEditProvider) {
-				GenerateConstructorInsertEditProvider editProvider = (GenerateConstructorInsertEditProvider) currentElement;
-				checkedFunctions.add(editProvider);
-			}
-		}*/
+
+		for (GenerateConstructorInsertEditProvider obj : context.getSelectedFieldsInOrder()) {
+			variableSelectionView.setSubtreeChecked(obj, true);
+		}
+
 		variableSelectionView.addCheckStateListener(new ICheckStateListener() {
 	
 			@Override

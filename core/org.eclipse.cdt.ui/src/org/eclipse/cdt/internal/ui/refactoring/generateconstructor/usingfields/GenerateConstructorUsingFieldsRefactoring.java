@@ -31,6 +31,7 @@ import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
+import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
@@ -146,6 +147,13 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 
 			if(context.existingFields.size() == 0) {
 				initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoFields);
+			}
+
+			List<IASTName> allMarkedNames = findAllMarkedNames(refactoringContext.getAST(tu, pm));
+			for (GenerateConstructorInsertEditProvider a : context.existingFields) {
+				if (allMarkedNames.contains(a.getFieldDeclarator().getName())) {
+					a.setSelected(true);
+				}
 			}
 		}	
 		return initStatus;
