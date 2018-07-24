@@ -20,10 +20,9 @@ public class GenerateConstructorInsertEditProvider  implements Comparable<Genera
 
 
 	private int visibility;
-
 	private IASTDeclarator fieldDeclarator;
-
 	private IASTDeclSpecifier fieldDeclSpecifier;
+	private boolean isSelected = false;
 	
 	public GenerateConstructorInsertEditProvider(IASTDeclSpecifier declSpecifier, IASTDeclarator declarator, int visibility) {
 		super();
@@ -62,6 +61,14 @@ public class GenerateConstructorInsertEditProvider  implements Comparable<Genera
 	
 	public int getVisibility() {
 		return visibility;
+	}
+
+	public boolean isSelected() {
+		return isSelected;
+	}
+
+	public void setSelected(boolean isSelected) {
+		this.isSelected = isSelected;
 	}
 
 }

@@ -25,9 +25,8 @@ public class GenerateConstructorUsingFieldsContext implements ITreeContentProvid
 	ICPPASTCompositeTypeSpecifier currentClass = null;
 	
 	public ArrayList<ICPPASTBaseSpecifier> baseClasses = new ArrayList<ICPPASTBaseSpecifier>();
-	public HashMap<ICPPASTBaseSpecifier, ArrayList<ICPPConstructor>> baseClassesConstrutors = new HashMap<ICPPASTBaseSpecifier, ArrayList<ICPPConstructor>>();
-	public HashMap<ICPPASTBaseSpecifier, ICPPConstructor> selectedbaseClassesConstrutors = new HashMap<ICPPASTBaseSpecifier, ICPPConstructor>();
-	public ArrayList<GenerateConstructorInsertEditProvider> selectedFields = new ArrayList<GenerateConstructorInsertEditProvider>();
+	public HashMap<ICPPASTBaseSpecifier, ArrayList<ICPPConstructor>> baseClassToConstrutors = new HashMap<ICPPASTBaseSpecifier, ArrayList<ICPPConstructor>>();
+	public HashMap<ICPPASTBaseSpecifier, ICPPConstructor> baseClassToSelectedConstrutor = new HashMap<ICPPASTBaseSpecifier, ICPPConstructor>();
 	public ArrayList<GenerateConstructorInsertEditProvider> treeFields = new ArrayList<GenerateConstructorInsertEditProvider>();
 	ArrayList<GenerateConstructorInsertEditProvider> existingFields = new ArrayList<GenerateConstructorInsertEditProvider>();
 
@@ -80,7 +79,7 @@ public class GenerateConstructorUsingFieldsContext implements ITreeContentProvid
 		ArrayList<GenerateConstructorInsertEditProvider> selectedFieldsInOrder = new ArrayList<GenerateConstructorInsertEditProvider>();
 		
 		for(GenerateConstructorInsertEditProvider treeField : treeFields) {
-			if(selectedFields.contains(treeField)) {
+			if(treeField.isSelected()) {
 				selectedFieldsInOrder.add(treeField);
 			}
 		}

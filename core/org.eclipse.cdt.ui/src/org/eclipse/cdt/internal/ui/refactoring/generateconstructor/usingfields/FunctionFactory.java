@@ -116,7 +116,7 @@ public class FunctionFactory {
 		
 		// Base classes
 		for (ICPPASTBaseSpecifier baseClass : context.baseClasses) {
-			ICPPConstructor baseConstructor = context.selectedbaseClassesConstrutors.get(baseClass);
+			ICPPConstructor baseConstructor = context.baseClassToSelectedConstrutor.get(baseClass);
 			if (baseConstructor != null) {
 					CPPASTConstructorChainInitializer chainInit = new CPPASTConstructorChainInitializer();
 					chainInit.setMemberInitializerId(baseClass.getName().copy());
@@ -203,7 +203,7 @@ public class FunctionFactory {
 		
 		//Base constructor params
 		for (ICPPASTBaseSpecifier baseClass : context.baseClasses) {
-			ICPPConstructor baseConstructor = context.selectedbaseClassesConstrutors.get(baseClass);
+			ICPPConstructor baseConstructor = context.baseClassToSelectedConstrutor.get(baseClass);
 			if (baseConstructor != null) {
 					for (ICPPParameter baseConstrutorParam : baseConstructor.getParameters()) {
 						CPPParameter paramTest = (CPPParameter) baseConstrutorParam;

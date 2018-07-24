@@ -230,7 +230,7 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 					constructors.add(constuctor);
 				}
 			}
-			context.baseClassesConstrutors.put(base, constructors);
+			context.baseClassToConstrutors.put(base, constructors);
 		}
 	}
 	
