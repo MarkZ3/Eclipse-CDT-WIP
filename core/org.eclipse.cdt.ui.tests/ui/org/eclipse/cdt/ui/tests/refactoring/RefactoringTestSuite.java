@@ -20,6 +20,7 @@ package org.eclipse.cdt.ui.tests.refactoring;
 import org.eclipse.cdt.ui.tests.refactoring.extractconstant.ExtractConstantRefactoringTest;
 import org.eclipse.cdt.ui.tests.refactoring.extractfunction.ExtractFunctionRefactoringTest;
 import org.eclipse.cdt.ui.tests.refactoring.extractlocalvariable.ExtractLocalVariableRefactoringTest;
+import org.eclipse.cdt.ui.tests.refactoring.generateconstructor.usingfields.GenerateConstructorUsingFieldsTest;
 import org.eclipse.cdt.ui.tests.refactoring.gettersandsetters.GenerateGettersAndSettersTest;
 import org.eclipse.cdt.ui.tests.refactoring.hidemethod.HideMethodRefactoringTest;
 import org.eclipse.cdt.ui.tests.refactoring.implementmethod.ImplementMethodRefactoringTest;
@@ -38,7 +39,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({ UtilTestSuite.class, RenameRegressionTests.class, ExtractFunctionRefactoringTest.class,
 		ExtractConstantRefactoringTest.class, HideMethodRefactoringTest.class, GenerateGettersAndSettersTest.class,
 		ImplementMethodRefactoringTest.class, ExtractLocalVariableRefactoringTest.class, ToggleRefactoringTest.class,
-		IncludesTestSuite.class, OverrideMethodsRefactoringTest.class
+		IncludesTestSuite.class, OverrideMethodsRefactoringTest.class, GenerateConstructorUsingFieldsTest.class
 
 })
 public class RefactoringTestSuite {

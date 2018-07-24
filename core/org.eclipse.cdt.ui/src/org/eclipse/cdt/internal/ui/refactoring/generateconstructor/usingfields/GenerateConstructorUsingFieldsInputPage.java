@@ -293,15 +293,15 @@ public class GenerateConstructorUsingFieldsInputPage extends UserInputWizardPage
 			table.setEnabled(false);
 		}
 		
-		final Button separateDefinition = new Button(optionComposite, SWT.CHECK);
-		separateDefinition.setText(Messages.GenerateConstructorUsingFieldsInputPage_SeparateDefinition);
+		final Button definitionSeparate = new Button(optionComposite, SWT.CHECK);
+		definitionSeparate.setText(Messages.GenerateConstructorUsingFieldsInputPage_SeparateDefinition);
 		gd = new GridData(GridData.GRAB_HORIZONTAL);
 		gd.horizontalSpan = 2;
-		separateDefinition.setLayoutData(gd);
-		separateDefinition.addSelectionListener(new SelectionAdapter() {
+		definitionSeparate.setLayoutData(gd);
+		definitionSeparate.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				context.setSeparateDefinition(separateDefinition.getSelection());
+				context.setDefinitionSeparate(definitionSeparate.getSelection());
 			}
 		});
 		
