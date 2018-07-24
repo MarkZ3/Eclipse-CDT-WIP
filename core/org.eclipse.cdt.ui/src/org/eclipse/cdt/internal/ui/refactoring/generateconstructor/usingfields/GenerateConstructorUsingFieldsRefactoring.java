@@ -29,7 +29,6 @@ import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
-import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -49,45 +48,17 @@ import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ContainerNode;
 
 import org.eclipse.cdt.internal.ui.refactoring.CRefactoring;
 import org.eclipse.cdt.internal.ui.refactoring.ClassMemberInserter;
-import org.eclipse.cdt.internal.ui.refactoring.Container;
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
 import org.eclipse.cdt.internal.ui.refactoring.implementmethod.InsertLocation;
 import org.eclipse.cdt.internal.ui.refactoring.implementmethod.MethodDefinitionInsertLocationFinder;
 import org.eclipse.cdt.internal.ui.refactoring.utils.Checks;
+import org.eclipse.cdt.internal.ui.refactoring.utils.CompositeTypeSpecFinder;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.VisibilityEnum;
 
 public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 
 	private ICPPASTVisibilityLabel currentVisibility = null;
-	
-	private final class CompositeTypeSpecFinder extends ASTVisitor {
-		private final int start;
-		private final Container<IASTCompositeTypeSpecifier> container;
-		{
-			shouldVisitDeclSpecifiers = true;
-		}
-
-		private CompositeTypeSpecFinder(int start, Container<IASTCompositeTypeSpecifier> container) {
-			this.start = start;
-			this.container = container;
-		}
-
-		@Override
-		public int visit(IASTDeclSpecifier declSpec) {
-			
-			if (declSpec instanceof IASTCompositeTypeSpecifier) {
-				IASTFileLocation loc = declSpec.getFileLocation();
-				if(start > loc.getNodeOffset() && start < loc.getNodeOffset()+ loc.getNodeLength()) {
-					container.setObject((IASTCompositeTypeSpecifier) declSpec);
-					return ASTVisitor.PROCESS_ABORT;
-				}
-			}
-			
-			return super.visit(declSpec);
-		}
-		
-	}
 	
 	private static final String MEMBER_DECLARATION = "MEMBER_DECLARATION"; //$NON-NLS-1$
 	
@@ -109,26 +80,6 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 	@Override
 	protected void collectModifications(IProgressMonitor pm, ModificationCollector collector)
 			throws CoreException, OperationCanceledException {
-//		refactoringContext.getAST(tu, pm).accept(new 
-//				
-//				ASTVisitor() {
-//			{
-//				this.shouldVisitDeclSpecifiers = true;
-//			}
-//			
-//			@Override
-//			public int visit(IASTDeclSpecifier declSpec) {
-//				
-//				if (declSpec instanceof ICPPASTCompositeTypeSpecifier) {
-//					if(declSpec.toString().equals(compositeTypeSpecifier.toString())){
-//						context.currentClass = (ICPPASTCompositeTypeSpecifier) declSpec;
-//						return ASTVisitor.PROCESS_ABORT;
-//					}
-//				}
-//				
-//				return super.visit(declSpec);
-//			}
-//		});
 		IASTNode constructorNode = null;
 		if(!context.isSeparateDefinition()) {
 			constructorNode = FunctionFactory.getConstructorDefinition(context);
@@ -215,11 +166,10 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 		IASTTranslationUnit astRoot = refactoringContext.getAST(tu, null);
 		
 		final int start = selectedRegion.getOffset();
-		Container<IASTCompositeTypeSpecifier> container = new Container<IASTCompositeTypeSpecifier>();
+		CompositeTypeSpecFinder finder = new CompositeTypeSpecFinder(start);
+		astRoot.accept(finder);
 		
-		astRoot.accept(new CompositeTypeSpecFinder(start, container));
-		
-		IASTCompositeTypeSpecifier composite = container.getObject();
+		IASTCompositeTypeSpecifier composite = finder.getCompositeTypeSpecifier();
 		if(composite instanceof ICPPASTCompositeTypeSpecifier){
 			return (ICPPASTCompositeTypeSpecifier)composite;
 		}
