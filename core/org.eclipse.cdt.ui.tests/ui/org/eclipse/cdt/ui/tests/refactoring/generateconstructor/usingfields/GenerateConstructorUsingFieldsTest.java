@@ -240,4 +240,28 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 		assertRefactoringSuccess();
 	}
 
+	//A.h
+	//class Base {};
+	//class Person : public Base {
+	//private:
+	//	/*$*/int a, b;/*$$*/
+	//	int c;
+	//};
+	//
+	//====================
+	//class Base {};
+	//class Person : public Base {
+	//public:
+	//	Person(int a, int b) {
+	//	}
+	//
+	//private:
+	//	int a, b;
+	//	int c;
+	//};
+	//
+	public void testBaseClass() throws Exception {
+		assertRefactoringSuccess();
+	}
+
 }
