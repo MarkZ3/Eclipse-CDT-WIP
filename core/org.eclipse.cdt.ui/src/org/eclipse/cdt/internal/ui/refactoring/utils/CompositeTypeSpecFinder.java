@@ -15,10 +15,13 @@ import org.eclipse.cdt.core.dom.ast.IASTCompositeTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
 
+/**
+ * Finds the inner-most CompositeTypeSpecifier containing a given offset.
+ */
 public final class CompositeTypeSpecFinder extends ASTVisitor {
 	private final int selectionStartOffset;
 	private int currentNodeLength = Integer.MAX_VALUE;
-	
+
 	IASTCompositeTypeSpecifier compositeTypeSpecifier;
 	{
 		shouldVisitDeclSpecifiers = true;
@@ -27,7 +30,7 @@ public final class CompositeTypeSpecFinder extends ASTVisitor {
 	public CompositeTypeSpecFinder(int selectionStartOffset) {
 		this.selectionStartOffset = selectionStartOffset;
 	}
-	
+
 	public IASTCompositeTypeSpecifier getCompositeTypeSpecifier() {
 		return compositeTypeSpecifier;
 	}
@@ -37,8 +40,8 @@ public final class CompositeTypeSpecFinder extends ASTVisitor {
 
 		if (declSpec instanceof IASTCompositeTypeSpecifier) {
 			IASTFileLocation loc = declSpec.getFileLocation();
-			if ((compositeTypeSpecifier == null || selectionStartOffset > loc.getNodeOffset()
-					&& selectionStartOffset < loc.getNodeOffset() + loc.getNodeLength())
+			if (selectionStartOffset > loc.getNodeOffset()
+					&& selectionStartOffset < loc.getNodeOffset() + loc.getNodeLength()
 					&& currentNodeLength > loc.getNodeLength()) {
 				compositeTypeSpecifier = (IASTCompositeTypeSpecifier) declSpec;
 				currentNodeLength = loc.getNodeLength();
