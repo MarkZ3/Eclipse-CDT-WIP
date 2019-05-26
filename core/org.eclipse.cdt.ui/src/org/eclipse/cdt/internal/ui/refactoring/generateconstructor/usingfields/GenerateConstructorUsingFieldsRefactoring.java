@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2013 Marc-Andre Laperle and others.
+ * Copyright (c) 2010, 2019 Marc-Andre Laperle and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,16 +13,6 @@ package org.eclipse.cdt.internal.ui.refactoring.generateconstructor.usingfields;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.SubMonitor;
-import org.eclipse.jface.viewers.ISelection;
-import org.eclipse.ltk.core.refactoring.RefactoringDescriptor;
-import org.eclipse.ltk.core.refactoring.RefactoringStatus;
-import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
-
 import org.eclipse.cdt.core.dom.ast.ASTNodeFactoryFactory;
 import org.eclipse.cdt.core.dom.ast.ASTNodeProperty;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
@@ -35,18 +25,12 @@ import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
-import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCompositeTypeSpecifier;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCompositeTypeSpecifier.ICPPASTBaseSpecifier;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTVisibilityLabel;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.cdt.core.model.ICElement;
 import org.eclipse.cdt.core.model.ICProject;
-
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPClassType;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ContainerNode;
-
 import org.eclipse.cdt.internal.ui.refactoring.CRefactoring;
 import org.eclipse.cdt.internal.ui.refactoring.ClassMemberInserter;
 import org.eclipse.cdt.internal.ui.refactoring.ModificationCollector;
@@ -57,19 +41,27 @@ import org.eclipse.cdt.internal.ui.refactoring.utils.CompositeTypeSpecFinder;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NameHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.NodeHelper;
 import org.eclipse.cdt.internal.ui.refactoring.utils.VisibilityEnum;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.SubMonitor;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.ltk.core.refactoring.RefactoringDescriptor;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
 
 public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 
 	private ICPPASTVisibilityLabel currentVisibility = null;
-	
+
 	private static final String MEMBER_DECLARATION = "MEMBER_DECLARATION"; //$NON-NLS-1$
-	
+
 	private GenerateConstructorUsingFieldsContext context;
 
 	private InsertLocation definitionInsertLocation;
-	
-	public GenerateConstructorUsingFieldsRefactoring(ICElement element, ISelection selection,
-			ICProject proj) {
+
+	public GenerateConstructorUsingFieldsRefactoring(ICElement element, ISelection selection, ICProject proj) {
 		super(element, selection, proj);
 		context = new GenerateConstructorUsingFieldsContext();
 	}
@@ -83,46 +75,50 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 	protected void collectModifications(IProgressMonitor pm, ModificationCollector collector)
 			throws CoreException, OperationCanceledException {
 		IASTNode constructorMemberNode;
-		
-		if(!context.isSeparateDefinition()) {
-			IASTName constructorName = ASTNodeFactoryFactory.getDefaultCPPNodeFactory().newName(context.currentClass.getName().toString().toCharArray());
+
+		if (!context.isSeparateDefinition()) {
+			IASTName constructorName = ASTNodeFactoryFactory.getDefaultCPPNodeFactory()
+					.newName(context.currentClass.getName().toString().toCharArray());
 			constructorMemberNode = FunctionFactory.getConstructorDefinition(context, constructorName);
 		} else {
 			constructorMemberNode = FunctionFactory.getConstructorDeclaration(context);
 
-			IASTName constructorName =  NameHelper.createQualifiedNameFor(
-					context.currentClass.getName(), tu, context.currentClass.getFileLocation().getNodeOffset(),
-					definitionInsertLocation.getTranslationUnit(), definitionInsertLocation.getInsertPosition(), refactoringContext);
+			IASTName constructorName = NameHelper.createQualifiedNameFor(context.currentClass.getName(), tu,
+					context.currentClass.getFileLocation().getNodeOffset(),
+					definitionInsertLocation.getTranslationUnit(), definitionInsertLocation.getInsertPosition(),
+					refactoringContext);
 			IASTNode functionDef = FunctionFactory.getConstructorDefinition(context, constructorName);
-			
-			IASTTranslationUnit targetUnit = refactoringContext.getAST(definitionInsertLocation.getTranslationUnit(), pm);
+
+			IASTTranslationUnit targetUnit = refactoringContext.getAST(definitionInsertLocation.getTranslationUnit(),
+					pm);
 			IASTNode parent = definitionInsertLocation.getParentOfNodeToInsertBefore();
 			ASTRewrite rewrite = collector.rewriterForTranslationUnit(targetUnit);
 			IASTNode nodeToInsertBefore = definitionInsertLocation.getNodeToInsertBefore();
-			
+
 			ContainerNode cont = new ContainerNode();
 			cont.addNode(functionDef);
 			rewrite = rewrite.insertBefore(parent, nodeToInsertBefore, cont, null);
 		}
-		
-		ClassMemberInserter.createChange(context.currentClass, VisibilityEnum.v_public,
-				constructorMemberNode, false, collector);
+
+		ClassMemberInserter.createChange(context.currentClass, VisibilityEnum.v_public, constructorMemberNode, false,
+				collector);
 	}
-	
+
 	private void findDefinitionInsertLocation(IProgressMonitor subProgressMonitor) throws CoreException {
 		if (definitionInsertLocation != null) {
 			return;
 		}
-		
+
 		IASTDeclarator decl = context.existingFields.get(0).getFieldDeclarator();
 
 		MethodDefinitionInsertLocationFinder methodDefinitionInsertLocationFinder = new MethodDefinitionInsertLocationFinder();
-		InsertLocation insertLocation = methodDefinitionInsertLocationFinder.find(tu, decl.getFileLocation(), decl.getParent(), refactoringContext, subProgressMonitor);
+		InsertLocation insertLocation = methodDefinitionInsertLocationFinder.find(tu, decl.getFileLocation(),
+				decl.getParent(), refactoringContext, subProgressMonitor);
 
 		if (insertLocation.getTranslationUnit() == null || NodeHelper.isContainedInTemplateDeclaration(decl)) {
 			insertLocation.setNodeToInsertAfter(NodeHelper.findTopLevelParent(decl), tu);
 		}
-		
+
 		definitionInsertLocation = insertLocation;
 	}
 
@@ -131,26 +127,24 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 	}
 
 	@Override
-	public RefactoringStatus checkInitialConditions(IProgressMonitor pm) throws CoreException,
-			OperationCanceledException {
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
 		SubMonitor sm = SubMonitor.convert(pm, 10);
 
 		RefactoringStatus status = super.checkInitialConditions(sm.newChild(6));
-		if(status.hasError()) {
+		if (status.hasError()) {
 			return status;
 		}
 
-		if(!initStatus.hasFatalError()) {
-
+		if (!initStatus.hasFatalError()) {
 			context.currentClass = findCurrentCompositeTypeSpecifier();
 			if (context.currentClass != null) {
-				collectBaseContructors();
 				collectFieldDeclarations();
 			} else {
 				initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoCassDefFound);
 			}
 
-			if(context.existingFields.size() == 0) {
+			if (context.existingFields.size() == 0) {
 				initStatus.addFatalError(Messages.GenerateConstructorUsingFields_NoFields);
 			}
 
@@ -160,25 +154,26 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 					a.setSelected(true);
 				}
 			}
-		}	
+		}
 		return initStatus;
 	}
-	
-	private ICPPASTCompositeTypeSpecifier findCurrentCompositeTypeSpecifier() throws OperationCanceledException, CoreException {
+
+	private ICPPASTCompositeTypeSpecifier findCurrentCompositeTypeSpecifier()
+			throws OperationCanceledException, CoreException {
 		IASTTranslationUnit astRoot = refactoringContext.getAST(tu, null);
-		
+
 		final int start = selectedRegion.getOffset();
 		CompositeTypeSpecFinder finder = new CompositeTypeSpecFinder(start);
 		astRoot.accept(finder);
-		
+
 		IASTCompositeTypeSpecifier composite = finder.getCompositeTypeSpecifier();
-		if(composite instanceof ICPPASTCompositeTypeSpecifier){
-			return (ICPPASTCompositeTypeSpecifier)composite;
+		if (composite instanceof ICPPASTCompositeTypeSpecifier) {
+			return (ICPPASTCompositeTypeSpecifier) composite;
 		}
-		
+
 		return null;
 	}
-	
+
 	private void collectFieldDeclarations() {
 		context.currentClass.accept(new ASTVisitor() {
 
@@ -188,7 +183,7 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 
 			@Override
 			public int visit(IASTDeclaration declaration) {
-				if(declaration instanceof ICPPASTVisibilityLabel) {
+				if (declaration instanceof ICPPASTVisibilityLabel) {
 					currentVisibility = (ICPPASTVisibilityLabel) declaration;
 				}
 				if (declaration instanceof IASTSimpleDeclaration) {
@@ -196,16 +191,18 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 					ASTNodeProperty props = fieldDeclaration.getPropertyInParent();
 					if (props.getName().contains(MEMBER_DECLARATION)) {
 						final IASTDeclarator[] declarators = fieldDeclaration.getDeclarators();
-						for(IASTDeclarator declarator : declarators) {
+						for (IASTDeclarator declarator : declarators) {
 							// TODO: don't use negation
 							IASTDeclSpecifier declSpecifier = fieldDeclaration.getDeclSpecifier();
-							if (! (declarator instanceof IASTFunctionDeclarator) && declSpecifier.getStorageClass() != IASTDeclSpecifier.sc_static)  {
-								if(currentVisibility == null) {
-									GenerateConstructorInsertEditProvider generateConstructorInsertEditProvider = new GenerateConstructorInsertEditProvider(declSpecifier, declarator, ICPPASTVisibilityLabel.v_private);
+							if (!(declarator instanceof IASTFunctionDeclarator)
+									&& declSpecifier.getStorageClass() != IASTDeclSpecifier.sc_static) {
+								if (currentVisibility == null) {
+									GenerateConstructorInsertEditProvider generateConstructorInsertEditProvider = new GenerateConstructorInsertEditProvider(
+											declSpecifier, declarator, ICPPASTVisibilityLabel.v_private);
 									context.existingFields.add(generateConstructorInsertEditProvider);
-								}
-								else {
-									GenerateConstructorInsertEditProvider generateConstructorInsertEditProvider = new GenerateConstructorInsertEditProvider(declSpecifier, declarator, currentVisibility.getVisibility());
+								} else {
+									GenerateConstructorInsertEditProvider generateConstructorInsertEditProvider = new GenerateConstructorInsertEditProvider(
+											declSpecifier, declarator, currentVisibility.getVisibility());
 									context.existingFields.add(generateConstructorInsertEditProvider);
 								}
 							}
@@ -215,29 +212,12 @@ public class GenerateConstructorUsingFieldsRefactoring extends CRefactoring {
 				return super.visit(declaration);
 			}
 		});
-		
+
 		context.treeFields.addAll(context.existingFields);
 	}
 
-	private void collectBaseContructors() {
-		// find base constructors
-		ICPPASTBaseSpecifier[] bases = context.currentClass.getBaseSpecifiers();
-		for(ICPPASTBaseSpecifier base : bases) {
-			context.baseClasses.add(base);
-			IBinding binding = base.getName().resolveBinding();
-			ArrayList<ICPPConstructor> constructors = new ArrayList<ICPPConstructor>();
-			if(binding instanceof CPPClassType){
-				CPPClassType classType = (CPPClassType)binding;
-				for(ICPPConstructor constuctor : classType.getConstructors()) {
-					constructors.add(constuctor);
-				}
-			}
-			context.baseClassToConstrutors.put(base, constructors);
-		}
-	}
-	
 	private IFile[] getAllFilesToModify() {
-		List<IFile> files = new ArrayList<IFile>(2);
+		List<IFile> files = new ArrayList<>(2);
 		IFile file = (IFile) tu.getResource();
 		if (file != null) {
 			files.add(file);

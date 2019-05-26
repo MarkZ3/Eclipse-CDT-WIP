@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013 Marc-Andre Laperle and others.
+ * Copyright (c) 2013, 2019 Marc-Andre Laperle and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,21 +10,18 @@
  *******************************************************************************/
 package org.eclipse.cdt.ui.tests.refactoring.generateconstructor.usingfields;
 
-import junit.framework.Test;
-
-import org.eclipse.ltk.core.refactoring.Refactoring;
-
-import org.eclipse.cdt.ui.PreferenceConstants;
-import org.eclipse.cdt.ui.tests.refactoring.RefactoringTestBase;
-
 import org.eclipse.cdt.internal.ui.refactoring.generateconstructor.usingfields.GenerateConstructorUsingFieldsContext;
 import org.eclipse.cdt.internal.ui.refactoring.generateconstructor.usingfields.GenerateConstructorUsingFieldsRefactoring;
+import org.eclipse.cdt.ui.PreferenceConstants;
+import org.eclipse.cdt.ui.tests.refactoring.RefactoringTestBase;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+
+import junit.framework.Test;
 
 public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 
 	private String[] selectedFields;
 	private boolean definitionSeparate = false;
-	private boolean initializeMembers = false;
 	private GenerateConstructorUsingFieldsRefactoring refactoring;
 
 	public static Test suite() {
@@ -41,7 +38,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 				getCProject());
 		return refactoring;
 	}
-	
+
 	@Override
 	protected void simulateUserInput() {
 		GenerateConstructorUsingFieldsContext context = refactoring.getContext();
@@ -54,7 +51,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 
 		context.setDefinitionSeparate(definitionSeparate);
 	}
-	
+
 	//A.h
 	//#ifndef A_H_
 	//#define A_H_
@@ -92,7 +89,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 		selectedFields = new String[] { "a" };
 		assertRefactoringSuccess();
 	}
-	
+
 	//A.h
 	//class Person {
 	//private:
@@ -103,7 +100,8 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 	//====================
 	//class Person {
 	//public:
-	//	Person(int a, int b) {
+	//	Person(int _a, int _b) :
+	//			a(_a), b(_b) {
 	//	}
 	//
 	//private:
@@ -114,7 +112,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 	public void testSelection() throws Exception {
 		assertRefactoringSuccess();
 	}
-	
+
 	//A.h
 	//namespace ns {
 	//class Foo {
@@ -145,7 +143,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 		definitionSeparate = true;
 		assertRefactoringSuccess();
 	}
-	
+
 	//A.h
 	//class Bar {
 	//	class Foo {
@@ -176,7 +174,7 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 		definitionSeparate = true;
 		assertRefactoringSuccess();
 	}
-	
+
 	//A.h
 	//namespace ns {
 	//class Bar {
@@ -252,7 +250,8 @@ public class GenerateConstructorUsingFieldsTest extends RefactoringTestBase {
 	//class Base {};
 	//class Person : public Base {
 	//public:
-	//	Person(int a, int b) {
+	//	Person(int _a, int _b) :
+	//			a(_a), b(_b) {
 	//	}
 	//
 	//private:
