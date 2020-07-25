@@ -197,6 +197,16 @@ public class LRUCache<K, T> implements Cloneable {
 	}
 
 	/**
+	 *
+	 * @param
+	 * @return True if the key exists, false otherwise
+	 */
+	public boolean containsKey(Object key) {
+		LRUCacheEntry<K, T> entry = fEntryTable.get(key);
+		return entry != null;
+	}
+
+	/**
 	 * Answers the value in the cache at the given key.
 	 * If the value is not in the cache, returns null
 	 *

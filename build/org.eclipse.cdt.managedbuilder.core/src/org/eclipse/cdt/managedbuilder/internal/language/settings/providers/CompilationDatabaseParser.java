@@ -278,6 +278,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 			scheduleOnWritableCfgDescription(cfgDescription);
 			return false;
 		}
+		long oldTime = System.currentTimeMillis();
 
 		if (getCompilationDataBasePathProperty().isEmpty()) {
 			throw new CoreException(new Status(Status.ERROR, ManagedBuilderCorePlugin.PLUGIN_ID,
@@ -339,6 +340,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 
 		CDBWorkingDirectoryTracker workingDirectoryTracker = new CDBWorkingDirectoryTracker();
 
+		long oldTimeParsing = System.currentTimeMillis();
 		SubMonitor parseCmdsMonitor = SubMonitor.convert(subMonitor.split(50), compileCommands.length);
 		outputParser.startup(cfgDescription, workingDirectoryTracker);
 		for (int i = 0; i < compileCommands.length; i++) {
@@ -365,6 +367,9 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 			}
 			parseCmdsMonitor.worked(1);
 		}
+		System.out.println("OutputParsertime: " + (System.currentTimeMillis() - oldTimeParsing));
+
+		outputParser.printStats();
 		LanguageSettingsStorage storage = outputParser.copyStorage();
 		SubMonitor entriesMonitor = SubMonitor.convert(subMonitor.split(5), storage.getLanguages().size());
 		entriesMonitor.subTask(Messages.CompilationDatabaseParser_ProgressApplyingEntries);
@@ -388,6 +393,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 
 		setProperty(ATTR_CDB_MODIFIED_TIME, cdbModifiedTime.toString());
 		touchProjectDes(cfgDescription.getProjectDescription());
+		System.out.println("processCompileCommandsFile " + (System.currentTimeMillis() - oldTime));
 		return true;
 	}
 

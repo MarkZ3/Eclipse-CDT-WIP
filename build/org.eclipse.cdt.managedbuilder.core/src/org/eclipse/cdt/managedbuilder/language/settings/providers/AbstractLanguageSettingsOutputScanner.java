@@ -19,6 +19,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,7 @@ import org.eclipse.cdt.core.settings.model.ICLanguageSettingEntry;
 import org.eclipse.cdt.core.settings.model.ICSettingEntry;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 import org.eclipse.cdt.internal.core.XmlUtil;
+import org.eclipse.cdt.internal.core.util.LRUCache;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuilderCorePlugin;
 import org.eclipse.cdt.utils.EFSExtensionManager;
 import org.eclipse.cdt.utils.cdtvariables.CdtVariableResolver;
@@ -85,6 +87,47 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	protected IProject currentProject = null;
 	protected IResource currentResource = null;
 	protected String currentLanguageId = null;
+
+	private LRUCache<URI, IResource[]> workspaceRootFindContainersForLocationURICache = new LRUCache<>();
+	private LRUCache<URI, IResource[]> workspaceRootFindFilesForLocationURICache = new LRUCache<>();
+
+	private static class FindMemberCacheContext {
+		ICConfigurationDescription cfgDescription = null;
+		IProject project = null;
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((cfgDescription == null) ? 0 : cfgDescription.hashCode());
+			result = prime * result + ((project == null) ? 0 : project.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			FindMemberCacheContext other = (FindMemberCacheContext) obj;
+			if (cfgDescription == null) {
+				if (other.cfgDescription != null)
+					return false;
+			} else if (!cfgDescription.equals(other.cfgDescription))
+				return false;
+			if (project == null) {
+				if (other.project != null)
+					return false;
+			} else if (!project.equals(other.project))
+				return false;
+			return true;
+		}
+	}
+
+	private HashMap<FindMemberCacheContext, LRUCache<String, IResource>> findBestFitInWorkspaceCache = new HashMap<>();
 
 	protected String parsedResourceName = null;
 	protected boolean isResolvingPaths = true;
@@ -143,6 +186,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 
 		private String parsedName;
 		private String parsedValue;
+		private Pattern pattern2;
 
 		/**
 		 * Constructor.
@@ -162,6 +206,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 			this.extraFlag = extraFlag;
 
 			this.pattern = Pattern.compile(pattern);
+			this.pattern2 = Pattern.compile("(" + patternStr + ").*");
 		}
 
 		/**
@@ -213,8 +258,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		 */
 		public boolean parseOption(String optionString) {
 			// get rid of extra text at the end (for example file name could be confused for an argument)
-			@SuppressWarnings("nls")
-			String option = optionString.replaceFirst("(" + patternStr + ").*", "$1");
+			String option = pattern2.matcher(optionString).replaceFirst("$1");
 
 			Matcher matcher = pattern.matcher(option);
 			boolean isMatch = matcher.matches();
@@ -438,6 +482,16 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		currentLanguageId = null;
 		currentResource = null;
 		cwdTracker = null;
+		//printStats();
+		workspaceRootFindContainersForLocationURICache.flush();
+		workspaceRootFindFilesForLocationURICache.flush();
+		findBestFitInWorkspaceCache.clear();
+	}
+
+	/**
+	 * @since 8.9
+	 */
+	public void printStats() {
 	}
 
 	@Override
@@ -671,15 +725,23 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	 * Find file resource in the workspace for a given URI with a preference for the resource
 	 * to reside in the given project.
 	 */
-	private static IResource findFileForLocationURI(URI uri, IProject preferredProject, boolean checkExistence) {
+	private IResource findFileForLocationURI(URI uri, IProject preferredProject, boolean checkExistence) {
 		if (!uri.isAbsolute()) {
 			// IWorkspaceRoot.findFilesForLocationURI(URI) below requires an absolute URI
 			// therefore we haven't/aren't going to find the file based on this URI.
 			return null;
 		}
 		IResource sourceFile = null;
-		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-		IResource[] resources = root.findFilesForLocationURI(uri);
+
+		IResource[] resources;
+		Object cachedVal = workspaceRootFindFilesForLocationURICache.get(uri);
+		if (cachedVal != null) {
+			resources = (IResource[]) cachedVal;
+		} else {
+			resources = ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(uri);
+			workspaceRootFindFilesForLocationURICache.put(uri, resources);
+		}
+
 		for (IResource rc : resources) {
 			if (!checkExistence || rc.isAccessible()) {
 				if (rc.getProject().equals(preferredProject)) {
@@ -698,9 +760,18 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	 * Return a resource in workspace corresponding the given folder {@link URI} preferable residing in
 	 * the provided project.
 	 */
-	private static IResource findContainerForLocationURI(URI uri, IProject preferredProject, boolean checkExistence) {
+	private IResource findContainerForLocationURI(URI uri, IProject preferredProject, boolean checkExistence) {
 		IResource resource = null;
-		IResource[] resources = ResourcesPlugin.getWorkspace().getRoot().findContainersForLocationURI(uri);
+
+		IResource[] resources;
+		Object cachedVal = workspaceRootFindContainersForLocationURICache.get(uri);
+		if (cachedVal != null) {
+			resources = (IResource[]) cachedVal;
+		} else {
+			resources = ResourcesPlugin.getWorkspace().getRoot().findContainersForLocationURI(uri);
+			workspaceRootFindContainersForLocationURICache.put(uri, resources);
+		}
+
 		for (IResource rc : resources) {
 			if ((rc instanceof IProject || rc instanceof IFolder) && (!checkExistence || rc.isAccessible())) { // treat IWorkspaceRoot as non-workspace path
 				if (rc.getProject().equals(preferredProject)) {
@@ -935,10 +1006,28 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		return paths;
 	}
 
+	private IResource getCachedBestFitInWorkspace(String parsedName) {
+		FindMemberCacheContext cacheContext = new FindMemberCacheContext();
+		cacheContext.cfgDescription = currentCfgDescription;
+		cacheContext.project = currentProject;
+		if (!findBestFitInWorkspaceCache.containsKey(cacheContext)) {
+			findBestFitInWorkspaceCache.put(cacheContext, new LRUCache<>());
+		}
+		LRUCache<String, IResource> cache = findBestFitInWorkspaceCache.get(cacheContext);
+		if (cache.containsKey(parsedName)) {
+			return (IResource) cache.get(parsedName);
+		}
+
+		IResource resource = findBestFitInWorkspace(parsedName);
+		cache.put(parsedName, resource);
+		return resource;
+	}
+
 	/**
 	 * Determine which resource in workspace is the best fit to parsedName passed.
 	 */
 	private IResource findBestFitInWorkspace(String parsedName) {
+
 		Set<String> referencedProjectsNames = new LinkedHashSet<>();
 		if (currentCfgDescription != null) {
 			Map<String, String> refs = currentCfgDescription.getReferenceInfo();
@@ -1056,10 +1145,12 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		if (entry != null) {
 			return entry;
 		}
-		entry = resolvePathEntryInWorkspaceAsBestFit(optionParser, parsedPath, flag, presentAsRelative);
+
+		entry = resolvePathEntryInWorkspaceAsBestFit(optionParser, parsedPath, flag);
 		if (entry != null) {
 			return entry;
 		}
+
 		entry = resolvePathEntryInWorkspaceToNonexistingResource(optionParser, uri, flag, presentAsRelative);
 		if (entry != null) {
 			return entry;
@@ -1125,10 +1216,10 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	 * Find a best fit for the resource in the workspace and create a language settings entry for it.
 	 */
 	private ICLanguageSettingEntry resolvePathEntryInWorkspaceAsBestFit(AbstractOptionParser optionParser,
-			String parsedPath, int flag, boolean isRelative) {
-		IResource rc = findBestFitInWorkspace(parsedPath);
+			String parsedPath, int flag) {
+		IResource rc = getCachedBestFitInWorkspace(parsedPath);
 		if (rc != null) {
-			return createPathEntry(optionParser, rc, isRelative, flag);
+			return createPathEntry(optionParser, rc, true, flag);
 		}
 		return null;
 	}
