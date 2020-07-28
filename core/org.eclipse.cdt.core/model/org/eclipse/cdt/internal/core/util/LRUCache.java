@@ -244,6 +244,10 @@ public class LRUCache<K, T> implements Cloneable {
 		return fEntryTable.keys();
 	}
 
+	public int size() {
+		return fEntryTable.size();
+	}
+
 	/**
 	 * Tests if this cache is empty.
 	 */

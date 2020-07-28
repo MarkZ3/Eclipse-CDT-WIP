@@ -340,36 +340,48 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 
 		CDBWorkingDirectoryTracker workingDirectoryTracker = new CDBWorkingDirectoryTracker();
 
-		long oldTimeParsing = System.currentTimeMillis();
-		SubMonitor parseCmdsMonitor = SubMonitor.convert(subMonitor.split(50), compileCommands.length);
-		outputParser.startup(cfgDescription, workingDirectoryTracker);
-		for (int i = 0; i < compileCommands.length; i++) {
-			CompileCommand c = compileCommands[i];
-			// Don't spam the progress view too much
-			if (i % 100 == 0) {
-				parseCmdsMonitor.subTask(String.format(Messages.CompilationDatabaseParser_ProgressParsingBuildCommands,
-						i, compileCommands.length));
-			}
-			String dir = c.getDirectory();
-			workingDirectoryTracker.setCurrentDirectory(null);
-			if (dir != null) {
-				File file = new File(dir);
-				if (file.exists()) {
-					workingDirectoryTracker.setCurrentDirectory(file.toURI());
+		long totalTime = 0L;
+		int COUNTS = 20;
+		for (int j = 0; j < COUNTS; j++) {
+			if (j % 5 == 0)
+				System.out.println(j);
+			long oldTimeParsing = System.currentTimeMillis();
+			//		SubMonitor parseCmdsMonitor = SubMonitor.convert(subMonitor.split(50), compileCommands.length);
+			outputParser.startup(cfgDescription, workingDirectoryTracker);
+			for (int i = 0; i < compileCommands.length; i++) {
+				CompileCommand c = compileCommands[i];
+				// Don't spam the progress view too much
+				if (i % 100 == 0) {
+					//				parseCmdsMonitor.subTask(String.format(Messages.CompilationDatabaseParser_ProgressParsingBuildCommands,
+					//						i, compileCommands.length));
 				}
-			}
+				String dir = c.getDirectory();
+				workingDirectoryTracker.setCurrentDirectory(null);
+				if (dir != null) {
+					File file = new File(dir);
+					if (file.exists()) {
+						workingDirectoryTracker.setCurrentDirectory(file.toURI());
+					}
+				}
 
-			String command = c.getCommand();
-			if (command != null) {
-				outputParser.processLine(command);
-			} else if (c.getArguments() != null) {
-				outputParser.processLine(String.join(" ", c.getArguments())); //$NON-NLS-1$
+				String command = c.getCommand();
+				if (command != null) {
+					outputParser.processLine(command);
+				} else if (c.getArguments() != null) {
+					outputParser.processLine(String.join(" ", c.getArguments())); //$NON-NLS-1$
+				}
+				//			parseCmdsMonitor.worked(1);
 			}
-			parseCmdsMonitor.worked(1);
+			//		System.out.println("OutputParsertime: " + (System.currentTimeMillis() - oldTimeParsing));
+
+			//		outputParser.printStats();
+			totalTime += (System.currentTimeMillis() - oldTimeParsing);
+			if (j != COUNTS - 1)
+				outputParser.clearCaches();
 		}
-		System.out.println("OutputParsertime: " + (System.currentTimeMillis() - oldTimeParsing));
-
+		System.out.println("Average: " + (long) ((float) totalTime) / COUNTS);
 		outputParser.printStats();
+
 		LanguageSettingsStorage storage = outputParser.copyStorage();
 		SubMonitor entriesMonitor = SubMonitor.convert(subMonitor.split(5), storage.getLanguages().size());
 		entriesMonitor.subTask(Messages.CompilationDatabaseParser_ProgressApplyingEntries);

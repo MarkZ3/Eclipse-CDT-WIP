@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,8 +42,8 @@ import org.eclipse.cdt.core.settings.model.ICConfigurationDescription;
 import org.eclipse.cdt.core.settings.model.ICLanguageSettingEntry;
 import org.eclipse.cdt.core.settings.model.ICSettingEntry;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
+import org.eclipse.cdt.internal.core.LRUCache;
 import org.eclipse.cdt.internal.core.XmlUtil;
-import org.eclipse.cdt.internal.core.util.LRUCache;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuilderCorePlugin;
 import org.eclipse.cdt.utils.EFSExtensionManager;
 import org.eclipse.cdt.utils.cdtvariables.CdtVariableResolver;
@@ -88,8 +89,10 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	protected IResource currentResource = null;
 	protected String currentLanguageId = null;
 
-	private LRUCache<URI, IResource[]> workspaceRootFindContainersForLocationURICache = new LRUCache<>();
-	private LRUCache<URI, IResource[]> workspaceRootFindFilesForLocationURICache = new LRUCache<>();
+	private LRUCache<URI, IResource[]> workspaceRootFindContainersForLocationURICache = new LRUCache<>(100);
+	private long workspaceRootFindContainersForLocationURICacheHits = 0;
+	private LRUCache<URI, IResource[]> workspaceRootFindFilesForLocationURICache = new LRUCache<>(100);
+	private long workspaceRootFindFilesForLocationURICacheHits = 0;
 
 	private static class FindMemberCacheContext {
 		ICConfigurationDescription cfgDescription = null;
@@ -128,6 +131,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	}
 
 	private HashMap<FindMemberCacheContext, LRUCache<String, IResource>> findBestFitInWorkspaceCache = new HashMap<>();
+	private long findBestFitInWorkspaceCacheHits = 0;
 
 	protected String parsedResourceName = null;
 	protected boolean isResolvingPaths = true;
@@ -483,15 +487,44 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		currentResource = null;
 		cwdTracker = null;
 		//printStats();
-		workspaceRootFindContainersForLocationURICache.flush();
-		workspaceRootFindFilesForLocationURICache.flush();
+		clearCaches();
+	}
+
+	/**
+	 * @since 8.9
+	 */
+	public void clearCaches() {
+		//		workspaceRootFindContainersForLocationURICache.flush();
+		workspaceRootFindContainersForLocationURICache.clear();
+		workspaceRootFindContainersForLocationURICacheHits = 0;
+		//		workspaceRootFindFilesForLocationURICache.flush();
+		workspaceRootFindFilesForLocationURICache.clear();
+		workspaceRootFindFilesForLocationURICacheHits = 0;
 		findBestFitInWorkspaceCache.clear();
+		findBestFitInWorkspaceCacheHits = 0;
 	}
 
 	/**
 	 * @since 8.9
 	 */
 	public void printStats() {
+		System.out.println("workspaceRootFindContainersForLocationURICache: "
+				+ workspaceRootFindContainersForLocationURICache.size());
+		System.out.println(
+				"workspaceRootFindFilesForLocationURICache: " + workspaceRootFindFilesForLocationURICache.size());
+		System.out.println("findBestFitInWorkspaceCache: " + findBestFitInWorkspaceCache.size());
+		int i = 0;
+		for (Entry<FindMemberCacheContext, LRUCache<String, IResource>> entry : findBestFitInWorkspaceCache
+				.entrySet()) {
+			System.out.println(i + ": " + entry.getValue().size());
+			i++;
+		}
+		System.out.println("workspaceRootFindContainersForLocationURICacheHits: "
+				+ workspaceRootFindContainersForLocationURICacheHits);
+		System.out.println(
+				"workspaceRootFindFilesForLocationURICacheHits: " + workspaceRootFindFilesForLocationURICacheHits);
+		System.out.println("findBestFitInWorkspaceCacheHits: " + findBestFitInWorkspaceCacheHits);
+
 	}
 
 	@Override
@@ -736,6 +769,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		IResource[] resources;
 		Object cachedVal = workspaceRootFindFilesForLocationURICache.get(uri);
 		if (cachedVal != null) {
+			workspaceRootFindFilesForLocationURICacheHits++;
 			resources = (IResource[]) cachedVal;
 		} else {
 			resources = ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(uri);
@@ -766,6 +800,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		IResource[] resources;
 		Object cachedVal = workspaceRootFindContainersForLocationURICache.get(uri);
 		if (cachedVal != null) {
+			workspaceRootFindContainersForLocationURICacheHits++;
 			resources = (IResource[]) cachedVal;
 		} else {
 			resources = ResourcesPlugin.getWorkspace().getRoot().findContainersForLocationURI(uri);
@@ -1011,11 +1046,12 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		cacheContext.cfgDescription = currentCfgDescription;
 		cacheContext.project = currentProject;
 		if (!findBestFitInWorkspaceCache.containsKey(cacheContext)) {
-			findBestFitInWorkspaceCache.put(cacheContext, new LRUCache<>());
+			findBestFitInWorkspaceCache.put(cacheContext, new LRUCache<>(100));
 		}
 		LRUCache<String, IResource> cache = findBestFitInWorkspaceCache.get(cacheContext);
 		if (cache.containsKey(parsedName)) {
-			return (IResource) cache.get(parsedName);
+			findBestFitInWorkspaceCacheHits++;
+			return cache.get(parsedName);
 		}
 
 		IResource resource = findBestFitInWorkspace(parsedName);
