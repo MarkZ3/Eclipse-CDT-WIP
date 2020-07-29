@@ -89,9 +89,10 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	protected IResource currentResource = null;
 	protected String currentLanguageId = null;
 
-	private LRUCache<URI, IResource[]> workspaceRootFindContainersForLocationURICache = new LRUCache<>(100);
+	private int cacheSize = 10;
+	private LRUCache<URI, IResource[]> workspaceRootFindContainersForLocationURICache = new LRUCache<>(cacheSize);
 	private long workspaceRootFindContainersForLocationURICacheHits = 0;
-	private LRUCache<URI, IResource[]> workspaceRootFindFilesForLocationURICache = new LRUCache<>(100);
+	private LRUCache<URI, IResource[]> workspaceRootFindFilesForLocationURICache = new LRUCache<>(cacheSize);
 	private long workspaceRootFindFilesForLocationURICacheHits = 0;
 
 	private static class FindMemberCacheContext {
@@ -1046,7 +1047,7 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		cacheContext.cfgDescription = currentCfgDescription;
 		cacheContext.project = currentProject;
 		if (!findBestFitInWorkspaceCache.containsKey(cacheContext)) {
-			findBestFitInWorkspaceCache.put(cacheContext, new LRUCache<>(100));
+			findBestFitInWorkspaceCache.put(cacheContext, new LRUCache<>(cacheSize));
 		}
 		LRUCache<String, IResource> cache = findBestFitInWorkspaceCache.get(cacheContext);
 		if (cache.containsKey(parsedName)) {
@@ -1057,6 +1058,15 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		IResource resource = findBestFitInWorkspace(parsedName);
 		cache.put(parsedName, resource);
 		return resource;
+	}
+
+	/**
+	 * @since 8.9
+	 */
+	public void setCacheSize(int cacheSize) {
+		this.cacheSize = cacheSize;
+		workspaceRootFindContainersForLocationURICache = new LRUCache<>(cacheSize);
+		workspaceRootFindFilesForLocationURICache = new LRUCache<>(cacheSize);
 	}
 
 	/**
