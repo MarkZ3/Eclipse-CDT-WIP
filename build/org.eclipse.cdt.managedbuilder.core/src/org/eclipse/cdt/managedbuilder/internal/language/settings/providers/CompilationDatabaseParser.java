@@ -17,6 +17,8 @@ package org.eclipse.cdt.managedbuilder.internal.language.settings.providers;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -46,6 +48,7 @@ import org.eclipse.cdt.core.settings.model.ICSourceEntry;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuilderCorePlugin;
 import org.eclipse.cdt.managedbuilder.language.settings.providers.AbstractBuildCommandParser;
+import org.eclipse.cdt.managedbuilder.language.settings.providers.AbstractLanguageSettingsOutputScanner;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -229,6 +232,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 			scheduleOnWritableCfgDescription(cfgDescription);
 			return false;
 		}
+		long oldTime = System.currentTimeMillis();
 
 		if (getCompilationDataBasePathProperty().isEmpty()) {
 			throw new CoreException(new Status(Status.ERROR, ManagedBuilderCorePlugin.PLUGIN_ID,
@@ -289,33 +293,50 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 		}
 
 		CDBWorkingDirectoryTracker workingDirectoryTracker = new CDBWorkingDirectoryTracker();
-
-		SubMonitor parseCmdsMonitor = SubMonitor.convert(subMonitor.split(50), compileCommands.length);
-		outputParser.startup(cfgDescription, workingDirectoryTracker);
-		for (int i = 0; i < compileCommands.length; i++) {
-			CompileCommand c = compileCommands[i];
-			// Don't spam the progress view too much
-			if (i % 100 == 0) {
-				parseCmdsMonitor.subTask(String.format(Messages.CompilationDatabaseParser_ProgressParsingBuildCommands,
-						i, compileCommands.length));
-			}
-			String dir = c.getDirectory();
-			workingDirectoryTracker.setCurrentDirectory(null);
-			if (dir != null) {
-				File file = new File(dir);
-				if (file.exists()) {
-					workingDirectoryTracker.setCurrentDirectory(file.toURI());
+		long totalTime = 0L;
+		int COUNTS = 100;
+		for (int j = 0; j < COUNTS; j++) {
+			long oldTimeParsing = System.currentTimeMillis();
+			//		SubMonitor parseCmdsMonitor = SubMonitor.convert(subMonitor.split(50), compileCommands.length);
+			outputParser.startup(cfgDescription, workingDirectoryTracker);
+			for (int i = 0; i < compileCommands.length; i++) {
+				CompileCommand c = compileCommands[i];
+				// Don't spam the progress view too much
+				if (i % 100 == 0) {
+					//				parseCmdsMonitor.subTask(String.format(Messages.CompilationDatabaseParser_ProgressParsingBuildCommands,
+					//						i, compileCommands.length));
 				}
-			}
+				String dir = c.getDirectory();
+				workingDirectoryTracker.setCurrentDirectory(null);
+				if (dir != null) {
+					File file = new File(dir);
+					if (file.exists()) {
+						workingDirectoryTracker.setCurrentDirectory(file.toURI());
+					}
+				}
 
-			String command = c.getCommand();
-			if (command != null) {
-				outputParser.processLine(command);
-			} else if (c.getArguments() != null) {
-				outputParser.processLine(String.join(" ", c.getArguments())); //$NON-NLS-1$
+				String command = c.getCommand();
+				if (command != null) {
+					outputParser.processLine(command);
+				} else if (c.getArguments() != null) {
+					outputParser.processLine(String.join(" ", c.getArguments())); //$NON-NLS-1$
+				}
+				//			parseCmdsMonitor.worked(1);
 			}
-			parseCmdsMonitor.worked(1);
+			totalTime += (System.currentTimeMillis() - oldTimeParsing);
+
+			try {
+				Method method = AbstractLanguageSettingsOutputScanner.class.getDeclaredMethod("clearCaches");
+				method.setAccessible(true);
+				method.invoke(outputParser);
+			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+					| NoSuchMethodException | SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
+		System.out.println("average: " + (long) ((float) totalTime) / COUNTS);
+
 		LanguageSettingsStorage storage = outputParser.copyStorage();
 		SubMonitor entriesMonitor = SubMonitor.convert(subMonitor.split(5), storage.getLanguages().size());
 		entriesMonitor.subTask(Messages.CompilationDatabaseParser_ProgressApplyingEntries);
@@ -339,6 +360,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 
 		setProperty(ATTR_CDB_MODIFIED_TIME, cdbModifiedTime.toString());
 		touchProjectDes(cfgDescription.getProjectDescription());
+		System.out.println("processCompileCommandsFile " + (System.currentTimeMillis() - oldTime));
 		return true;
 	}
 
