@@ -92,6 +92,8 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 	public static final int tNOSPACE = IToken.FIRST_RESERVED_PREPROCESSOR + 4;
 	public static final int tMACRO_PARAMETER = IToken.FIRST_RESERVED_PREPROCESSOR + 5;
 	public static final int t__HAS_FEATURE = IToken.FIRST_RESERVED_PREPROCESSOR + 6;
+	public static final int t__HAS_INCLUDE = IToken.FIRST_RESERVED_PREPROCESSOR + 7;
+	public static final int t__HAS_INCLUDE_NEXT = IToken.FIRST_RESERVED_PREPROCESSOR + 8;
 
 	private static final int ORIGIN_PREPROCESSOR_DIRECTIVE = OffsetLimitReachedException.ORIGIN_PREPROCESSOR_DIRECTIVE;
 	private static final int ORIGIN_INACTIVE_CODE = OffsetLimitReachedException.ORIGIN_INACTIVE_CODE;
@@ -177,7 +179,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		T checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath);
 	}
 
-	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<InternalFileContent>() {
+	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<>() {
 		@Override
 		public InternalFileContent checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			final InternalFileContent fc;
@@ -205,7 +207,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		}
 	}
 
-	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<IncludeResolution>() {
+	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<>() {
 		@Override
 		public IncludeResolution checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			if (fFileContentProvider.getInclusionExists(path)) {
@@ -1582,38 +1584,28 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		}
 	}
 
-	private void executeInclude(final Lexer lexer, int poundOffset, int includeType, boolean active,
-			boolean withinExpansion) throws OffsetLimitReachedException {
-		// Make sure to clear the extern include guard.
-		final char[] externGuard = fExternIncludeGuard;
-		fExternIncludeGuard = null;
-
-		if (withinExpansion) {
-			final char[] name = lexer.currentToken().getCharImage();
-			final int endOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
-			handleProblem(IProblem.PREPROCESSOR_INVALID_DIRECTIVE, name, poundOffset, endOffset);
-			return;
-		}
-
+	private char[] extractHeaderNameFromNextToken(Lexer lexer, final boolean[] userInclude, final int[] condEndOffset,
+			final int[] nameOffsets) throws OffsetLimitReachedException {
 		lexer.setInsideIncludeDirective(true);
 		final Token header = lexer.nextToken();
 		lexer.setInsideIncludeDirective(false);
 
-		int condEndOffset = header.getEndOffset();
-		final int[] nameOffsets = new int[] { header.getOffset(), condEndOffset };
+		condEndOffset[0] = header.getEndOffset();
+		nameOffsets[0] = header.getOffset();
+		nameOffsets[1] = condEndOffset[0];
 		char[] headerName = null;
-		boolean userInclude = true;
+		userInclude[0] = true;
 
 		switch (header.getType()) {
 		case Lexer.tSYSTEM_HEADER_NAME:
-			userInclude = false;
+			userInclude[0] = false;
 			headerName = extractHeaderName(header.getCharImage(), '<', '>', nameOffsets);
-			condEndOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
+			condEndOffset[0] = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
 			break;
 
 		case Lexer.tQUOTE_HEADER_NAME:
 			headerName = extractHeaderName(header.getCharImage(), '"', '"', nameOffsets);
-			condEndOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
+			condEndOffset[0] = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
 			break;
 
 		case IToken.tCOMPLETION:
@@ -1621,7 +1613,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 
 		case IToken.tIDENTIFIER:
 			TokenList tl = new TokenList();
-			condEndOffset = nameOffsets[1] = getTokensWithinPPDirective(false, tl, false);
+			condEndOffset[0] = nameOffsets[1] = getTokensWithinPPDirective(false, tl, false);
 			Token t = tl.first();
 			if (t != null) {
 				switch (t.getType()) {
@@ -1629,7 +1621,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 					headerName = extractHeaderName(t.getCharImage(), '"', '"', new int[] { 0, 0 });
 					break;
 				case IToken.tLT:
-					userInclude = false;
+					userInclude[0] = false;
 					boolean complete = false;
 					StringBuilder buf = new StringBuilder();
 					t = (Token) t.getNext();
@@ -1650,9 +1642,34 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 			break;
 
 		default:
-			condEndOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
+
+			condEndOffset[0] = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
 			break;
 		}
+
+		return headerName;
+	}
+
+	private void executeInclude(final Lexer lexer, int poundOffset, int includeType, boolean active,
+			boolean withinExpansion) throws OffsetLimitReachedException {
+		// Make sure to clear the extern include guard.
+		final char[] externGuard = fExternIncludeGuard;
+		fExternIncludeGuard = null;
+
+		if (withinExpansion) {
+			final char[] name = lexer.currentToken().getCharImage();
+			final int endOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
+			handleProblem(IProblem.PREPROCESSOR_INVALID_DIRECTIVE, name, poundOffset, endOffset);
+			return;
+		}
+
+		final int[] nameOffsets = new int[2];
+		boolean userIncludeRet[] = { true };
+		int condEndOffsetRet[] = new int[1];
+		char[] headerName = extractHeaderNameFromNextToken(lexer, userIncludeRet, condEndOffsetRet, nameOffsets);
+
+		int condEndOffset = condEndOffsetRet[0];
+		boolean userInclude = userIncludeRet[0];
 
 		if (headerName == null || headerName.length == 0) {
 			if (active) {
@@ -1793,6 +1810,37 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		if (pragmaOnceContext && loadedVerisons != null && !loadedVerisons.isEmpty()) {
 			stmt.setLoadedVersions(loadedVerisons.toArray(new ISignificantMacros[loadedVerisons.size()]));
 		}
+	}
+
+	boolean hasResolvedHeaderNameAtOffset(int hasIncludeOffset, int headerPatternoffset, boolean isIncludeNext,
+			int[] endOffsett) throws OffsetLimitReachedException {
+		Lexer curlexer = fCurrentContext.getLexer();
+		Lexer lexer = new Lexer(curlexer.getInput(), headerPatternoffset, curlexer.currentToken().getEndOffset(),
+				fLexOptions, this, curlexer.getSource());
+		boolean withinExpansion = false;
+		int includeType = isIncludeNext ? IPreprocessorDirective.ppInclude_next : IPreprocessorDirective.ppInclude;
+
+		if (withinExpansion) {
+			final char[] name = lexer.currentToken().getCharImage();
+			final int endOffset = lexer.consumeLine(ORIGIN_PREPROCESSOR_DIRECTIVE);
+			handleProblem(IProblem.PREPROCESSOR_INVALID_DIRECTIVE, name, hasIncludeOffset, endOffset);
+			return false;
+		}
+
+		final int[] nameOffsets = new int[2];
+		final boolean userInclude[] = { true };
+		char[] headerName = extractHeaderNameFromNextToken(lexer, userInclude, new int[1], nameOffsets);
+		if (headerName == null || headerName.length == 0) {
+			endOffsett[0] = -1;
+			return false;
+		}
+		endOffsett[0] = nameOffsets[1];
+
+		boolean includeNext = includeType == IPreprocessorDirective.ppInclude_next;
+		final String includeDirective = new String(headerName);
+
+		return findInclusion(includeDirective, userInclude[0], includeNext, getCurrentFilename(),
+				createCodeReaderTester) != null;
 	}
 
 	private void processInclusionFromIndex(int offset, InternalFileContent fi, boolean updateContext) {
@@ -1962,6 +2010,10 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 						}
 					}
 				} catch (EvalException e) {
+					Exception innerException = e.getInnerException();
+					if (innerException instanceof OffsetLimitReachedException)
+						throw (OffsetLimitReachedException) innerException;
+
 					handleProblem(e.getProblemID(), e.getProblemArg(), condOffset, endOffset);
 				}
 			}
@@ -2042,6 +2094,10 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 				options |= NO_EXPANSION;
 				break;
 			case t__HAS_FEATURE:
+				options |= NO_EXPANSION;
+				break;
+			case t__HAS_INCLUDE:
+			case t__HAS_INCLUDE_NEXT:
 				options |= NO_EXPANSION;
 				break;
 			case IToken.tLPAREN:
@@ -2142,6 +2198,16 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 				return false;
 			}
 		}
+
+		if (CharArrayUtils.equals(name, Keywords.c__HAS_INCLUDE)) {
+			identifier.setType(t__HAS_INCLUDE);
+			return false;
+		}
+		if (CharArrayUtils.equals(name, Keywords.c__HAS_INCLUDE_NEXT)) {
+			identifier.setType(t__HAS_INCLUDE_NEXT);
+			return false;
+		}
+
 		PreprocessorMacro macro = fMacroDictionary.get(name);
 		if (macro == null) {
 			if (reportSignificant && (options & IGNORE_UNDEFINED_SIGNIFICANT_MACROS) == 0)

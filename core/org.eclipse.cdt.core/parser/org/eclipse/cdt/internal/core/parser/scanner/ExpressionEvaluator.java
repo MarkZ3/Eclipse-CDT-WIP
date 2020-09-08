@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.parser.IProblem;
 import org.eclipse.cdt.core.parser.IToken;
+import org.eclipse.cdt.core.parser.OffsetLimitReachedException;
 import org.eclipse.cdt.core.parser.util.CharArrayMap;
 import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 
@@ -32,6 +33,11 @@ public class ExpressionEvaluator {
 	public static class EvalException extends Exception {
 		private int fProblemID;
 		private char[] fProblemArg;
+		private Exception innerException;
+
+		private EvalException(Exception innerException) {
+			this.innerException = innerException;
+		}
 
 		private EvalException(int problemID, char[] problemArg) {
 			fProblemID = problemID;
@@ -44,6 +50,10 @@ public class ExpressionEvaluator {
 
 		public char[] getProblemArg() {
 			return fProblemArg;
+		}
+
+		public Exception getInnerException() {
+			return innerException;
 		}
 	}
 
@@ -265,6 +275,10 @@ public class ExpressionEvaluator {
 			return handleDefined();
 		case CPreprocessor.t__HAS_FEATURE:
 			return handleHasFeature();
+		case CPreprocessor.t__HAS_INCLUDE:
+			return handleHasInclude(false);
+		case CPreprocessor.t__HAS_INCLUDE_NEXT:
+			return handleHasInclude(true);
 		case IToken.tLPAREN:
 			consume();
 			long r1 = expression();
@@ -348,6 +362,36 @@ public class ExpressionEvaluator {
 		}
 		consume(); // closing parenthesis
 		return supported ? 1 : 0;
+	}
+
+	private long handleHasInclude(boolean isIncludeNext) throws EvalException {
+		int hasIncludeOffset = fTokens.getOffset();
+		consume(); // '__has_include'
+		if (LA() != IToken.tLPAREN) {
+			throw new EvalException(IProblem.SCANNER_EXPRESSION_SYNTAX_ERROR, null);
+		}
+		consume(); // opening parenthesis
+
+		boolean includePathExists = false;
+		int[] endOffset = new int[1];
+		try {
+			includePathExists = fPreprocessor.hasResolvedHeaderNameAtOffset(hasIncludeOffset, fTokens.getOffset(),
+					isIncludeNext, endOffset);
+		} catch (OffsetLimitReachedException e) {
+			throw new EvalException(e);
+		}
+		if (endOffset[0] < 0) {
+			throw new EvalException(IProblem.SCANNER_EXPRESSION_SYNTAX_ERROR, null);
+		}
+
+		while (fTokens.getOffset() <= endOffset[0] && fTokens.getOffset() != 0) {
+			consume();
+		}
+		if (LA() != IToken.tRPAREN) {
+			throw new EvalException(IProblem.SCANNER_MISSING_R_PAREN, null);
+		}
+		consume(); // closing parenthesis
+		return includePathExists ? 1 : 0;
 	}
 
 	private int LA() {

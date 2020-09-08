@@ -69,11 +69,12 @@ public class InclusionProposalComputer implements ICompletionProposalComputer {
 
 		if (context instanceof CContentAssistInvocationContext) {
 			CContentAssistInvocationContext cContext = (CContentAssistInvocationContext) context;
-			if (inIncludeDirective(cContext)) {
+			boolean inIncludeDirective = inIncludeDirective(cContext);
+			if (inIncludeDirective || inHasInclude(cContext)) {
 				// add include file proposals
 				proposals = new ArrayList<>();
 				try {
-					addInclusionProposals(cContext, proposals);
+					addInclusionProposals(cContext, proposals, inIncludeDirective);
 				} catch (Exception exc) {
 					fErrorMessage = exc.getMessage();
 					CUIPlugin.log(exc);
@@ -127,6 +128,31 @@ public class InclusionProposalComputer implements ICompletionProposalComputer {
 		return false;
 	}
 
+	/**
+	 * Test whether the invocation offset is inside the file name part if a __has_include or __has_include_next.
+	 *
+	 * @param context  the invocation context
+	 * @return <code>true</code> if the invocation offset is inside or before the directive keyword
+	 */
+	private boolean inHasInclude(CContentAssistInvocationContext context) {
+		IDocument doc = context.getDocument();
+		int offset = context.getInvocationOffset();
+
+		try {
+			final ITypedRegion partition = TextUtilities.getPartition(doc, ICPartitions.C_PARTITIONING, offset, true);
+			if (ICPartitions.C_PREPROCESSOR.equals(partition.getType())) {
+				String ppPrefix = doc.get(partition.getOffset(), offset - partition.getOffset());
+				if (ppPrefix.contains("__has_include")) { //$NON-NLS-1$
+					// we are inside the file name part of the include directive
+					return true;
+				}
+			}
+
+		} catch (BadLocationException exc) {
+		}
+		return false;
+	}
+
 	private static class PotentialInclude {
 		public String fPath;
 		public boolean fKnownContentType; // true for directories and files known to be headers
@@ -137,8 +163,8 @@ public class InclusionProposalComputer implements ICompletionProposalComputer {
 		}
 	}
 
-	private void addInclusionProposals(CContentAssistInvocationContext context, List<ICompletionProposal> proposals)
-			throws Exception {
+	private void addInclusionProposals(CContentAssistInvocationContext context, List<ICompletionProposal> proposals,
+			boolean checkAlreadyIncludedInTu) throws Exception {
 		if (context.isContextInformationStyle()) {
 			return;
 		}
@@ -158,8 +184,10 @@ public class InclusionProposalComputer implements ICompletionProposalComputer {
 		if (potentialIncludes.length > 0) {
 			IInclude[] includes = tu.getIncludes();
 			Set<String> alreadyIncluded = new HashSet<>();
-			for (IInclude includeDirective : includes) {
-				alreadyIncluded.add(includeDirective.getElementName());
+			if (checkAlreadyIncludedInTu) {
+				for (IInclude includeDirective : includes) {
+					alreadyIncluded.add(includeDirective.getElementName());
+				}
 			}
 			Image image = getImage(CElementImageProvider.getIncludeImageDescriptor());
 			for (PotentialInclude include : potentialIncludes) {
