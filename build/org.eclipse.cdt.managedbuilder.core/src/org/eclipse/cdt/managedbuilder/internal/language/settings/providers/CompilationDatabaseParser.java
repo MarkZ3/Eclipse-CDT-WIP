@@ -363,6 +363,7 @@ public class CompilationDatabaseParser extends LanguageSettingsSerializableProvi
 			}
 			parseCmdsMonitor.worked(1);
 		}
+		outputParser.clearCaches();
 		LanguageSettingsStorage storage = outputParser.copyStorage();
 		SubMonitor entriesMonitor = SubMonitor.convert(subMonitor.split(5), storage.getLanguages().size());
 		entriesMonitor.subTask(Messages.CompilationDatabaseParser_ProgressApplyingEntries);

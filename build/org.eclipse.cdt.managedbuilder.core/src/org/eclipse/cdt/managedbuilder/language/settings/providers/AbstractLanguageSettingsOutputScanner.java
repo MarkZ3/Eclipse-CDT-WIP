@@ -100,8 +100,55 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 			FIND_RESOURCES_CACHE_SIZE);
 	private HashMap<IProject, LRUCache<IPath, List<IResource>>> findPathInProjectCache = new HashMap<>();
 
+	//String pathStr, URI baseURI -> URI
+	private static class MappURIKey {
+		URI baseURI;
+		String pathStr;
+
+		public MappURIKey(URI baseURI, String pathStr) {
+			super();
+			this.baseURI = baseURI;
+			this.pathStr = pathStr;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((baseURI == null) ? 0 : baseURI.hashCode());
+			result = prime * result + ((pathStr == null) ? 0 : pathStr.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			MappURIKey other = (MappURIKey) obj;
+			if (baseURI == null) {
+				if (other.baseURI != null)
+					return false;
+			} else if (!baseURI.equals(other.baseURI))
+				return false;
+			if (pathStr == null) {
+				if (other.pathStr != null)
+					return false;
+			} else if (!pathStr.equals(other.pathStr))
+				return false;
+			return true;
+		}
+	}
+
+	private LRUCache<MappURIKey, URI> mappedURICache = new LRUCache<>(FIND_RESOURCES_CACHE_SIZE);
+
 	/** @since 8.2 */
 	protected EFSExtensionProvider efsProvider = null;
+	private int cacheHit = 0;
+	private int cacheTotal = 0;
 
 	private static final EFSExtensionProvider efsProviderDefault = new EFSExtensionProvider() {
 		final EFSExtensionManager efsManager = EFSExtensionManager.getDefault();
@@ -472,10 +519,12 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 		clearCaches();
 	}
 
-	private void clearCaches() {
+	public void clearCaches() {
 		workspaceRootFindContainersForLocationURICache.clear();
 		workspaceRootFindFilesForLocationURICache.clear();
 		findPathInProjectCache.clear();
+		mappedURICache.clear();
+		System.out.println("hit: " + (float) cacheHit / cacheTotal * 100 + "% (" + cacheHit + "/" + cacheTotal + ")");
 	}
 
 	@Override
@@ -936,34 +985,40 @@ public abstract class AbstractLanguageSettingsOutputScanner extends LanguageSett
 	 * @return {@link URI} of the resource
 	 */
 	private URI determineMappedURI(String pathStr, URI baseURI) {
-		URI uri = null;
+		if (mappedURICache.containsKey(new MappURIKey(baseURI, pathStr))) {
+			cacheHit++;
+		}
+		cacheTotal++;
+		return mappedURICache.computeIfAbsent(new MappURIKey(baseURI, pathStr), key -> {
+			URI uri = null;
 
-		if (baseURI == null) {
-			if (new Path(pathStr).isAbsolute()) {
-				uri = resolvePathFromBaseLocation(pathStr, Path.ROOT);
-			}
-		} else if (baseURI.getScheme().equals(EFS.SCHEME_FILE)) {
-			// location on the local file-system
-			IPath baseLocation = org.eclipse.core.filesystem.URIUtil.toPath(baseURI);
-			// careful not to use Path here but 'pathStr' as String as we want to properly navigate symlinks
-			uri = resolvePathFromBaseLocation(pathStr, baseLocation);
-		} else {
-			// location on a remote file-system
-			IPath path = new Path(pathStr); // use canonicalized path here, in particular replace all '\' with '/' for Windows paths
-			URI remoteUri = efsProvider.append(baseURI, path.toString());
-			if (remoteUri != null) {
-				String localPath = efsProvider.getMappedPath(remoteUri);
-				if (localPath != null) {
-					uri = org.eclipse.core.filesystem.URIUtil.toURI(localPath);
+			if (baseURI == null) {
+				if (new Path(pathStr).isAbsolute()) {
+					uri = resolvePathFromBaseLocation(pathStr, Path.ROOT);
+				}
+			} else if (baseURI.getScheme().equals(EFS.SCHEME_FILE)) {
+				// location on the local file-system
+				IPath baseLocation = org.eclipse.core.filesystem.URIUtil.toPath(baseURI);
+				// careful not to use Path here but 'pathStr' as String as we want to properly navigate symlinks
+				uri = resolvePathFromBaseLocation(pathStr, baseLocation);
+			} else {
+				// location on a remote file-system
+				IPath path = new Path(pathStr); // use canonicalized path here, in particular replace all '\' with '/' for Windows paths
+				URI remoteUri = efsProvider.append(baseURI, path.toString());
+				if (remoteUri != null) {
+					String localPath = efsProvider.getMappedPath(remoteUri);
+					if (localPath != null) {
+						uri = org.eclipse.core.filesystem.URIUtil.toURI(localPath);
+					}
 				}
 			}
-		}
 
-		if (uri == null) {
-			// if everything fails just wrap string to URI
-			uri = org.eclipse.core.filesystem.URIUtil.toURI(pathStr);
-		}
-		return uri;
+			if (uri == null) {
+				// if everything fails just wrap string to URI
+				uri = org.eclipse.core.filesystem.URIUtil.toURI(pathStr);
+			}
+			return uri;
+		});
 	}
 
 	/**
