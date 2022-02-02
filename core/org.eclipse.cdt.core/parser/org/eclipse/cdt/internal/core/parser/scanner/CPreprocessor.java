@@ -179,19 +179,13 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		T checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath);
 	}
 
-	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<>() {
+	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<InternalFileContent>() {
 		@Override
 		public InternalFileContent checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			final InternalFileContent fc;
 			IFileNomination once = fFileContentProvider.isIncludedWithPragmaOnceSemantics(path);
 			if (once != null) {
-				ISignificantMacros significantMacros = ISignificantMacros.NONE;
-				try {
-					significantMacros = once.getSignificantMacros();
-				} catch (CoreException e) {
-					CCorePlugin.log(e);
-				}
-				fc = new InternalFileContent(path, InclusionKind.SKIP_PRAGMA_ONCE_FILE, significantMacros);
+				fc = new InternalFileContent(path, InclusionKind.SKIP_FILE);
 			} else {
 				fc = fFileContentProvider.getContentForInclusion(path, fMacroDictionaryFacade);
 			}
@@ -213,7 +207,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		}
 	}
 
-	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<>() {
+	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<IncludeResolution>() {
 		@Override
 		public IncludeResolution checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			if (fFileContentProvider.getInclusionExists(path)) {
@@ -1796,19 +1790,11 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		case SKIP_FILE:
 			// Already included or fast parsing mode.
 			break;
-
-		case SKIP_PRAGMA_ONCE_FILE:
-			fCurrentContext.addSignificantMacros(fi.getSignificantMacros());
-			break;
 		}
 		if (stmt == null) {
 			// Found in index or skipped.
 			stmt = fLocationMap.encounterPoundInclude(poundOffset, nameOffsets[0], nameOffsets[1], condEndOffset,
 					headerName, path, userInclude, active, isHeuristic, nominationDelegate);
-			if (fi.getKind() == InclusionKind.SKIP_PRAGMA_ONCE_FILE) {
-				stmt.setSignificantMacros(fi.getSignificantMacros());
-				stmt.setPragamOnceSemantics(true);
-			}
 		}
 		// In a pragma once context store loaded versions of this non-pragma-once include
 		if (pragmaOnceContext && loadedVerisons != null && !loadedVerisons.isEmpty()) {
@@ -1826,7 +1812,6 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		for (FileVersion version : fi.getNonPragmaOnceVersions()) {
 			fFileContentProvider.addLoadedVersions(version.fPath, Integer.MAX_VALUE, version.fSigMacros);
 		}
-
 		fLocationMap.skippedFile(fLocationMap.getSequenceNumberForOffset(offset), fi);
 	}
 
