@@ -179,7 +179,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		T checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath);
 	}
 
-	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<InternalFileContent>() {
+	final private IIncludeFileTester<InternalFileContent> createCodeReaderTester = new IIncludeFileTester<>() {
 		@Override
 		public InternalFileContent checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			final InternalFileContent fc;
@@ -207,7 +207,7 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 		}
 	}
 
-	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<IncludeResolution>() {
+	final private IIncludeFileTester<IncludeResolution> createPathTester = new IIncludeFileTester<>() {
 		@Override
 		public IncludeResolution checkFile(String path, boolean isHeuristicMatch, IncludeSearchPathElement onPath) {
 			if (fFileContentProvider.getInclusionExists(path)) {
@@ -359,10 +359,20 @@ public class CPreprocessor implements ILexerLog, IScanner, IAdaptable {
 	private char[] detectIncludeGuard(String filePath, AbstractCharArray source, ScannerContext ctx) {
 		if (!fFileContentProvider.shouldIndexAllHeaderVersions(filePath)) {
 			final char[] guard = IncludeGuardDetection.detectIncludeGuard(source, fLexOptions, fPPKeywords);
-			if (guard != null) {
+			boolean hasPragmaOnce = false;
+			if (guard == null) {
+				Lexer l = new Lexer(source, fLexOptions, ILexerLog.NULL, null);
+				try {
+					hasPragmaOnce = IncludeGuardDetection.hasPragmaOnce(l, fPPKeywords);
+				} catch (OffsetLimitReachedException e) {
+				}
+			}
+			if (guard != null || hasPragmaOnce) {
 				IFileNomination nom = fLocationMap.reportPragmaOnceSemantics(ctx.getLocationCtx());
 				fFileContentProvider.reportPragmaOnceSemantics(filePath, nom);
-				ctx.internalModification(guard);
+				if (!hasPragmaOnce) {
+					ctx.internalModification(guard);
+				}
 				ctx.setPragmaOnce(true);
 				return guard;
 			}
