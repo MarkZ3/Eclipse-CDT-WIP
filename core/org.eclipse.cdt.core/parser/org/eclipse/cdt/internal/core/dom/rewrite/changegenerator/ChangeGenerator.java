@@ -48,6 +48,8 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTNamespaceDefinition;
 import org.eclipse.cdt.core.model.ITranslationUnit;
+import org.eclipse.cdt.core.parser.IToken;
+import org.eclipse.cdt.core.parser.OffsetLimitReachedException;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification.ModificationKind;
 import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationMap;
@@ -58,6 +60,9 @@ import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ConstPlacement;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ContainerNode;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ProblemRuntimeException;
 import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
+import org.eclipse.cdt.internal.core.parser.scanner.ILexerLog;
+import org.eclipse.cdt.internal.core.parser.scanner.Lexer;
+import org.eclipse.cdt.internal.core.parser.scanner.Lexer.LexerOptions;
 import org.eclipse.cdt.internal.formatter.ChangeFormatter;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.Assert;
@@ -697,7 +702,21 @@ public class ChangeGenerator extends ASTVisitor {
 		String code = node.getRawSignature();
 		IASTFileLocation location = node.getFileLocation();
 		int pos = location.getNodeOffset() + location.getNodeLength();
-		int len = code.endsWith("}") ? 1 : 0; //$NON-NLS-1$
+		int len = 0;
+
+		// We want to find the closing '}' but also handle when it's in a macro.
+		// Get the offset of the last token because it's either a } or a macro containing it.
+		Lexer lex = new Lexer(code.toCharArray(), new LexerOptions(), ILexerLog.NULL, null);
+		IToken t;
+		try {
+			int lastOffset = 0;
+			for (t = lex.nextToken(); t != null && t.getType() != IToken.tEND_OF_INPUT; t = lex.nextToken()) {
+				lastOffset = lex.getLastEndOffset();
+			}
+			len = code.length() - lastOffset;
+		} catch (OffsetLimitReachedException e) {
+		}
+
 		int insertPos = code.length() - len;
 		int startOfLine = skipPrecedingBlankLines(code, insertPos);
 		if (startOfLine == insertPos) {

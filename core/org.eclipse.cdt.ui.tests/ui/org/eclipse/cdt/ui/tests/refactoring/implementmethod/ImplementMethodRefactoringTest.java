@@ -953,4 +953,90 @@ public class ImplementMethodRefactoringTest extends RefactoringTestBase {
 	public void testWithClassAsReturnType_Bug562896() throws Exception {
 		assertRefactoringSuccess();
 	}
+
+	//A.h
+	//
+	//#define beginNamespace namespace foo {
+	//
+	//#define endNamespace }
+	//
+	//beginNamespace
+	//
+	//class Test {
+	//public:
+	//  Test();
+	//  void foo();
+	//};
+	//
+	//endNamespace
+
+	//A.cpp
+	//
+	//#include "a.h"
+	//
+	//beginNamespace
+	//
+	//Test::Test() {
+	//}
+	//
+	//endNamespace
+	//====================
+	//
+	//#include "a.h"
+	//
+	//beginNamespace
+	//
+	//Test::Test() {
+	//}
+	//
+	//void Test::foo() {
+	//}
+	//
+	//endNamespace
+	public void testWithNamespaceInMacro() throws Exception {
+		assertRefactoringSuccess();
+	}
+
+	//A.h
+	//
+	//#define beginNamespace namespace foo {
+	//
+	//#define endNamespace }
+	//
+	//beginNamespace
+	//
+	//class Test {
+	//public:
+	//  Test();
+	//  void foo();
+	//};
+	//
+	//endNamespace
+
+	//A.cpp
+	//
+	//#include "a.h"
+	//
+	//beginNamespace
+	//
+	//Test::Test() {
+	//}
+	//
+	//}
+	//====================
+	//
+	//#include "a.h"
+	//
+	//beginNamespace
+	//
+	//Test::Test() {
+	//}
+	//
+	//void Test::foo() {
+	//}
+	//
+	//}
+	public void testWithNamespaceInMacro_NoEnd() throws Exception {
+		assertRefactoringSuccess();
+	}
 }
