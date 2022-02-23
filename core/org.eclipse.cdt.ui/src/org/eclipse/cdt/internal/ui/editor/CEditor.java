@@ -2545,6 +2545,8 @@ public class CEditor extends TextEditor
 
 		if (isShowingOverrideIndicators())
 			installOverrideIndicator(false);
+
+		installPreprocessorConditionMatcher();
 	}
 
 	@Override
@@ -2615,6 +2617,20 @@ public class CEditor extends TextEditor
 
 		IRegion region = fBracketMatcher.match(document, sourceCaretOffset);
 		if (region == null) {
+			// Try matching start/end of #ifdef/#if/#endif
+			try {
+				int startLine = document.getLineOfOffset(sourceCaretOffset) + 1;
+				int match = fPreprocessorConditionMatcher.getMatch(startLine);
+				if (match != -1) {
+					int targetOffset = document.getLineOffset(match - 1);
+					//TODO: TEMP TEST
+					sourceViewer.setSelectedRange(targetOffset, 0);
+					sourceViewer.revealRange(targetOffset, 0);
+					return;
+				}
+			} catch (BadLocationException e) {
+			}
+
 			setStatusLineErrorMessage(CEditorMessages.GotoMatchingBracket_error_noMatchingBracket);
 			sourceViewer.getTextWidget().getDisplay().beep();
 			return;
@@ -2879,6 +2895,8 @@ public class CEditor extends TextEditor
 	private ISelectionListenerWithAST fPostSelectionListenerWithAST;
 
 	private OverrideIndicatorManager fOverrideIndicatorManager;
+
+	private PreprocessorConditionMatcher fPreprocessorConditionMatcher;
 
 	/**
 	 * Sets the outliner's context menu ID.
@@ -3577,6 +3595,13 @@ public class CEditor extends TextEditor
 		}
 	}
 
+	protected void uninstallPreprocessorConditionMatcher() {
+		if (fPreprocessorConditionMatcher != null) {
+			removeReconcileListener(fPreprocessorConditionMatcher);
+			fPreprocessorConditionMatcher = null;
+		}
+	}
+
 	/**
 	 * Determines whether the preference change encoded by the given event
 	 * changes the override indication.
@@ -3646,6 +3671,11 @@ public class CEditor extends TextEditor
 						return Status.OK_STATUS;
 					});
 		}
+	}
+
+	private void installPreprocessorConditionMatcher() {
+		fPreprocessorConditionMatcher = new PreprocessorConditionMatcher();
+		addReconcileListener(fPreprocessorConditionMatcher);
 	}
 
 	@Override
