@@ -2208,10 +2208,15 @@ public class PreferenceConstants {
 
 		int sourceHoverModifier = SWT.MOD2;
 		String sourceHoverModifierName = Action.findModifierString(sourceHoverModifier); // Shift
+		int activePreprocessorHoverModifier = SWT.MOD2 | SWT.MOD3;
+		String activePreprocessorHoverModifieName = Action.findModifierString(SWT.MOD2) + " + "
+				+ Action.findModifierString(SWT.MOD3); // Shift+Alt
 		store.setDefault(EDITOR_TEXT_HOVER_MODIFIERS,
-				"org.eclipse.cdt.ui.BestMatchHover;0;org.eclipse.cdt.ui.CSourceHover;" + sourceHoverModifierName); //$NON-NLS-1$
+				"org.eclipse.cdt.ui.BestMatchHover;0;org.eclipse.cdt.ui.CSourceHover;" + sourceHoverModifierName //$NON-NLS-1$
+						+ ";org.eclipse.cdt.ui.ActivePreprocessorConditionHover;" + activePreprocessorHoverModifieName);
 		store.setDefault(EDITOR_TEXT_HOVER_MODIFIER_MASKS,
-				"org.eclipse.cdt.ui.BestMatchHover;0;org.eclipse.cdt.ui.CSourceHover;" + sourceHoverModifier); //$NON-NLS-1$
+				"org.eclipse.cdt.ui.BestMatchHover;0;org.eclipse.cdt.ui.CSourceHover;" + sourceHoverModifier //$NON-NLS-1$
+						+ ";org.eclipse.cdt.ui.ActivePreprocessorConditionHover;" + activePreprocessorHoverModifier);
 
 		store.setDefault(EDITOR_SOURCE_HOVER_BACKGROUND_COLOR_SYSTEM_DEFAULT, true);
 

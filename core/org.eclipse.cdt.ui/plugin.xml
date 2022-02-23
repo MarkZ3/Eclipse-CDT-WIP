@@ -244,6 +244,12 @@
             id="org.eclipse.cdt.ui.CSourceHover">
       </hover>
       <hover
+            label="ZActive Preprocessor Condition"
+            description="Shows which preprocessor condition is active"
+            class="org.eclipse.cdt.internal.ui.text.c.hover.ActivePreprocessorConditionHover"
+            id="org.eclipse.cdt.ui.ActivePreprocessorConditionHover">
+      </hover>
+      <hover
             label="%macroExpansionHover"
             description="%macroExpansionHoverDescription"
             class="org.eclipse.cdt.internal.ui.text.c.hover.CMacroExpansionHover"
