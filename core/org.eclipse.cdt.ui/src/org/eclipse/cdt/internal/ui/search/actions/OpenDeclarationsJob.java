@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.IName;
@@ -46,8 +47,15 @@ import org.eclipse.cdt.core.dom.ast.IASTImplicitNameOwner;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNodeSelector;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorElifStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorElseStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorEndifStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorFunctionStyleMacroDefinition;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfdefStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfndefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IBinding;
@@ -350,6 +358,35 @@ class OpenDeclarationsJob extends Job implements ASTRunnable {
 				if (parName.equals(fSelectedText)) {
 					if (navigateToLocation(par.getFileLocation())) {
 						return Status.OK_STATUS;
+					}
+				}
+			}
+		} else if (node instanceof IASTPreprocessorEndifStatement || node instanceof IASTPreprocessorElifStatement
+				|| node instanceof IASTPreprocessorElseStatement) {
+			Stack<IASTPreprocessorStatement> activeConditions = new Stack<>();
+			for (IASTPreprocessorStatement stmt : ast.getAllPreprocessorStatements()) {
+				if (!stmt.isActive())
+					continue;
+
+				if (stmt == node) {
+					if (!activeConditions.empty()) {
+						navigateToLocation(activeConditions.pop().getFileLocation());
+					}
+					return Status.OK_STATUS;
+				}
+
+				if (stmt instanceof IASTPreprocessorIfdefStatement) {
+					IASTPreprocessorIfdefStatement ifdefStatement = (IASTPreprocessorIfdefStatement) stmt;
+					activeConditions.add(ifdefStatement);
+				} else if (stmt instanceof IASTPreprocessorIfndefStatement) {
+					IASTPreprocessorIfndefStatement ifdnefStatement = (IASTPreprocessorIfndefStatement) stmt;
+					activeConditions.add(ifdnefStatement);
+				} else if (stmt instanceof IASTPreprocessorIfStatement) {
+					IASTPreprocessorIfStatement ifStatement = (IASTPreprocessorIfStatement) stmt;
+					activeConditions.add(ifStatement);
+				} else if (stmt instanceof IASTPreprocessorEndifStatement) {
+					if (!activeConditions.empty()) {
+						activeConditions.pop();
 					}
 				}
 			}
