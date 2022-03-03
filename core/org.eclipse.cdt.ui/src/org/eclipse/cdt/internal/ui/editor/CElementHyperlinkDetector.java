@@ -21,6 +21,9 @@ import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNodeLocation;
 import org.eclipse.cdt.core.dom.ast.IASTNodeSelector;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorElifStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorElseStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorEndifStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IASTTypeId;
@@ -180,6 +183,11 @@ public class CElementHyperlinkDetector extends AbstractHyperlinkDetector {
 				// Search for include statement
 				final IASTNode cand = nodeSelector.findEnclosingNode(offset, length);
 				if (cand instanceof IASTPreprocessorIncludeStatement) {
+					return cand;
+				}
+
+				if (cand instanceof IASTPreprocessorEndifStatement || cand instanceof IASTPreprocessorElseStatement
+						|| cand instanceof IASTPreprocessorElifStatement) {
 					return cand;
 				}
 			}
