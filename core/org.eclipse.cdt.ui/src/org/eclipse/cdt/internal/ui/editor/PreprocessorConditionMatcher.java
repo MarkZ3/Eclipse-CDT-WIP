@@ -7,6 +7,7 @@ import java.util.Stack;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorEndifStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfdefStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfndefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.internal.ui.text.ICReconcilingListener;
@@ -31,16 +32,18 @@ public class PreprocessorConditionMatcher implements ICReconcilingListener {
 			return;
 
 		for (IASTPreprocessorStatement stmt : ast.getAllPreprocessorStatements()) {
+			if (!stmt.isActive())
+				continue;
+
 			if (stmt instanceof IASTPreprocessorIfdefStatement) {
 				IASTPreprocessorIfdefStatement ifdefStatement = (IASTPreprocessorIfdefStatement) stmt;
-				if (ifdefStatement.taken()) {
-					fStarts.add(ifdefStatement.getFileLocation().getStartingLineNumber());
-				}
+				fStarts.add(ifdefStatement.getFileLocation().getStartingLineNumber());
+			} else if (stmt instanceof IASTPreprocessorIfndefStatement) {
+				IASTPreprocessorIfndefStatement ifdefStatement = (IASTPreprocessorIfndefStatement) stmt;
+				fStarts.add(ifdefStatement.getFileLocation().getStartingLineNumber());
 			} else if (stmt instanceof IASTPreprocessorIfStatement) {
 				IASTPreprocessorIfStatement ifStatement = (IASTPreprocessorIfStatement) stmt;
-				if (ifStatement.taken()) {
-					fStarts.add(ifStatement.getFileLocation().getStartingLineNumber());
-				}
+				fStarts.add(ifStatement.getFileLocation().getStartingLineNumber());
 			} else if (stmt instanceof IASTPreprocessorEndifStatement) {
 				if (!fStarts.empty()) {
 					IASTPreprocessorEndifStatement endifStatement = (IASTPreprocessorEndifStatement) stmt;

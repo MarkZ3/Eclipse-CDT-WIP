@@ -5,6 +5,7 @@ import java.util.Stack;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorEndifStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfdefStatement;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIfndefStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.model.CModelException;
@@ -123,6 +124,9 @@ public class ActivePreprocessorConditionHover extends AbstractCEditorTextHover {
 			if (ast != null) {
 				Stack<String> activeConditions = new Stack<>();
 				for (IASTPreprocessorStatement stmt : ast.getAllPreprocessorStatements()) {
+					if (!stmt.isActive())
+						continue;
+
 					if (stmt.getFileLocation().getStartingLineNumber() > fHoverLineNum) {
 						if (!activeConditions.empty()) {
 							fSource = activeConditions.pop();
@@ -134,14 +138,13 @@ public class ActivePreprocessorConditionHover extends AbstractCEditorTextHover {
 
 					if (stmt instanceof IASTPreprocessorIfdefStatement) {
 						IASTPreprocessorIfdefStatement ifdefStatement = (IASTPreprocessorIfdefStatement) stmt;
-						if (ifdefStatement.taken()) {
-							activeConditions.add(new String(ifdefStatement.getCondition()));
-						}
+						activeConditions.add("#ifdef " + new String(ifdefStatement.getCondition())); //$NON-NLS-1$
+					} else if (stmt instanceof IASTPreprocessorIfndefStatement) {
+						IASTPreprocessorIfndefStatement ifndefStatement = (IASTPreprocessorIfndefStatement) stmt;
+						activeConditions.add("#ifndef " + new String(ifndefStatement.getCondition())); //$NON-NLS-1$
 					} else if (stmt instanceof IASTPreprocessorIfStatement) {
 						IASTPreprocessorIfStatement ifStatement = (IASTPreprocessorIfStatement) stmt;
-						if (ifStatement.taken()) {
-							activeConditions.add(new String(ifStatement.getCondition()));
-						}
+						activeConditions.add("#if " + new String(ifStatement.getCondition())); //$NON-NLS-1$
 					} else if (stmt instanceof IASTPreprocessorEndifStatement) {
 						if (!activeConditions.empty()) {
 							activeConditions.pop();
