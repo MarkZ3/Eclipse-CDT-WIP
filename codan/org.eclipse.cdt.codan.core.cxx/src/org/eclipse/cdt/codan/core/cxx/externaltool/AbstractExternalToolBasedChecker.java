@@ -32,6 +32,12 @@ import org.eclipse.cdt.core.ErrorParserManager;
 import org.eclipse.cdt.core.IConsoleParser;
 import org.eclipse.cdt.core.IMarkerGenerator;
 import org.eclipse.cdt.core.ProblemMarkerInfo;
+import org.eclipse.cdt.core.model.CoreModel;
+import org.eclipse.cdt.core.settings.model.ICConfigurationDescription;
+import org.eclipse.cdt.core.settings.model.ICProjectDescription;
+import org.eclipse.cdt.core.settings.model.ICProjectDescriptionManager;
+import org.eclipse.cdt.core.settings.model.ICSourceEntry;
+import org.eclipse.cdt.core.settings.model.util.CDataUtil;
 import org.eclipse.core.filesystem.URIUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -99,6 +105,10 @@ public abstract class AbstractExternalToolBasedChecker extends AbstractCheckerWi
 	}
 
 	private void process(IResource resource) {
+		if (isExcluded(resource)) {
+			return;
+		}
+
 		try {
 			InvocationParameters parameters = parametersProvider.createParameters(resource);
 			if (parameters != null) {
@@ -107,6 +117,21 @@ public abstract class AbstractExternalToolBasedChecker extends AbstractCheckerWi
 		} catch (Throwable error) {
 			logResourceProcessingFailure(error, resource);
 		}
+	}
+
+	private boolean isExcluded(IResource resource) {
+		ICProjectDescriptionManager mngr = CoreModel.getDefault().getProjectDescriptionManager();
+		ICProjectDescription projectDescription = mngr.getProjectDescription(resource.getProject(), false);
+		// The default behavior is now that the index active config (getDefaultSettingConfiguration) is
+		// the same as the build active config (getActiveConfiguration) so most of the time it doesn't matter which one we would use.
+		// If they are not the same then use the index active one because that's what most codan checkers will reflect.
+		ICConfigurationDescription cfgDescription = projectDescription.getDefaultSettingConfiguration();
+		cfgDescription.getSourceEntries();
+
+		ICSourceEntry[] sourceEntries = cfgDescription.getSourceEntries();
+		//TODO: Provide a UI setting for that
+		boolean excluded = CDataUtil.isExcluded(resource.getFullPath(), sourceEntries);
+		return excluded;
 	}
 
 	private void invokeExternalTool(InvocationParameters parameters) throws Throwable {
