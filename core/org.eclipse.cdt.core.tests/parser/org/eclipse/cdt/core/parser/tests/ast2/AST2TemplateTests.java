@@ -479,7 +479,7 @@ public class AST2TemplateTests extends AST2CPPTestBase {
 		assertInstance(fCall, IProblemBinding.class);
 
 		IProblemBinding fCallPB = (IProblemBinding) fCall;
-		assertEquals(IProblemBinding.SEMANTIC_NAME_NOT_FOUND, fCallPB.getID());
+		assertEquals(IProblemBinding.BINDING_INVALID_TEMPLATE_INSTANTIATION, fCallPB.getID());
 	}
 
 	// template < class T, template < class X > class U, T *pT > class A {
@@ -7417,7 +7417,7 @@ public class AST2TemplateTests extends AST2CPPTestBase {
 	public void testTemplatedAliasDeduction() throws Exception {
 		BindingAssertionHelper bh = getAssertionHelper();
 		bh.assertNonProblem("g(v)", "g", ICPPFunction.class);
-		bh.assertProblem("f(v)", "f", ISemanticProblem.BINDING_NOT_FOUND);
+		bh.assertProblem("f(v)", "f", ISemanticProblem.BINDING_INVALID_TEMPLATE_INSTANTIATION);
 	}
 
 	// using function = void (&)(int);
