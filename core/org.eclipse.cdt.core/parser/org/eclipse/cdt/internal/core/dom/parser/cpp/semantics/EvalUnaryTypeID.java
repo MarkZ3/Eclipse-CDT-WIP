@@ -41,11 +41,13 @@ import static org.eclipse.cdt.core.dom.ast.IASTTypeIdExpression.op_sizeofParamet
 import static org.eclipse.cdt.core.dom.ast.IASTTypeIdExpression.op_typeid;
 import static org.eclipse.cdt.core.dom.ast.IASTTypeIdExpression.op_typeof;
 
+import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
 import org.eclipse.cdt.core.dom.ast.IASTExpression.ValueCategory;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.IValue;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPParameterPackType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameterMap;
@@ -262,15 +264,19 @@ public class EvalUnaryTypeID extends CPPDependentEvaluation {
 					return this;
 				}
 				int concreteArgCount = 0;
-				boolean havePackExpansion = false;
+				int packExpansionCount = 0;
 				for (ICPPTemplateArgument arg : args) {
 					if (arg.isPackExpansion()) {
-						havePackExpansion = true;
+						packExpansionCount++;
 					} else {
 						concreteArgCount++;
 					}
 				}
-				if (havePackExpansion) {
+				if (packExpansionCount > 0) {
+
+					if (args.length == 1)
+						return instantiateBySubstitution(context);
+
 					// TODO(bug 530103):
 					//   This will only handle correctly the case where there is a single argument
 					//   which is a pack expansion, and no concrete arguments.
@@ -282,7 +288,33 @@ public class EvalUnaryTypeID extends CPPDependentEvaluation {
 					//       sizeof...(P).
 					//     - Construct an EvalBinary tree representing the sum of |concreteArgCount|
 					//       and the EvalUnaryTypeIds from the previous step.
-					return instantiateBySubstitution(context);
+
+					//TODO: malaperle: I implemented something that kind-of does what the comment
+					//above suggest but I don't know what I'm doing and it might not cover all cases (hence the many instanceof checks).
+					ICPPEvaluation packEval = null;
+					for (ICPPTemplateArgument arg : args) {
+						if (arg.isPackExpansion()) {
+							if (arg.getTypeValue() instanceof ICPPParameterPackType) {
+								ICPPParameterPackType parameterPackType = (ICPPParameterPackType) arg.getTypeValue();
+								IType type = parameterPackType.getType();
+								if (type instanceof ICPPTemplateParameter)
+									packEval = new EvalUnaryTypeID(fOperator, type, getTemplateDefinition());
+
+							}
+						}
+					}
+
+					// TODO: can we really get here?
+					if (packEval == null)
+						return instantiateBySubstitution(context);
+
+					// For sizeof(...(T)), T={U..., U...}
+					ICPPEvaluation multiPackCountEval = new EvalBinary(IASTBinaryExpression.op_multiply, packEval,
+							new EvalFixed(getType(), getValueCategory(), IntegralValue.create(packExpansionCount)),
+							pack);
+
+					return new EvalBinary(IASTBinaryExpression.op_plus, multiPackCountEval,
+							new EvalFixed(getType(), getValueCategory(), IntegralValue.create(concreteArgCount)), pack);
 				} else {
 					return new EvalFixed(getType(), getValueCategory(), IntegralValue.create(concreteArgCount));
 				}
