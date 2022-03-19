@@ -227,9 +227,15 @@ public class CPPTemplateParameterMap implements ICPPTemplateParameterMap {
 				if (obj instanceof ICPPTemplateArgument) {
 					appendArg(sb, key, (ICPPTemplateArgument) obj);
 				} else if (obj instanceof ICPPTemplateArgument[]) {
-					for (ICPPTemplateArgument arg : (ICPPTemplateArgument[]) obj) {
-						appendArg(sb, key, arg);
+					sb.append("["); //$NON-NLS-1$
+					ICPPTemplateArgument[] args = (ICPPTemplateArgument[]) obj;
+					for (int j = 0; j < args.length; j++) {
+						if (j != 0) {
+							sb.append(", "); //$NON-NLS-1$
+						}
+						appendArg(sb, key, args[j]);
 					}
+					sb.append("]"); //$NON-NLS-1$
 				}
 			}
 		}
@@ -240,7 +246,7 @@ public class CPPTemplateParameterMap implements ICPPTemplateParameterMap {
 	private void appendArg(StringBuilder sb, Integer key, ICPPTemplateArgument value) {
 		sb.append('#');
 		sb.append(key >> 16);
-		sb.append(',');
+		sb.append("->"); //$NON-NLS-1$
 		sb.append(key & 0xffff);
 		sb.append(": "); //$NON-NLS-1$
 		sb.append(ASTTypeUtil.getArgumentString(value, true));
