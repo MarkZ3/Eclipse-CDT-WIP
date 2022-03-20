@@ -9298,6 +9298,28 @@ public class AST2TemplateTests extends AST2CPPTestBase {
 	//		parseAndCheckBindings();
 	//	}
 
+	//	template <int> struct foo;
+	//	template <> struct foo<0> { typedef int type; };
+	//
+	//	template <typename V, typename... T>
+	//	using myalias = typename foo<sizeof...(T)>::type;
+	//
+	//	template <typename... U>
+	//	struct caller {
+	//	    typedef myalias<int, U...> type;
+	//	};
+	//
+	//	template<typename caller<>::type = 4321>
+	//	void function() {
+	//	}
+	//
+	//	int main() {
+	//	  function<1234>();
+	//	}
+	public void testSizeofParameterPack_574196_6() throws Exception {
+		parseAndCheckBindings();
+	}
+
 	//	template <int, class>
 	//	struct A {};
 	//
