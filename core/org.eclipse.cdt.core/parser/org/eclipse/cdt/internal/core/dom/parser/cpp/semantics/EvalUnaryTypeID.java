@@ -279,10 +279,6 @@ public class EvalUnaryTypeID extends CPPDependentEvaluation {
 					}
 				}
 				if (packExpansionCount > 0) {
-
-					if (args.length == 1)
-						return instantiateBySubstitution(context);
-
 					// TODO(bug 530103):
 					//   This will only handle correctly the case where there is a single argument
 					//   which is a pack expansion, and no concrete arguments.
