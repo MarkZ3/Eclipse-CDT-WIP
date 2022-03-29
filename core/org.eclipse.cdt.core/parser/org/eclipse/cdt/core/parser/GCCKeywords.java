@@ -104,4 +104,6 @@ public class GCCKeywords {
 	 * @since 7.1
 	 */
 	public static final char[] cp__is_same = "__is_same".toCharArray(), cp__is_same_as = "__is_same_as".toCharArray();
+
+	public static final char[] cp__is_function = "__is_function".toCharArray();
 }

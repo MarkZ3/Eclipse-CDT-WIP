@@ -101,4 +101,6 @@ public interface IGCCToken extends IToken {
 	 * @since 7.1
 	 */
 	int tTT_is_same = FIRST_RESERVED_IGCCToken + 37;
+
+	int tTT_is_function = FIRST_RESERVED_IGCCToken + 38;
 }

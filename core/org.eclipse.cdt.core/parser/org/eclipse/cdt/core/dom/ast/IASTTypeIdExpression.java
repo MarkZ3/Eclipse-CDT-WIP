@@ -168,6 +168,12 @@ public interface IASTTypeIdExpression extends IASTExpression {
 	public static final int op_is_trivially_copyable = 24;
 
 	/**
+	 * Built-in type trait of Clang.
+	 * @since 6.0
+	 */
+	public static final int op_is_function = 25;
+
+	/**
 	 * Returns the operator for the expression.
 	 *
 	 * @return int
