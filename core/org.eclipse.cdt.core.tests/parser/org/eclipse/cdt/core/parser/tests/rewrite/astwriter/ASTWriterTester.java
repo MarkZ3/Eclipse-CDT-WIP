@@ -97,7 +97,7 @@ public abstract class ASTWriterTester extends RewriteBaseTest {
 
 		ParserLanguage language = getLanguage(testFile);
 		ScannerKind scannerKind = getScannerKind(testFile);
-		ScannerInfo scannerInfo = AST2TestBase.createScannerInfo(scannerKind);
+		ScannerInfo scannerInfo = AST2TestBase.createScannerInfo2(scannerKind);
 
 		IScanner scanner = AST2TestBase.createScanner(codeReader, language, ParserMode.COMPLETE_PARSE, scannerInfo);
 

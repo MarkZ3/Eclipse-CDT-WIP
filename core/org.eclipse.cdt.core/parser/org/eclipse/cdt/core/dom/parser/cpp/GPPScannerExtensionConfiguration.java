@@ -246,7 +246,7 @@ public class GPPScannerExtensionConfiguration extends GNUScannerExtensionConfigu
 			addKeyword(GCCKeywords.cp__is_enum, IGCCToken.tTT_is_enum);
 			addKeyword(GCCKeywords.cp__is_final, IGCCToken.tTT_is_final);
 			// __is_floating_point
-			// __is_function
+			addKeyword(GCCKeywords.cp__is_function, IGCCToken.tTT_is_function);
 			// __is_fundamental
 			// __is_integral
 			// __is_interface_class

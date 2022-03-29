@@ -237,7 +237,8 @@ public abstract class AST2TestBase extends SemanticTestBase {
 		return tu;
 	}
 
-	public static ScannerInfo createScannerInfo(ScannerKind scannerKind) {
+	//TODO: malaperle: hack
+	public static ScannerInfo createScannerInfo2(ScannerKind scannerKind) {
 		switch (scannerKind) {
 		case GNU:
 			return GNU_SCANNER_INFO;
@@ -247,6 +248,10 @@ public abstract class AST2TestBase extends SemanticTestBase {
 		default:
 			return SCANNER_INFO;
 		}
+	}
+
+	public ScannerInfo createScannerInfo(ScannerKind scannerKind) {
+		return createScannerInfo2(scannerKind);
 	}
 
 	protected void configureScanner(IScanner scanner) {
